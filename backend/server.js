@@ -5,6 +5,8 @@ const cors = require('cors');
 const compression = require('compression');
 const morgan = require('morgan');
 const fs = require('fs');
+const path = require('path');
+
 
 const app = express();
 
@@ -32,7 +34,7 @@ app.use(helmet({
 // CORS: Allow only trusted origins
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',');
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -110,3 +112,20 @@ app.listen(PORT, process.env.HOST || 'localhost', () => {
 });
 
 module.exports = app;
+
+// Static files - Audio
+app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
+
+// Audio streaming endpoint
+app.get('/api/audio/:filename', (req, res) => {
+  const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, '');
+  const filepath = path.join(__dirname, 'public/audio', filename);
+
+  if (!fs.existsSync(filepath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.sendFile(filepath);
+});
