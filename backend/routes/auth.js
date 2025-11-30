@@ -7,6 +7,23 @@ const { pool } = require('../server');
 const router = express.Router();
 
 // ============================================================================
+// 🔐 MIDDLEWARE: Verify JWT (EXPORTIERT als Funktion!)
+// ============================================================================
+
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(403).json({ error: 'Invalid token' });
+  }
+};
+
+// ============================================================================
 // 📝 REGISTER
 // ============================================================================
 
@@ -29,22 +46,27 @@ router.post('/register', [
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS));
+    // Hash password - FIX: Nutze default BCRYPT_ROUNDS wenn nicht in .env
+    const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '10');
+    const hashedPassword = await bcrypt.hash(password, bcryptRounds);
 
     // Insert user
     const result = await pool.query(
-      'INSERT INTO users (email, username, password_hash, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, email, username',
-      [email, username, hashedPassword]
+      'INSERT INTO users (email, username, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, email, username, role',
+      [email, username, hashedPassword, 'user']
     );
 
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
 
-    res.status(201).json({ message: 'User registered', user, token });
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: { id: user.id, email: user.email, username: user.username },
+      token
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Register error:', err);
+    res.status(500).json({ error: 'Server error during registration' });
   }
 });
 
@@ -64,7 +86,11 @@ router.post('/login', [
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT id, password_hash, username FROM users WHERE email = $1', [email]);
+    const result = await pool.query(
+      'SELECT id, password_hash, username, role FROM users WHERE email = $1 AND is_active = TRUE',
+      [email]
+    );
+
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -76,29 +102,38 @@ router.post('/login', [
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-    res.json({ message: 'Login successful', user: { id: user.id, username: user.username }, token });
+    // Update last_login
+    await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+
+    res.json({
+      message: 'Login successful',
+      user: { id: user.id, username: user.username, role: user.role },
+      token
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Login error:', err);
+    res.status(500).json({ error: 'Server error during login' });
   }
 });
 
 // ============================================================================
-// 🔐 MIDDLEWARE: Verify JWT
+// 🔄 REFRESH TOKEN (für später)
 // ============================================================================
 
-router.verifyToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
+router.post('/refresh-token', verifyToken, (req, res) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
+    const token = jwt.sign(
+      { id: req.user.id, role: req.user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
+    res.json({ token });
   } catch (err) {
-    res.status(403).json({ error: 'Invalid token' });
+    res.status(500).json({ error: 'Failed to refresh token' });
   }
-};
+});
 
 module.exports = router;
+module.exports.verifyToken = verifyToken;
