@@ -5,6 +5,15 @@ const auth = require('./auth');
 
 const router = express.Router();
 
+// 🔒 GET /api/payments/config - PayPal Config für Frontend
+router.get('/config', (req, res) => {
+  res.json({
+    paypal_client_id: process.env.PAYPAL_CLIENT_ID,
+    paypal_mode: process.env.PAYPAL_MODE || 'sandbox',
+  });
+});
+
+
 // Paypal Client Setup
 const checkoutNodeJssdk = require('@paypal/checkout-server-sdk');
 

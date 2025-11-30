@@ -9,7 +9,6 @@
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
     rel="stylesheet">
-  <script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=EUR"></script>
   <style>
     * {
       margin: 0;
@@ -147,7 +146,6 @@
       letter-spacing: 1px;
     }
 
-    /* AUTH SECTION */
     .auth-section {
       background: rgba(15, 21, 39, 0.6);
       border: 1px solid var(--accent-teal);
@@ -224,7 +222,6 @@
       background: rgba(0, 204, 119, 0.1);
     }
 
-    /* USER SECTION */
     .user-section {
       background: rgba(15, 21, 39, 0.6);
       border: 1px solid var(--accent-teal);
@@ -267,7 +264,6 @@
       font-family: 'Orbitron', monospace;
     }
 
-    /* PAYMENT SECTION */
     .payment-section {
       background: rgba(15, 21, 39, 0.6);
       border: 2px solid var(--accent-pink);
@@ -504,9 +500,6 @@
         <span style="color: var(--text-secondary); font-size: 0.75rem; min-width: 35px; text-align: right;"
           id="currentTime">0:00</span>
         <span style="color: var(--text-secondary); font-size: 0.75rem; min-width: 35px;" id="totalTime">0:00</span>
-        <audio id="audio-spell" style="display:none;">
-          <source src="/backend/public/audio/THE SPELL.mp3" type="audio/mpeg">
-        </audio>
       </div>
     </div>
 
@@ -532,8 +525,6 @@
         Payments: Paypal</p>
     </footer>
   </div>
-
-
 
   <script>
     "use strict";
@@ -668,17 +659,32 @@
     // 💰 PAYPAL CHECKOUT
     // ========================================================================
 
-    async function showPayment() {
-      if (!token) {
-        showAuthStatus('Please login first!', 'error');
-        setTimeout(() => {
-          document.getElementById('authStatus').style.display = 'none';
-        }, 3000);
+    async function loadPayPalSDK() {
+      try {
+        showPaymentStatus('Loading PayPal...', 'loading');
+        const config = await APIClient.get('/payments/config');
+
+        const script = document.createElement('script');
+        script.src = `https://www.paypal.com/sdk/js?client-id=${config.paypal_client_id}&currency=EUR`;
+        script.async = true;
+        script.onload = () => {
+          console.log('✅ PayPal SDK loaded');
+          renderPayPalButton();
+        };
+        script.onerror = () => {
+          showPaymentStatus('Failed to load PayPal SDK', 'error');
+        };
+        document.head.appendChild(script);
+      } catch (err) {
+        showPaymentStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    function renderPayPalButton() {
+      if (!window.paypal) {
+        showPaymentStatus('PayPal SDK not ready', 'error');
         return;
       }
-
-      document.getElementById('paymentSection').style.display = 'block';
-      document.getElementById('buyButton').style.display = 'none';
 
       paypal.Buttons({
         createOrder: async (data, actions) => {
@@ -709,6 +715,21 @@
       }).render('#paypal-container');
     }
 
+    async function showPayment() {
+      if (!token) {
+        showAuthStatus('Please login first!', 'error');
+        setTimeout(() => {
+          document.getElementById('authStatus').style.display = 'none';
+        }, 3000);
+        return;
+      }
+
+      document.getElementById('paymentSection').style.display = 'block';
+      document.getElementById('buyButton').style.display = 'none';
+
+      await loadPayPalSDK();
+    }
+
     function showPaymentStatus(message, type) {
       const el = document.getElementById('paymentStatus');
       el.textContent = message;
@@ -716,11 +737,36 @@
     }
 
     // ========================================================================
-    // 🎵 AUDIO PLAYER
+    // 🎵 AUDIO PLAYER (Web Audio API - CORS-frei!)
     // ========================================================================
 
-    const audio = document.getElementById('audio-spell');
     const playBtn = document.getElementById('playBtn');
+    let audioContext = null;
+    let audioBuffer = null;
+    let audioSource = null;
+    let isPlaying = false;
+    let currentTime = 0;
+    let duration = 0;
+    let startTime = 0;
+
+    async function initAudio() {
+      if (audioBuffer) return;
+
+      try {
+        const response = await fetch('http://localhost:3000/public/audio/THE%20SPELL.mp3');
+        const arrayBuffer = await response.arrayBuffer();
+
+        audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        duration = audioBuffer.duration;
+
+        document.getElementById('totalTime').textContent = formatTime(duration);
+        console.log('✅ Audio loaded:', duration, 'seconds');
+      } catch (err) {
+        console.error('❌ Audio load error:', err);
+        alert('Error loading audio: ' + err.message);
+      }
+    }
 
     function formatTime(seconds) {
       if (isNaN(seconds)) return '0:00';
@@ -730,30 +776,72 @@
     }
 
     function togglePlay() {
-      if (audio.paused) {
-        audio.play();
-        playBtn.textContent = '⏸️';
-      } else {
-        audio.pause();
-        playBtn.textContent = '▶️';
+      if (!audioBuffer) {
+        initAudio();
+        return;
       }
+
+      if (isPlaying) {
+        if (audioSource) {
+          audioSource.stop();
+          audioSource.disconnect();
+        }
+        isPlaying = false;
+        playBtn.textContent = '▶️';
+      } else {
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        audioSource.connect(audioContext.destination);
+        audioSource.start(0, currentTime);
+        startTime = audioContext.currentTime - currentTime;
+        isPlaying = true;
+        playBtn.textContent = '⏸️';
+
+        updateProgress();
+      }
+    }
+
+    function updateProgress() {
+      if (!isPlaying) return;
+
+      currentTime = audioContext.currentTime - startTime;
+
+      if (currentTime >= duration) {
+        audioSource.stop();
+        isPlaying = false;
+        playBtn.textContent = '▶️';
+        currentTime = 0;
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('currentTime').textContent = '0:00';
+        return;
+      }
+
+      const percentage = (currentTime / duration) * 100;
+      document.getElementById('progressFill').style.width = percentage + '%';
+      document.getElementById('currentTime').textContent = formatTime(currentTime);
+
+      requestAnimationFrame(updateProgress);
     }
 
     function seek(event) {
       const rect = event.currentTarget.getBoundingClientRect();
       const percent = (event.clientX - rect.left) / rect.width;
-      audio.currentTime = percent * audio.duration;
+      currentTime = percent * duration;
+      document.getElementById('progressFill').style.width = (percent * 100) + '%';
+      document.getElementById('currentTime').textContent = formatTime(currentTime);
+
+      if (isPlaying) {
+        audioSource.stop();
+        audioSource.disconnect();
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        audioSource.connect(audioContext.destination);
+        audioSource.start(0, currentTime);
+        startTime = audioContext.currentTime - currentTime;
+      }
     }
 
-    audio.addEventListener('timeupdate', () => {
-      const percentage = (audio.currentTime / audio.duration) * 100;
-      document.getElementById('progressFill').style.width = percentage + '%';
-      document.getElementById('currentTime').textContent = formatTime(audio.currentTime);
-    });
-
-    audio.addEventListener('loadedmetadata', () => {
-      document.getElementById('totalTime').textContent = formatTime(audio.duration);
-    });
+    window.addEventListener('load', initAudio);
 
     // ========================================================================
     // 🎨 THEME
@@ -767,7 +855,6 @@
       localStorage.setItem('nexus-theme', newTheme);
     }
 
-    // Init
     (function () {
       const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
