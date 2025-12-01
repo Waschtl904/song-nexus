@@ -14,7 +14,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { search, genre, limit = 50, offset = 0, sort = 'name' } = req.query;
-    let query = 'SELECT id, name, artist, genre, description, price_eur, play_count, is_free FROM tracks WHERE is_published = TRUE';
+    let query = 'SELECT id, name, artist, genre, description, price_eur, play_count, is_free, audio_filename FROM tracks WHERE is_published = TRUE';
     const params = [];
 
     // Search Filter
@@ -131,13 +131,13 @@ router.post('/', verifyToken, [
 });
 
 // ============================================================================
-// 🔊 GET /api/tracks/audio/:filename - Audio Streaming (Range Support)
+// 🔊 GET /api/tracks/audio/:filename - Audio Streaming (Range Support) - FIXED CORS
 // ============================================================================
 
 router.get('/audio/:filename', (req, res) => {
   try {
     // Sanitize filename - verhindert Path Traversal!
-    const filename = req.params.filename.replace(/[^a-zA-Z0-9._\s-]/g, '');
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9._ \-]/g, '');
 
     if (!filename) {
       return res.status(400).json({ error: 'Invalid filename' });
@@ -155,7 +155,8 @@ router.get('/audio/:filename', (req, res) => {
     const stat = fs.statSync(filepath);
     const filesize = stat.size;
 
-    // ✅ CORS HEADERS
+    // ✅ KRITISCHE CORS HEADERS - MUSS VOR ALLEM ANDEREN SEIN!
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');

@@ -56,30 +56,76 @@ const Tracks = {
     const isPurchased = userPurchases.some(p => p.track_id === track.id);
     const isFree = track.is_free === true;
 
+    // Audio Player HTML (nur für Free/Purchased)
+    const audioPlayerHTML = isFree || isPurchased ? `
+      <div style="margin: 16px 0; background: rgba(0, 204, 119, 0.05); border: 1px solid rgba(0, 204, 119, 0.15); border-radius: 4px; padding: 14px;">
+        <div style="color: var(--accent-teal); font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">🎚️ AUDIO PLAYER</div>
+        
+        <!-- Waveform -->
+        <div style="margin-bottom: 12px; padding: 8px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 4px; height: 80px; overflow: hidden;">
+          <canvas id="modalWaveform" style="width: 100%; height: 100%;"></canvas>
+        </div>
+
+        <!-- Time Display -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 6px 8px; background: rgba(0, 224, 255, 0.05); border: 1px solid rgba(0, 224, 255, 0.2); border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 11px;">
+          <span id="modalCurrentTime" style="color: var(--text-primary); font-weight: bold;">0:00</span>
+          <span style="color: var(--text-secondary);">/</span>
+          <span id="modalDuration" style="color: var(--text-secondary);">0:00</span>
+        </div>
+
+        <!-- Seek Bar -->
+        <input 
+          type="range" 
+          id="modalSeekBar" 
+          min="0" 
+          max="100" 
+          value="0"
+          style="width: 100%; height: 6px; margin-bottom: 10px; background: linear-gradient(90deg, rgba(0, 204, 119, 0.3) 0%, rgba(0, 204, 119, 0.3) 100%); border-radius: 3px; outline: none; cursor: pointer; accent-color: var(--accent-teal);"
+          onchange="AudioPlayer.setTime(this.value / 100 * AudioPlayer.state.duration)"
+        />
+
+        <!-- Controls -->
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button class="button" id="modalPlayBtn" onclick="Player.togglePlayTrack()" style="flex: 1; padding: 8px 12px; font-size: 0.85rem;">▶️ PLAY</button>
+          <button class="button" id="modalPauseBtn" onclick="AudioPlayer.pause()" style="display: none; flex: 1; padding: 8px 12px; font-size: 0.85rem;">⏸ PAUSE</button>
+          <button class="button" onclick="AudioPlayer.stop()" style="flex: 1; padding: 8px 12px; font-size: 0.85rem;">⏹ STOP</button>
+          <button class="button" id="modalLoopBtn" onclick="AudioPlayer.toggleLoop()" style="flex: 1; padding: 8px 12px; font-size: 0.85rem;">🔄 LOOP</button>
+          
+          <!-- Volume -->
+          <div style="display: flex; align-items: center; gap: 6px; margin-left: auto;">
+            <span style="font-size: 14px;">🔊</span>
+            <input 
+              type="range" 
+              id="modalVolumeSlider" 
+              min="0" 
+              max="100" 
+              value="80"
+              style="width: 60px; height: 4px; background: linear-gradient(90deg, rgba(0, 204, 119, 0.3) 0%, rgba(0, 204, 119, 0.3) 100%); border-radius: 2px; outline: none; cursor: pointer; accent-color: var(--accent-teal);"
+              onchange="AudioPlayer.setVolume(this.value)"
+            />
+          </div>
+        </div>
+      </div>
+    ` : '';
+
     let actionButtonHTML = '';
 
     if (isFree) {
-      // FREE TRACK: Play & Download
+      // FREE TRACK: Download Button
       actionButtonHTML = `
-        <button class="button" id="modalPlayBtn" onclick="Player.togglePlayTrack()" style="flex: 1;">
-          ▶️ PLAY NOW
-        </button>
         <button class="button" id="modalDownloadBtn" onclick="Tracks.downloadTrack()" style="flex: 1;">
           ⬇️ DOWNLOAD
         </button>
       `;
     } else if (isPurchased) {
-      // PURCHASED: Play & Download
+      // PURCHASED: Download Button
       actionButtonHTML = `
-        <button class="button" id="modalPlayBtn" onclick="Player.togglePlayTrack()" style="flex: 1;">
-          ▶️ PLAY NOW
-        </button>
         <button class="button" id="modalDownloadBtn" onclick="Tracks.downloadTrack()" style="flex: 1;">
           ⬇️ DOWNLOAD
         </button>
       `;
     } else {
-      // NOT OWNED: Buy
+      // NOT OWNED: Buy Button
       actionButtonHTML = `
         <button class="button" id="modalBuyBtn" onclick="Tracks.buyTrack()" style="flex: 1;">
           💳 BUY TRACK
@@ -106,13 +152,7 @@ const Tracks = {
         </p>
       </div>
 
-      <div class="audio-player" id="audioPlayer" style="display: ${isFree || isPurchased ? 'flex' : 'none'};">
-        <button class="play-btn" id="modalPlayBtn" onclick="Player.togglePlayTrack()">▶️</button>
-        <div style="flex: 1;">
-          <div style="color: var(--accent-teal); font-weight: 600; font-size: 0.9rem;">${UI.escapeHtml(track.name)}.mp3</div>
-          <div style="color: var(--text-secondary); font-size: 0.75rem;">PREVIEW • 320K • NO ADS • NO TRACKING</div>
-        </div>
-      </div>
+      ${audioPlayerHTML}
 
       <div id="purchaseStatus" style="margin: 16px 0;"></div>
 
@@ -127,6 +167,7 @@ const Tracks = {
   },
 
   closeModal() {
+    AudioPlayer.stop();
     UI.closeModal('trackModal');
     currentModalTrack = null;
   },
@@ -155,18 +196,49 @@ const Tracks = {
   downloadTrack() {
     if (!currentModalTrack) return;
 
-    const trackName = UI.escapeHtml(currentModalTrack.name);
-    const downloadLink = `http://localhost:3000/api/tracks/audio/${encodeURIComponent(trackName)}.mp3`;
+    try {
+      // ✅ RICHTIG: Nutze audio_filename statt track name!
+      const audioFilename = currentModalTrack.audio_filename;
 
-    // Direkt downloaden (nicht öffnen)
-    const a = document.createElement('a');
-    a.href = downloadLink;
-    a.download = `${trackName}.mp3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      if (!audioFilename) {
+        console.error('❌ No audio filename found');
+        return;
+      }
 
-    console.log('📥 Download started:', trackName);
+      const downloadLink = `http://localhost:3000/api/tracks/audio/${audioFilename}`;
+
+      // Force Download mit content-disposition
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', downloadLink, true);
+      xhr.responseType = 'blob';
+
+      xhr.onload = function () {
+        if (xhr.status === 200) {
+          // Erstelle Blob und Download Link
+          const blob = xhr.response;
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${currentModalTrack.name}.mp3`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          console.log('✅ Download started:', currentModalTrack.name);
+        } else {
+          console.error('❌ Download failed:', xhr.status);
+        }
+      };
+
+      xhr.onerror = function () {
+        console.error('❌ Download error:', xhr.statusText);
+      };
+
+      xhr.send();
+    } catch (err) {
+      console.error('❌ Download error:', err);
+    }
   }
 };
 
