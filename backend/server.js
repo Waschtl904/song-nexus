@@ -55,8 +55,6 @@ app.use(helmet({
   xssFilter: true,
 }));
 
-// CORS: Allow only trusted origins
-const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
 // CORS: Allow frontend
 app.use(cors({
   origin: [
@@ -69,7 +67,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 }));
-
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
@@ -132,6 +129,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/tracks', require('./routes/tracks'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/play-history', require('./routes/play-history'));
 
 // ============================================================================
 // 🎵 DIRECT AUDIO STREAMING (Static Files mit CORS)
