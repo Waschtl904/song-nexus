@@ -177,3 +177,4 @@ app.listen(PORT, HOST, () => {
 });
 
 module.exports = app;
+module.exports.pool = pool;

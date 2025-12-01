@@ -31,3 +31,15 @@
 ::1 - - [30/Nov/2025:08:27:30 +0000] "GET /public/audio/THE%20SPELL.mp3 HTTP/1.1" 404 167 - 3.742 ms
 ::1 - - [30/Nov/2025:08:36:20 +0000] "GET /public/audio/THE%20SPELL.mp3 HTTP/1.1" 404 167 - 13.258 ms
 ::1 - - [30/Nov/2025:08:50:21 +0000] "GET /public/audio/THE%20SPELL.mp3 HTTP/1.1" 200 7164909 - 49.270 ms
+::1 - - [30/Nov/2025:17:20:13 +0000] "POST /api/auth/register HTTP/1.1" 201 278 - 318.609 ms
+::1 - - [01/Dec/2025:06:13:11 +0000] "POST /api/auth/register HTTP/1.1" 201 274 - 298.803 ms
+::1 - - [01/Dec/2025:06:14:27 +0000] "GET /api/tracks HTTP/1.1" 200 2 - 99.055 ms
+::1 - - [01/Dec/2025:06:19:54 +0000] "GET /api/users/profile HTTP/1.1" 200 146 - 113.437 ms
+::1 - - [01/Dec/2025:06:19:54 +0000] "GET /api/users/stats HTTP/1.1" 200 115 - 34.390 ms
+::1 - - [01/Dec/2025:06:19:55 +0000] "GET /api/users/purchases HTTP/1.1" 200 2 - 12.761 ms
+::1 - - [01/Dec/2025:06:19:55 +0000] "GET /api/users/play-history HTTP/1.1" 200 2 - 13.496 ms
+::1 - - [01/Dec/2025:06:19:55 +0000] "POST /api/users/track-play HTTP/1.1" 404 27 - 2.563 ms
+::1 - - [01/Dec/2025:06:19:56 +0000] "GET /api/payments/config HTTP/1.1" 200 127 - 0.443 ms
+::1 - - [01/Dec/2025:06:19:56 +0000] "GET /public/audio/THE_SPELL.mp3 HTTP/1.1" 404 165 - 4.496 ms
+::1 - - [01/Dec/2025:06:31:41 +0000] "POST /api/users/track-play HTTP/1.1" 404 27 - 98.243 ms
+::1 - - [01/Dec/2025:06:36:14 +0000] "POST /api/users/track-play HTTP/1.1" 404 27 - 94.751 ms
