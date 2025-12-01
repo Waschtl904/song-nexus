@@ -14,7 +14,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { search, genre, limit = 50, offset = 0, sort = 'name' } = req.query;
-    let query = 'SELECT id, name, artist, genre, description, price_eur, play_count FROM tracks WHERE is_published = TRUE';
+    let query = 'SELECT id, name, artist, genre, description, price_eur, play_count, is_free FROM tracks WHERE is_published = TRUE';
     const params = [];
 
     // Search Filter

@@ -57,15 +57,19 @@ app.use(helmet({
 
 // CORS: Allow only trusted origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
-
+// CORS: Allow frontend
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: false,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
-  exposedHeaders: ['Content-Range', 'Content-Length', 'Accept-Ranges', 'Content-Type'],
-  maxAge: 86400,
+  origin: [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
 }));
+
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
