@@ -54,6 +54,7 @@ async function showUserDashboard() {
     UI.showAuthSection(false);
     UI.showUserSection(true);
     UI.showTrackBrowser(true);
+    showControlsSection(true);
   } catch (err) {
     console.error('Dashboard load error:', err);
   }
@@ -75,14 +76,14 @@ async function loadPlayHistory() {
       const playedDate = new Date(item.played_at || Date.now()).toLocaleDateString();
 
       return `
-            <div class="history-item">
-              <div>
-                <div class="history-track">🎵 ${UI.escapeHtml(trackName)}</div>
-                <div class="history-time">${UI.escapeHtml(artistName)}</div>
-              </div>
-              <div class="history-time">${playedDate}</div>
-            </div>
-          `;
+        <div class="history-item">
+          <div>
+            <div class="history-track">🎵 ${UI.escapeHtml(trackName)}</div>
+            <div class="history-time">${UI.escapeHtml(artistName)}</div>
+          </div>
+          <div class="history-time">${playedDate}</div>
+        </div>
+      `;
     }).join('');
   } catch (err) {
     console.error('Play history error:', err);
@@ -110,17 +111,17 @@ async function loadPurchaseHistory() {
       const purchaseDate = new Date(item.purchase_date || Date.now()).toLocaleDateString();
 
       return `
-            <div class="history-item">
-              <div>
-                <div class="history-track">💿 ${UI.escapeHtml(trackName)}</div>
-                <div class="history-time">${UI.escapeHtml(artistName)}</div>
-              </div>
-              <div style="text-align: right;">
-                <div style="color: var(--accent-pink); font-weight: 700;">€${price}</div>
-                <div class="history-time">${purchaseDate}</div>
-              </div>
-            </div>
-          `;
+        <div class="history-item">
+          <div>
+            <div class="history-track">💿 ${UI.escapeHtml(trackName)}</div>
+            <div class="history-time">${UI.escapeHtml(artistName)}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: var(--accent-pink); font-weight: 700;">€${price}</div>
+            <div class="history-time">${purchaseDate}</div>
+          </div>
+        </div>
+      `;
     }).join('');
   } catch (err) {
     console.error('Purchase history error:', err);
@@ -144,6 +145,17 @@ function initAudioPlayer() {
   AudioPlayer.init();
   AudioPlayer.setupKeyboardShortcuts();
   console.log('🎚️ Audio Player initialized & ready');
+}
+
+// ========================================================================
+// 🗑️ CONTROLS SECTION
+// ========================================================================
+
+function showControlsSection(show = true) {
+  const el = document.getElementById('controlsSection');
+  if (el) {
+    el.style.display = show ? 'block' : 'none';
+  }
 }
 
 // ========================================================================
@@ -259,6 +271,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('trackModal');
   if (modal) {
     modal.innerHTML = '<div class="modal-content"></div>';
+  }
+
+  // ========================================================================
+  // 🗑️ RESET HISTORY BUTTON EVENT LISTENER
+  // ========================================================================
+  const resetBtn = document.getElementById('resetHistoryBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      console.log('✨ Reset History Button clicked');
+      UI.showResetHistoryModal();
+    });
   }
 
   // Start dev mode or wait for token
