@@ -9,39 +9,6 @@ const { verifyToken } = require('./auth');
 const router = express.Router();
 
 // ============================================================================
-// 📋 GET /api/play-history/user/:userId - Get user's play history
-// ============================================================================
-
-router.get('/user/:userId', verifyToken, async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { limit = 50, offset = 0 } = req.query;
-
-        // Security: Users can only see their own history (unless admin)
-        if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const result = await pool.query(
-            `SELECT 
-        ph.id, ph.track_id, ph.played_at, ph.duration_played_seconds,
-        t.name, t.artist, t.audio_filename
-       FROM play_history ph
-       JOIN tracks t ON ph.track_id = t.id
-       WHERE ph.user_id = $1
-       ORDER BY ph.played_at DESC
-       LIMIT $2 OFFSET $3`,
-            [userId, parseInt(limit), parseInt(offset)]
-        );
-
-        res.json(result.rows);
-    } catch (err) {
-        console.error('❌ Play history GET error:', err);
-        res.status(500).json({ error: 'Failed to fetch play history' });
-    }
-});
-
-// ============================================================================
 // ➕ POST /api/play-history - Log a track play
 // ============================================================================
 
@@ -67,8 +34,8 @@ router.post('/', verifyToken, async (req, res) => {
         // Insert play history
         const result = await pool.query(
             `INSERT INTO play_history (user_id, track_id, duration_played_seconds, played_at)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-       RETURNING id, user_id, track_id, played_at, duration_played_seconds`,
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+            RETURNING id, user_id, track_id, played_at, duration_played_seconds`,
             [user_id, track_id, duration_played_seconds || null]
         );
 
@@ -81,6 +48,44 @@ router.post('/', verifyToken, async (req, res) => {
         }
         console.error('❌ Play history POST error:', err);
         res.status(500).json({ error: 'Failed to log play history' });
+    }
+});
+
+// ============================================================================
+// 📋 GET /api/play-history/user/:userId - Get user's play history
+// ============================================================================
+
+router.get('/user/:userId', verifyToken, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { limit = 50, offset = 0 } = req.query;
+
+        // Security: Users can only see their own history (unless admin)
+        if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const result = await pool.query(
+            `SELECT 
+                ph.id, 
+                ph.track_id, 
+                ph.played_at, 
+                ph.duration_played_seconds,
+                t.name, 
+                t.artist, 
+                t.audio_filename
+            FROM play_history ph
+            JOIN tracks t ON ph.track_id = t.id
+            WHERE ph.user_id = $1
+            ORDER BY ph.played_at DESC
+            LIMIT $2 OFFSET $3`,
+            [userId, parseInt(limit), parseInt(offset)]
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error('❌ Play history GET error:', err);
+        res.status(500).json({ error: 'Failed to fetch play history' });
     }
 });
 
@@ -104,7 +109,8 @@ router.delete('/user/:userId', verifyToken, async (req, res) => {
 
         console.log(`✅ Play history cleared for user ${userId}: ${result.rowCount} entries deleted`);
         res.json({
-            message: 'Play history cleared',
+            success: true,
+            message: 'Play history cleared successfully',
             deleted_count: result.rowCount
         });
     } catch (err) {
@@ -116,6 +122,7 @@ router.delete('/user/:userId', verifyToken, async (req, res) => {
 // ============================================================================
 // 📊 GET /api/play-history/stats/user/:userId - Get play stats
 // ============================================================================
+// ⚠️ MUSS AM ENDE sein! Sonst matched /stats/user/:userId vor /user/:userId
 
 router.get('/stats/user/:userId', verifyToken, async (req, res) => {
     try {
@@ -128,13 +135,13 @@ router.get('/stats/user/:userId', verifyToken, async (req, res) => {
 
         const result = await pool.query(
             `SELECT 
-        COUNT(*) as total_plays,
-        COUNT(DISTINCT track_id) as unique_tracks,
-        SUM(duration_played_seconds) as total_seconds_played,
-        MAX(played_at) as last_played,
-        MIN(played_at) as first_played
-       FROM play_history
-       WHERE user_id = $1`,
+                COUNT(*) as total_plays,
+                COUNT(DISTINCT track_id) as unique_tracks,
+                SUM(duration_played_seconds) as total_seconds_played,
+                MAX(played_at) as last_played,
+                MIN(played_at) as first_played
+            FROM play_history
+            WHERE user_id = $1`,
             [userId]
         );
 
@@ -146,3 +153,4 @@ router.get('/stats/user/:userId', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
+
