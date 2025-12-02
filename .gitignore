@@ -8,6 +8,11 @@ node_modules/
 npm-debug.log
 package-lock.json
 
+# Logs
+logs/
+*.log
+app.log
+
 # Uploads
 uploads/
 
