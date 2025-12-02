@@ -9,6 +9,7 @@ let audioContext = null;
 let isPlayerInitialized = false;
 let currentTrack = null;
 let animationFrameId = null;
+let playHistoryLogged = false;
 
 const AudioPlayer = {
     state: {
@@ -37,6 +38,7 @@ const AudioPlayer = {
         audioElement.addEventListener('timeupdate', () => this.updateTimeDisplay());
         audioElement.addEventListener('loadedmetadata', () => this.updateDuration());
         audioElement.addEventListener('ended', () => this.onTrackEnded());
+        audioElement.addEventListener('play', () => this.onTrackPlay());
 
         isPlayerInitialized = true;
         console.log('🎚️ AudioPlayer initialized');
@@ -45,6 +47,7 @@ const AudioPlayer = {
     // ===== LOAD TRACK =====
     loadTrack(track) {
         currentTrack = track;
+        playHistoryLogged = false;
 
         if (!track.audio_filename) {
             console.error('❌ Track has no audio_filename');
@@ -241,6 +244,49 @@ const AudioPlayer = {
         if (this.state.isPlaying) {
             animationFrameId = requestAnimationFrame(() => this.drawWaveform());
         }
+    },
+
+    // ===== PLAY HISTORY LOGGING =====
+    async logPlayHistory() {
+        if (!currentTrack || !currentTrack.id || playHistoryLogged) return;
+        if (typeof token === 'undefined' || !token) {
+            console.warn('⚠️ No token available for play history logging');
+            return;
+        }
+
+        try {
+            const durationSec = Math.floor(audioElement.currentTime);
+            const response = await fetch('http://localhost:3000/api/play-history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    track_id: currentTrack.id,
+                    duration_played_seconds: durationSec
+                })
+            });
+
+            if (response.ok) {
+                playHistoryLogged = true;
+                console.log('✅ Play history logged:', currentTrack.name);
+            } else {
+                console.warn('⚠️ Could not log play history:', response.status);
+            }
+        } catch (err) {
+            console.warn('⚠️ Play history logging error:', err);
+        }
+    },
+
+    onTrackPlay() {
+        console.log('🎵 Track play started');
+        // Log nach 2 Sekunden Wiedergabe
+        setTimeout(() => {
+            if (this.state.isPlaying) {
+                this.logPlayHistory();
+            }
+        }, 2000);
     },
 
     // ===== EVENT HANDLING =====

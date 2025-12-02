@@ -61,7 +61,7 @@ async function showUserDashboard() {
 
 async function loadPlayHistory() {
   try {
-    const history = await APIClient.get('/users/play-history', token);
+    const history = await APIClient.get(`/play-history/user/${currentUser.id}`, token);
     const container = document.getElementById('playHistoryContainer');
 
     if (!history || !Array.isArray(history) || history.length === 0) {
@@ -70,8 +70,8 @@ async function loadPlayHistory() {
     }
 
     container.innerHTML = history.slice(0, 10).map(item => {
-      const trackName = (item.track_name || 'Unknown').toString();
-      const artistName = (item.artist_name || 'Unknown Artist').toString();
+      const trackName = (item.name || 'Unknown').toString();
+      const artistName = (item.artist || 'Unknown Artist').toString();
       const playedDate = new Date(item.played_at || Date.now()).toLocaleDateString();
 
       return `
