@@ -6,6 +6,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
+const rfs = require('rotating-file-stream');
 
 const app = express();
 
@@ -76,7 +77,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(compression());
 
 // ============================================================================
-// 📊 LOGGING SETUP
+// 📊 LOGGING SETUP WITH ROTATION
 // ============================================================================
 
 // Stelle sicher, dass logs/ Verzeichnis existiert
@@ -85,16 +86,24 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-const logStream = fs.createWriteStream(
-  path.join(logsDir, 'app.log'),
-  { flags: 'a' }
-);
+// ✅ Log Rotation Stream
+const rotatingLogStream = rfs.createStream('app.log', {
+  interval: '1d',           // Täglich rotieren
+  path: logsDir,            // Pfad zu logs/
+  maxSize: '10M',           // Max 10MB pro Datei
+  maxFiles: 5,              // Max 5 alte Dateien behalten
+  compress: 'gzip'          // Alte Logs komprimieren
+});
 
-app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: logStream }));
+// Morgan mit rotierenden Logs
+app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: rotatingLogStream }));
 
+// Dev-Logging in Console
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
+
+console.log('✅ Log rotation enabled: max 10MB per file, 5 files retained');
 
 // ============================================================================
 // 📦 DATABASE CONNECTION
@@ -175,6 +184,7 @@ app.listen(PORT, HOST, () => {
   console.log(`📍 CORS Origins: ${process.env.ALLOWED_ORIGINS}`);
   console.log(`📁 Audio Path: ${path.join(__dirname, 'public/audio')}`);
   console.log(`📊 Database: ${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'song_nexus_dev'}`);
+  console.log(`📝 Logs: ${logsDir} (rotation: 10MB max, 5 files, daily)`);
   console.log('');
 });
 
