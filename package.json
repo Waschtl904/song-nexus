@@ -1,0 +1,16 @@
+{
+    "name": "song-nexus",
+    "version": "1.0.0",
+    "description": "Full-stack music streaming platform with PayPal integration",
+    "scripts": {
+        "start": "concurrently \"npm run server\" \"npm run client\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
+        "server": "cd backend && npm start",
+        "client": "cd frontend && npm start",
+        "dev": "concurrently \"npm run server:dev\" \"npm run client\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
+        "server:dev": "cd backend && npm run dev",
+        "stop": "taskkill /IM node.exe /F"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}

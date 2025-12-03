@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- FIXME: CSP zu restriktiv - relaxed for proper navigation -->
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';">
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';">
     <title>Payment Cancelled - SONG-NEXUS</title>
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
@@ -103,10 +104,10 @@
             </p>
 
             <div class="button-group">
-                <button class="button" onclick="goBack()">
+                <button class="button" onclick="goBack()" id="backBtn">
                     ⬅️ Go Back
                 </button>
-                <button class="button button-secondary" onclick="goHome()">
+                <button class="button button-secondary" onclick="goHome()" id="homeBtn">
                     🏠 Back to Home
                 </button>
             </div>
@@ -121,19 +122,62 @@
 
     <script>
         // ========================================================================
-        // PAYMENT CANCEL PAGE
+        // PAYMENT CANCEL PAGE - FIXED VERSION
         // ========================================================================
 
+        // FIX #1: Get base URL dynamically instead of hardcoded localhost
+        function getBaseUrl() {
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname;
+            const port = window.location.port ? `:${window.location.port}` : '';
+            return `${protocol}//${hostname}${port}`;
+        }
+
+        // FIX #2: Handle PayPal callback parameters
+        function getPayPalParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                token: params.get('token'),
+                payerId: params.get('PayerID'),
+                reason: params.get('reason') || 'User cancelled'
+            };
+        }
+
+        // FIX #3: Properly clear payment state
         async function cancelPayment() {
             try {
                 const jwt = localStorage.getItem('token');
                 const orderId = localStorage.getItem('pendingPaymentOrderId');
+                const paypalParams = getPayPalParams();
 
                 if (orderId && jwt) {
-                    // Optional: Notify backend about cancelled order
                     console.log(`🛑 Payment cancelled for order: ${orderId}`);
+                    console.log('PayPal Params:', paypalParams);
 
-                    // Clear localStorage
+                    // Optional: Notify backend about cancelled order
+                    try {
+                        const response = await fetch('/api/payments/cancel', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${jwt}`
+                            },
+                            body: JSON.stringify({
+                                orderId: orderId,
+                                paypalToken: paypalParams.token,
+                                reason: paypalParams.reason
+                            })
+                        });
+
+                        if (!response.ok) {
+                            console.warn('Backend cancellation failed:', response.status);
+                        }
+                    } catch (err) {
+                        console.warn('Could not notify backend:', err);
+                        // Don't block UI if backend fails
+                    }
+
+                    // Clear localStorage regardless
                     localStorage.removeItem('pendingPaymentOrderId');
                     localStorage.removeItem('pendingTrackId');
                 }
@@ -142,12 +186,25 @@
             }
         }
 
+        // FIX #4: Proper navigation with error handling
         function goBack() {
-            window.history.back();
+            // Try history first (works in most cases)
+            if (window.history.length > 1) {
+                window.history.back();
+                // Fallback after timeout in case history.back() fails
+                setTimeout(() => {
+                    const baseUrl = getBaseUrl();
+                    window.location.href = `${baseUrl}/index.html`;
+                }, 1500);
+            } else {
+                // No history, go to home
+                goHome();
+            }
         }
 
         function goHome() {
-            window.location.href = 'http://localhost:5500/index.html';
+            const baseUrl = getBaseUrl();
+            window.location.href = `${baseUrl}/index.html`;
         }
 
         function toggleTheme() {
@@ -158,12 +215,29 @@
             localStorage.setItem('nexus-theme', newTheme);
         }
 
+        // FIX #5: Disable buttons during processing
+        function disableNavButtons() {
+            document.getElementById('backBtn').disabled = true;
+            document.getElementById('homeBtn').disabled = true;
+            document.getElementById('backBtn').textContent = '⏳ Processing...';
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
 
             document.getElementById('cancelTime').textContent = new Date().toLocaleString('de-DE');
+
+            // Don't disable buttons immediately - let user read the page
+            // They have to click the button anyway
             cancelPayment();
+        });
+
+        // FIX #6: Add click handlers to disable buttons during navigation
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'backBtn' || e.target.id === 'homeBtn') {
+                disableNavButtons();
+            }
         });
     </script>
 </body>

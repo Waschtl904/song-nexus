@@ -1,0 +1,14 @@
+{
+    "name": "song-nexus-frontend",
+    "version": "1.0.0",
+    "description": "Frontend for SONG-NEXUS - Music streaming platform",
+    "scripts": {
+        "start": "http-server -p 5500 --cors",
+        "start:no-cors": "http-server -p 5500",
+        "build": "echo 'Static les ready for deployment'",
+        "preview": "http-server -p 8080"
+    },
+    "dependencies": {
+        "http-server": "^14.1.1"
+    }
+}
