@@ -7,6 +7,7 @@
 let allTracks = [];
 let userPurchases = [];
 let currentModalTrack = null;
+let paypalClientId = null;
 
 const Tracks = {
   async loadTracks() {
@@ -63,7 +64,7 @@ const Tracks = {
         
         <!-- Waveform -->
         <div style="margin-bottom: 12px; padding: 8px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 4px; height: 80px; overflow: hidden;">
-          <canvas id="modalWaveform" style="width: 100%; height: 100%;"></canvas>
+          anvas id="modalWaveform" style="width: 100%; height: 100%;"></canvas>
         </div>
 
         <!-- Time Display -->
@@ -128,7 +129,7 @@ const Tracks = {
       // NOT OWNED: Buy Button
       actionButtonHTML = `
         <button class="button" id="modalBuyBtn" onclick="Tracks.buyTrack()" style="flex: 1;">
-          💳 BUY TRACK
+          💳 BUY TRACK (€${parseFloat(price).toFixed(2)})
         </button>
       `;
     }
@@ -177,19 +178,48 @@ const Tracks = {
 
     try {
       const statusEl = document.getElementById('purchaseStatus');
-      statusEl.innerHTML = '<div class="status-message loading"><span class="loading-spinner"></span> Processing...</div>';
+      statusEl.innerHTML = '<div class="status-message loading"><span class="loading-spinner"></span> 💳 Initializing PayPal...</div>';
 
-      const price = currentModalTrack.price_eur || currentModalTrack.price || 0;
+      const price = currentModalTrack.price_eur || currentModalTrack.price || 0.99;
+
+      // 1️⃣ Create PayPal Order
+      console.log(`💰 Creating order for track: ${currentModalTrack.name} (€${price})`);
+
       const orderResponse = await APIClient.post('/payments/create-order', {
-        amount: price.toString(),
         track_id: currentModalTrack.id,
-        description: `${UI.escapeHtml(currentModalTrack.name)} - Digital Track License`
+        price: parseFloat(price)
       }, token);
 
-      window.open(orderResponse.approval_url, 'paypal', 'width=800,height=600');
+      if (!orderResponse || !orderResponse.order_id) {
+        throw new Error('Failed to create payment order');
+      }
+
+      console.log(`✅ PayPal order created: ${orderResponse.order_id}`);
+
+      // 2️⃣ Get PayPal Mode from Backend
+      const configResponse = await fetch('http://localhost:3000/api/payments/config');
+      const config = await configResponse.json();
+      const paypalMode = config.paypal_mode || 'sandbox';
+
+      // 3️⃣ Build PayPal Checkout URL
+      const paypalDomain = paypalMode === 'production' ? 'paypal.com' : 'sandbox.paypal.com';
+      const checkoutUrl = `https://www.${paypalDomain}/checkoutnow?token=${orderResponse.order_id}`;
+
+      statusEl.innerHTML = '<div class="status-message loading"><span class="loading-spinner"></span> 🔄 Redirecting to PayPal...</div>';
+
+      // Store order ID im localStorage für später
+      localStorage.setItem('pendingPaymentOrderId', orderResponse.order_id);
+      localStorage.setItem('pendingTrackId', currentModalTrack.id);
+
+      console.log(`🔗 Redirecting to: ${checkoutUrl}`);
+
+      // Redirect zu PayPal
+      window.location.href = checkoutUrl;
+
     } catch (err) {
+      console.error('❌ Buy error:', err);
       const statusEl = document.getElementById('purchaseStatus');
-      statusEl.innerHTML = `<div class="status-message error">Error: ${err.message}</div>`;
+      statusEl.innerHTML = `<div class="status-message error">❌ Error: ${err.message}</div>`;
     }
   },
 

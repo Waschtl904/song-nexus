@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';">
+    <title>Payment Success - SONG-NEXUS</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .success-container {
+            max-width: 600px;
+            margin: 60px auto;
+            padding: 40px;
+            text-align: center;
+            background: rgba(0, 204, 119, 0.05);
+            border: 2px solid var(--accent-teal);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 204, 119, 0.3);
+        }
+
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 0.6s ease-in-out;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .success-title {
+            font-size: 32px;
+            color: var(--accent-teal);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .success-message {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .track-info {
+            background: rgba(0, 204, 119, 0.1);
+            border: 1px solid rgba(0, 204, 119, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .track-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .track-info-label {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .track-info-value {
+            color: var(--accent-teal);
+            font-weight: 700;
+        }
+
+        .status-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 204, 119, 0.3);
+            border-top-color: var(--accent-teal);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .button-group .button {
+            flex: 1;
+            min-width: 150px;
+            padding: 12px 24px;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+
+    <div class="container">
+        <div class="success-container">
+            <div class="success-icon">✅</div>
+            <h1 class="success-title">Payment Successful!</h1>
+
+            <div id="statusContainer" class="status-loading">
+                <span class="spinner"></span>
+                <span>Processing your purchase...</span>
+            </div>
+
+            <div id="trackInfo" class="track-info" style="display: none;">
+                <div class="track-info-row">
+                    <span class="track-info-label">🎵 Track:</span>
+                    <span class="track-info-value" id="trackName">-</span>
+                </div>
+                <div class="track-info-row">
+                    <span class="track-info-label">👤 Artist:</span>
+                    <span class="track-info-value" id="trackArtist">-</span>
+                </div>
+                <div class="track-info-row">
+                    <span class="track-info-label">💰 Price:</span>
+                    <span class="track-info-value" id="trackPrice">-</span>
+                </div>
+                <div class="track-info-row">
+                    <span class="track-info-label">📅 Date:</span>
+                    <span class="track-info-value" id="purchaseDate">-</span>
+                </div>
+                <div class="track-info-row">
+                    <span class="track-info-label">📌 Transaction ID:</span>
+                    <span class="track-info-value" id="transactionId"
+                        style="font-size: 12px; word-break: break-all;">-</span>
+                </div>
+            </div>
+
+            <p class="success-message" id="successMessage">
+                Your purchase has been completed successfully! Your track is now available for download and streaming.
+            </p>
+
+            <div class="button-group">
+                <button class="button" id="downloadBtn" onclick="downloadTrack()" style="display: none;">
+                    ⬇️ Download Track
+                </button>
+                <button class="button" onclick="goToLibrary()">
+                    📚 Go to Library
+                </button>
+                <button class="button button-secondary" onclick="goHome()">
+                    🏠 Back to Home
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================================================
+        // PAYMENT SUCCESS PAGE
+        // ========================================================================
+
+        let purchasedTrackData = null;
+
+        async function initializePaymentSuccess() {
+            try {
+                // Get URL parameters
+                const params = new URLSearchParams(window.location.search);
+                const token = params.get('token');
+                const jwt = localStorage.getItem('token');
+
+                if (!token || !jwt) {
+                    showError('Payment verification failed. Please try again.');
+                    return;
+                }
+
+                // Get pending order ID from localStorage
+                const orderId = localStorage.getItem('pendingPaymentOrderId');
+                const trackId = localStorage.getItem('pendingTrackId');
+
+                if (!orderId || !trackId) {
+                    showError('No pending payment found. Please try again.');
+                    return;
+                }
+
+                console.log(`✅ Processing payment: Order ${orderId}, Track ${trackId}`);
+
+                // Capture the payment
+                const response = await fetch('http://localhost:3000/api/payments/capture-order/' + orderId, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${jwt}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ track_id: trackId })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'COMPLETED') {
+                    console.log('✅ Payment captured successfully:', result);
+
+                    // Fetch track details
+                    await fetchTrackDetails(trackId, jwt);
+
+                    // Clear localStorage
+                    localStorage.removeItem('pendingPaymentOrderId');
+                    localStorage.removeItem('pendingTrackId');
+
+                    // Show success
+                    showSuccess(result);
+                } else {
+                    showError(`Payment failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (err) {
+                console.error('❌ Error processing payment:', err);
+                showError(`Error: ${err.message}`);
+            }
+        }
+
+        async function fetchTrackDetails(trackId, jwt) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/tracks/${trackId}`, {
+                    headers: { 'Authorization': `Bearer ${jwt}` }
+                });
+
+                if (response.ok) {
+                    purchasedTrackData = await response.json();
+                }
+            } catch (err) {
+                console.error('❌ Error fetching track details:', err);
+            }
+        }
+
+        function showSuccess(paymentData) {
+            const statusContainer = document.getElementById('statusContainer');
+            const trackInfo = document.getElementById('trackInfo');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            statusContainer.style.display = 'none';
+            trackInfo.style.display = 'block';
+            downloadBtn.style.display = 'block';
+
+            // Populate track info
+            if (purchasedTrackData) {
+                document.getElementById('trackName').textContent = purchasedTrackData.name || 'Unknown';
+                document.getElementById('trackArtist').textContent = purchasedTrackData.artist || 'Unknown';
+                document.getElementById('trackPrice').textContent = '€0.99';
+            }
+
+            document.getElementById('purchaseDate').textContent = new Date().toLocaleDateString('de-DE');
+            document.getElementById('transactionId').textContent = paymentData.transaction_id || 'N/A';
+
+            document.getElementById('successMessage').innerHTML = `
+        <strong>🎉 Herzlichen Glückwunsch!</strong><br>
+        Dein Track ist jetzt freigeschaltet und kann beliebig oft heruntergeladen und gestreamt werden.
+      `;
+        }
+
+        function showError(message) {
+            const statusContainer = document.getElementById('statusContainer');
+            statusContainer.innerHTML = `<div style="color: #ff5459; font-weight: bold;">❌ ${message}</div>`;
+        }
+
+        function downloadTrack() {
+            if (!purchasedTrackData || !purchasedTrackData.audio_filename) {
+                alert('Track information not available');
+                return;
+            }
+
+            const downloadLink = `http://localhost:3000/api/tracks/audio/${purchasedTrackData.audio_filename}`;
+            const a = document.createElement('a');
+            a.href = downloadLink;
+            a.download = `${purchasedTrackData.name}.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function goToLibrary() {
+            window.location.href = 'http://localhost:5500/index.html';
+        }
+
+        function goHome() {
+            window.location.href = 'http://localhost:5500/index.html';
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('nexus-theme', newTheme);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            initializePaymentSuccess();
+        });
+    </script>
+</body>
+
+</html>

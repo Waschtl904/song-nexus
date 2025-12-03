@@ -10,7 +10,7 @@ const checkoutNodeJssdk = require('@paypal/checkout-server-sdk');
 
 function environment() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET; // ✅ FIX: War vorher PAYPAL_SECRET
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
 
   if (process.env.PAYPAL_MODE === 'sandbox') {
     return new checkoutNodeJssdk.core.SandboxEnvironment(clientId, clientSecret);
@@ -35,25 +35,47 @@ router.get('/config', (req, res) => {
 });
 
 // ============================================================================
-// 💰 POST /api/payments/create-order
+// 💰 POST /api/payments/create-order - Create PayPal Order für Track
 // ============================================================================
 
 router.post('/create-order', verifyToken, [
-  body('amount').isFloat({ min: 0.01, max: 10000 }).withMessage('Invalid amount'),
-  body('description').trim().isLength({ min: 1, max: 200 }),
-  body('track_id').optional().isInt(),
+  body('track_id').isInt().withMessage('Track ID must be an integer'),
+  body('price').isFloat({ min: 0.01, max: 100 }).withMessage('Invalid price'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { amount, description, track_id } = req.body;
+  const { track_id, price } = req.body;
   const userId = req.user.id;
 
   try {
-    console.log(`💰 Creating PayPal order: €${amount} for user ${userId}`);
+    // 1️⃣ Verify track exists
+    const trackResult = await pool.query(
+      'SELECT id, name, artist FROM tracks WHERE id = $1',
+      [track_id]
+    );
 
+    if (trackResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = trackResult.rows[0];
+
+    // 2️⃣ Check if already purchased
+    const purchaseCheck = await pool.query(
+      'SELECT id FROM purchases WHERE user_id = $1 AND track_id = $2',
+      [userId, track_id]
+    );
+
+    if (purchaseCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Track already purchased' });
+    }
+
+    console.log(`💰 Creating PayPal order: €${price} for track "${track.name}" (user ${userId})`);
+
+    // 3️⃣ Create PayPal Order
     const request = new checkoutNodeJssdk.orders.OrdersCreateRequest();
     request.prefer("return=representation");
     request.requestBody({
@@ -61,17 +83,19 @@ router.post('/create-order', verifyToken, [
       purchase_units: [{
         amount: {
           currency_code: 'EUR',
-          value: amount.toString(),
+          value: price.toString(),
           breakdown: {
-            item_total: { currency_code: 'EUR', value: amount.toString() },
+            item_total: { currency_code: 'EUR', value: price.toString() },
           },
         },
         items: [{
-          name: description,
-          unit_amount: { currency_code: 'EUR', value: amount.toString() },
+          name: `🎵 ${track.name} - ${track.artist}`,
+          unit_amount: { currency_code: 'EUR', value: price.toString() },
           quantity: '1',
-          sku: track_id ? `TRACK_${track_id}` : 'SONG_NEXUS',
+          sku: `TRACK_${track_id}`,
+          category: 'DIGITAL_GOODS',
         }],
+        description: `Digital music track purchase`,
       }],
       application_context: {
         return_url: `${process.env.FRONTEND_URL}/payment-success`,
@@ -79,21 +103,27 @@ router.post('/create-order', verifyToken, [
         brand_name: 'Song-Nexus',
         landing_page: 'BILLING',
         user_action: 'PAY_NOW',
+        locale: 'de-DE',
       },
     });
 
     const orderResponse = await client().execute(request);
     const orderId = orderResponse.result.id;
 
-    // Save order to DB
+    // 4️⃣ Save order to DB
     await pool.query(
       `INSERT INTO orders (user_id, paypal_order_id, amount, currency, description, status) 
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId, orderId, amount, 'EUR', description, 'CREATED']
+      [userId, orderId, price, 'EUR', `Track: ${track.name}`, 'CREATED']
     );
 
-    console.log(`✅ Order created: ${orderId}`);
-    res.json({ id: orderId, status: 'CREATED' });
+    console.log(`✅ PayPal order created: ${orderId}`);
+    res.json({
+      order_id: orderId,
+      status: 'CREATED',
+      track_id: track_id,
+      price: price
+    });
   } catch (err) {
     console.error('❌ PayPal create-order error:', err.message);
     res.status(500).json({ error: 'Failed to create PayPal order' });
@@ -101,11 +131,14 @@ router.post('/create-order', verifyToken, [
 });
 
 // ============================================================================
-// ✅ POST /api/payments/capture-order/:orderId
+// ✅ POST /api/payments/capture-order/:orderId - Capture Payment
 // ============================================================================
 
-router.post('/capture-order/:orderId', verifyToken, async (req, res) => {
+router.post('/capture-order/:orderId', verifyToken, [
+  body('track_id').isInt().withMessage('Track ID required'),
+], async (req, res) => {
   const { orderId } = req.params;
+  const { track_id } = req.body;
   const userId = req.user.id;
 
   try {
@@ -121,37 +154,71 @@ router.post('/capture-order/:orderId', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Order not found or unauthorized' });
     }
 
-    // 2️⃣ Capture order bei PayPal
+    const order = orderCheck.rows[0];
+
+    // 2️⃣ Capture at PayPal
     const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(orderId);
     request.requestBody({});
     const captureResponse = await client().execute(request);
 
-    // 3️⃣ Check PayPal response status
+    // 3️⃣ Check PayPal response
     if (captureResponse.result.status === 'COMPLETED') {
       const paypalPayerId = captureResponse.result.payer?.email_address || null;
       const transactionId = captureResponse.result.purchase_units?.[0]?.payments?.captures?.[0]?.id || null;
 
-      // 4️⃣ Update order in DB
-      await pool.query(
-        `UPDATE orders 
-         SET status = $1, completed_at = NOW(), paypal_payer_email = $2, transaction_id = $3
-         WHERE paypal_order_id = $4`,
-        ['COMPLETED', paypalPayerId, transactionId, orderId]
-      );
+      // 4️⃣ Start transaction
+      const client_db = await pool.connect();
+      try {
+        await client_db.query('BEGIN');
 
-      console.log(`✅ Order completed: ${orderId}`);
+        // Update order
+        await client_db.query(
+          `UPDATE orders 
+           SET status = $1, completed_at = NOW(), paypal_payer_email = $2, transaction_id = $3
+           WHERE paypal_order_id = $4`,
+          ['COMPLETED', paypalPayerId, transactionId, orderId]
+        );
+
+        // Create purchase record
+        await client_db.query(
+          `INSERT INTO purchases (user_id, track_id, purchased_at, license_type)
+           VALUES ($1, $2, NOW(), 'LIFETIME')
+           ON CONFLICT DO NOTHING`,
+          [userId, track_id]
+        );
+
+        // Mark track as paid in play_stats (optional)
+        await client_db.query(
+          `INSERT INTO play_stats (user_id, track_id, is_paid_user)
+           VALUES ($1, $2, true)
+           ON CONFLICT (user_id, track_id) DO UPDATE
+           SET is_paid_user = true`,
+          [userId, track_id]
+        );
+
+        await client_db.query('COMMIT');
+      } catch (err) {
+        await client_db.query('ROLLBACK');
+        throw err;
+      } finally {
+        client_db.release();
+      }
+
+      console.log(`✅ Payment completed: Order ${orderId}, Transaction ${transactionId}`);
       res.json({
         status: 'COMPLETED',
-        message: 'Payment successful',
+        message: 'Payment successful - Track unlocked!',
         transaction_id: transactionId,
+        track_id: track_id,
       });
     } else {
-      // Order nicht erfolgreich
+      // Payment failed
       await pool.query(
         'UPDATE orders SET status = $1 WHERE paypal_order_id = $2',
         [captureResponse.result.status || 'FAILED', orderId]
       );
 
+      console.error(`❌ Payment failed: ${captureResponse.result.status}`);
       res.status(400).json({
         error: 'Payment not completed',
         status: captureResponse.result.status,
@@ -164,7 +231,31 @@ router.post('/capture-order/:orderId', verifyToken, async (req, res) => {
 });
 
 // ============================================================================
-// 📋 GET /api/payments/history - User Payment History
+// 🎵 GET /api/payments/user-purchases - Get user's purchased tracks
+// ============================================================================
+
+router.get('/user-purchases', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        p.id, p.track_id, t.name, t.artist, t.audio_filename,
+        p.purchased_at, p.license_type
+       FROM purchases p
+       JOIN tracks t ON p.track_id = t.id
+       WHERE p.user_id = $1
+       ORDER BY p.purchased_at DESC`,
+      [req.user.id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ User purchases error:', err);
+    res.status(500).json({ error: 'Failed to fetch purchases' });
+  }
+});
+
+// ============================================================================
+// 📋 GET /api/payments/history - Payment Order History
 // ============================================================================
 
 router.get('/history', verifyToken, async (req, res) => {
@@ -172,7 +263,7 @@ router.get('/history', verifyToken, async (req, res) => {
     const result = await pool.query(
       `SELECT 
         o.id, o.paypal_order_id, o.amount, o.currency, o.status, 
-        o.created_at, o.completed_at, o.description
+        o.created_at, o.completed_at, o.description, o.transaction_id
        FROM orders o
        WHERE o.user_id = $1
        ORDER BY o.created_at DESC
@@ -197,14 +288,21 @@ router.get('/stats', verifyToken, async (req, res) => {
       `SELECT 
         COUNT(DISTINCT CASE WHEN status = 'COMPLETED' THEN id END) as completed_payments,
         COUNT(DISTINCT CASE WHEN status = 'FAILED' THEN id END) as failed_payments,
-        SUM(CASE WHEN status = 'COMPLETED' THEN amount ELSE 0 END) as total_spent,
-        AVG(CASE WHEN status = 'COMPLETED' THEN amount ELSE NULL END) as avg_purchase
+        SUM(CASE WHEN status = 'COMPLETED' THEN amount ELSE 0 END)::numeric(10,2) as total_spent,
+        ROUND(AVG(CASE WHEN status = 'COMPLETED' THEN amount ELSE NULL END)::numeric, 2) as avg_purchase,
+        (SELECT COUNT(*) FROM purchases WHERE user_id = $1) as total_tracks_purchased
        FROM orders
        WHERE user_id = $1`,
       [req.user.id]
     );
 
-    res.json(result.rows[0]);
+    res.json(result.rows[0] || {
+      completed_payments: 0,
+      failed_payments: 0,
+      total_spent: '0.00',
+      avg_purchase: null,
+      total_tracks_purchased: 0
+    });
   } catch (err) {
     console.error('❌ Payment stats error:', err);
     res.status(500).json({ error: 'Failed to fetch payment stats' });
