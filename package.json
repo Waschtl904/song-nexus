@@ -11,6 +11,16 @@
         "stop": "taskkill /IM node.exe /F"
     },
     "devDependencies": {
-        "concurrently": "^8.2.2"
+        "concurrently": "^8.2.2",
+        "dotenv": "^17.2.3"
+    },
+    "dependencies": {
+        "compression": "^1.8.1",
+        "cookie-parser": "^1.4.7",
+        "csurf": "^1.11.0",
+        "express-rate-limit": "^8.2.1",
+        "helmet": "^8.1.0",
+        "mongo-sanitize": "^1.1.0",
+        "xss-clean": "^0.1.4"
     }
 }

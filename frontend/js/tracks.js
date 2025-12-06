@@ -1,13 +1,19 @@
 "use strict";
 
+
+
 // ========================================================================
 // 🎵 TRACK BROWSER
 // ========================================================================
+
+
 
 let allTracks = [];
 let userPurchases = [];
 let currentModalTrack = null;
 let paypalClientId = null;
+
+
 
 const Tracks = {
   async loadTracks() {
@@ -16,6 +22,9 @@ const Tracks = {
       allTracks = tracks;
       console.log('📊 Tracks loaded:', tracks);
       console.log('📊 Total tracks:', tracks.length);
+
+
+      // ✅ WICHTIG: Zeige ALLE Tracks (kostenlos + bezahlt)
       this.renderTracks(tracks);
     } catch (err) {
       console.error('Track load error:', err);
@@ -23,18 +32,29 @@ const Tracks = {
     }
   },
 
+
+
   renderTracks(tracks) {
     const container = document.getElementById('trackContainer');
+
+
 
     if (!tracks || tracks.length === 0) {
       container.innerHTML = '<p style="color: var(--text-secondary);">No tracks available</p>';
       return;
     }
 
+
+
     container.innerHTML = tracks.map(track => {
       const isPurchased = userPurchases.some(p => p.track_id === track.id);
-      const isFree = track.is_free === true;
+
+
+      // ✅ FIX: Prüfe free_preview_duration ODER is_free
+      const isFree = track.is_free === true || track.free_preview_duration >= 999999;
       const price = track.price_eur || track.price || 0;
+
+
       return `
         <div class="track-card" onclick="Tracks.openModal(${track.id})">
           <div class="track-title">🎵 ${UI.escapeHtml(track.name)}</div>
@@ -42,30 +62,45 @@ const Tracks = {
           <div class="track-meta">Genre: ${track.genre}</div>
           <div class="track-meta">Plays: ${track.play_count || 0}</div>
           <div class="track-price">${isFree ? '🎁 FREE' : '€' + parseFloat(price).toFixed(2)}</div>
-          ${isFree ? '<div class="track-badge">✅ FREE TRACK</div>' : (isPurchased ? '<div class="track-badge purchased">✅ PURCHASED</div>' : '<div class="track-badge">🔒 NOT OWNED</div>')}
+          ${isFree ? '<div class="track-badge">✅ FREE TRACK</div>' : (isPurchased ? '<div class="track-badge purchased">✅ PURCHASED</div>' : '<div class="track-badge">🔒 PREVIEW 40s</div>')}
         </div>
       `;
     }).join('');
   },
 
+
+
   openModal(trackId) {
     const track = allTracks.find(t => t.id === trackId);
     if (!track) return;
 
+
+
     currentModalTrack = track;
     const price = track.price_eur || track.price || 0;
     const isPurchased = userPurchases.some(p => p.track_id === track.id);
-    const isFree = track.is_free === true;
 
-    // Audio Player HTML (nur für Free/Purchased)
-    const audioPlayerHTML = isFree || isPurchased ? `
+
+    // ✅ FIX: Prüfe free_preview_duration ODER is_free
+    const isFree = track.is_free === true || track.free_preview_duration >= 999999;
+    const isPreview = !isFree && !isPurchased; // ✅ NEU: Preview wenn bezahlt & nicht gekauft
+
+
+
+    // Audio Player HTML (für Free/Purchased/Preview)
+    const audioPlayerHTML = `
       <div style="margin: 16px 0; background: rgba(0, 204, 119, 0.05); border: 1px solid rgba(0, 204, 119, 0.15); border-radius: 4px; padding: 14px;">
-        <div style="color: var(--accent-teal); font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">🎚️ AUDIO PLAYER</div>
+        <div style="color: var(--accent-teal); font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">
+          🎚️ AUDIO PLAYER
+          ${isPreview ? '<span style="color: var(--accent-pink); margin-left: 8px;">⏱️ 40s PREVIEW</span>' : ''}
+        </div>
         
         <!-- Waveform -->
         <div style="margin-bottom: 12px; padding: 8px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 4px; height: 80px; overflow: hidden;">
-          anvas id="modalWaveform" style="width: 100%; height: 100%;"></canvas>
+          <canvas id="modalWaveform" style="width: 100%; height: 100%;"></canvas>
         </div>
+
+
 
         <!-- Time Display -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 6px 8px; background: rgba(0, 224, 255, 0.05); border: 1px solid rgba(0, 224, 255, 0.2); border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 11px;">
@@ -73,6 +108,8 @@ const Tracks = {
           <span style="color: var(--text-secondary);">/</span>
           <span id="modalDuration" style="color: var(--text-secondary);">0:00</span>
         </div>
+
+
 
         <!-- Seek Bar -->
         <input 
@@ -82,8 +119,10 @@ const Tracks = {
           max="100" 
           value="0"
           style="width: 100%; height: 6px; margin-bottom: 10px; background: linear-gradient(90deg, rgba(0, 204, 119, 0.3) 0%, rgba(0, 204, 119, 0.3) 100%); border-radius: 3px; outline: none; cursor: pointer; accent-color: var(--accent-teal);"
-          onchange="AudioPlayer.setTime(this.value / 100 * AudioPlayer.state.duration)"
+          onchange="AudioPlayer.setTime(this.value)"
         />
+
+
 
         <!-- Controls -->
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -107,9 +146,13 @@ const Tracks = {
           </div>
         </div>
       </div>
-    ` : '';
+    `;
+
+
 
     let actionButtonHTML = '';
+
+
 
     if (isFree) {
       // FREE TRACK: Download Button
@@ -134,9 +177,13 @@ const Tracks = {
       `;
     }
 
+
+
     const modalContent = `
       <button class="modal-close" onclick="Tracks.closeModal()">&times;</button>
       <h2>🎵 ${UI.escapeHtml(track.name)}</h2>
+
+
 
       <div style="margin: 16px 0;">
         <p style="color: var(--text-secondary); margin-bottom: 4px;">
@@ -153,9 +200,15 @@ const Tracks = {
         </p>
       </div>
 
+
+
       ${audioPlayerHTML}
 
+
+
       <div id="purchaseStatus" style="margin: 16px 0;"></div>
+
+
 
       <div style="display: flex; gap: 10px; margin-top: 20px;">
         ${actionButtonHTML}
@@ -163,9 +216,20 @@ const Tracks = {
       </div>
     `;
 
+
+
     document.querySelector('.modal-content').innerHTML = modalContent;
     UI.openModal('trackModal');
+
+    // ✅ NEU: Audio Player laden mit Preview-Flag
+    setTimeout(() => {
+      AudioPlayer.init();
+      AudioPlayer.loadTrack(track, isPreview);
+      AudioPlayer.updatePlayerUI();
+    }, 100);
   },
+
+
 
   closeModal() {
     AudioPlayer.stop();
@@ -173,48 +237,76 @@ const Tracks = {
     currentModalTrack = null;
   },
 
+
+
   async buyTrack() {
     if (!currentModalTrack) return;
+
+
 
     try {
       const statusEl = document.getElementById('purchaseStatus');
       statusEl.innerHTML = '<div class="status-message loading"><span class="loading-spinner"></span> 💳 Initializing PayPal...</div>';
 
+
+
       const price = currentModalTrack.price_eur || currentModalTrack.price || 0.99;
+
+
 
       // 1️⃣ Create PayPal Order
       console.log(`💰 Creating order for track: ${currentModalTrack.name} (€${price})`);
+
+
 
       const orderResponse = await APIClient.post('/payments/create-order', {
         track_id: currentModalTrack.id,
         price: parseFloat(price)
       }, token);
 
+
+
       if (!orderResponse || !orderResponse.order_id) {
         throw new Error('Failed to create payment order');
       }
 
+
+
       console.log(`✅ PayPal order created: ${orderResponse.order_id}`);
+
+
 
       // 2️⃣ Get PayPal Mode from Backend
       const configResponse = await fetch('http://localhost:3000/api/payments/config');
       const config = await configResponse.json();
       const paypalMode = config.paypal_mode || 'sandbox';
 
+
+
       // 3️⃣ Build PayPal Checkout URL
       const paypalDomain = paypalMode === 'production' ? 'paypal.com' : 'sandbox.paypal.com';
       const checkoutUrl = `https://www.${paypalDomain}/checkoutnow?token=${orderResponse.order_id}`;
 
+
+
       statusEl.innerHTML = '<div class="status-message loading"><span class="loading-spinner"></span> 🔄 Redirecting to PayPal...</div>';
+
+
 
       // Store order ID im localStorage für später
       localStorage.setItem('pendingPaymentOrderId', orderResponse.order_id);
       localStorage.setItem('pendingTrackId', currentModalTrack.id);
 
+
+
       console.log(`🔗 Redirecting to: ${checkoutUrl}`);
+
+
 
       // Redirect zu PayPal
       window.location.href = checkoutUrl;
+
+
 
     } catch (err) {
       console.error('❌ Buy error:', err);
@@ -223,24 +315,36 @@ const Tracks = {
     }
   },
 
+
+
   downloadTrack() {
     if (!currentModalTrack) return;
+
+
 
     try {
       // ✅ RICHTIG: Nutze audio_filename statt track name!
       const audioFilename = currentModalTrack.audio_filename;
+
+
 
       if (!audioFilename) {
         console.error('❌ No audio filename found');
         return;
       }
 
+
+
       const downloadLink = `http://localhost:3000/api/tracks/audio/${audioFilename}`;
+
+
 
       // Force Download mit content-disposition
       const xhr = new XMLHttpRequest();
       xhr.open('GET', downloadLink, true);
       xhr.responseType = 'blob';
+
+
 
       xhr.onload = function () {
         if (xhr.status === 200) {
@@ -255,15 +359,21 @@ const Tracks = {
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
 
+
+
           console.log('✅ Download started:', currentModalTrack.name);
         } else {
           console.error('❌ Download failed:', xhr.status);
         }
       };
 
+
+
       xhr.onerror = function () {
         console.error('❌ Download error:', xhr.statusText);
       };
+
+
 
       xhr.send();
     } catch (err) {
@@ -271,6 +381,8 @@ const Tracks = {
     }
   }
 };
+
+
 
 // Make available globally
 window.Tracks = Tracks;

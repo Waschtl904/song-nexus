@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Track Management - Song-Nexus Admin</title>
+    <style>
+        /* ⚠️ RESET & OVERRIDE EVERYTHING */
+        * {
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        html,
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+            background: #0a0e27 !important;
+            color: #ffffff !important;
+            min-height: 100vh !important;
+            padding: 20px !important;
+            line-height: 1.6 !important;
+        }
+
+        .container {
+            max-width: 1000px !important;
+            margin: 0 auto !important;
+        }
+
+        .header {
+            text-align: center !important;
+            margin-bottom: 40px !important;
+            padding: 20px !important;
+            background: rgba(0, 255, 136, 0.05) !important;
+            border: 2px solid rgba(0, 255, 136, 0.2) !important;
+            border-radius: 12px !important;
+        }
+
+        .header h1 {
+            font-size: 36px !important;
+            color: #00ff88 !important;
+            margin-bottom: 10px !important;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.4) !important;
+            font-weight: 700 !important;
+        }
+
+        .header p {
+            color: #aabbcc !important;
+            font-size: 14px !important;
+        }
+
+        .card {
+            background: rgba(26, 31, 58, 0.95) !important;
+            border: 1px solid rgba(0, 255, 136, 0.2) !important;
+            border-radius: 10px !important;
+            padding: 30px !important;
+            margin-bottom: 30px !important;
+        }
+
+        .card h2 {
+            color: #00ffff !important;
+            font-size: 20px !important;
+            margin-bottom: 20px !important;
+            padding-bottom: 10px !important;
+            border-bottom: 2px solid rgba(0, 255, 136, 0.3) !important;
+            font-weight: 700 !important;
+        }
+
+        .form-group {
+            margin-bottom: 20px !important;
+        }
+
+        .form-group label {
+            display: block !important;
+            margin-bottom: 8px !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100% !important;
+            padding: 12px 14px !important;
+            border: 2px solid #00ff88 !important;
+            background: rgba(10, 14, 39, 0.85) !important;
+            color: #ffffff !important;
+            border-radius: 6px !important;
+            font-size: 14px !important;
+            font-family: inherit !important;
+            transition: all 0.3s ease !important;
+            display: block !important;
+        }
+
+        .form-group input::placeholder {
+            color: #666688 !important;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none !important;
+            border-color: #00ffff !important;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3) !important;
+            background: rgba(10, 14, 39, 0.95) !important;
+        }
+
+        .form-row {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 15px !important;
+        }
+
+        .file-upload-area {
+            padding: 20px !important;
+            border: 2px dashed #00ff88 !important;
+            border-radius: 8px !important;
+            text-align: center !important;
+            background: rgba(0, 255, 136, 0.05) !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            position: relative !important;
+        }
+
+        .file-upload-area:hover {
+            background: rgba(0, 255, 136, 0.1) !important;
+            border-color: #00ffff !important;
+        }
+
+        .file-upload-area input[type="file"] {
+            display: none !important;
+        }
+
+        .file-upload-area p {
+            color: #00ff88 !important;
+            font-weight: 600 !important;
+            margin-bottom: 8px !important;
+            font-size: 14px !important;
+        }
+
+        .file-name {
+            color: #00ffff !important;
+            font-size: 13px !important;
+            margin-top: 10px !important;
+        }
+
+        .button-group {
+            display: flex !important;
+            gap: 12px !important;
+            margin-top: 24px !important;
+        }
+
+        .btn {
+            flex: 1 !important;
+            padding: 14px 24px !important;
+            border: 2px solid !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff88 0%, #00ccff 100%) !important;
+            color: #0a0e27 !important;
+            border-color: #00ff88 !important;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 24px rgba(0, 255, 136, 0.5) !important;
+        }
+
+        .btn-secondary {
+            background: rgba(0, 255, 136, 0.1) !important;
+            color: #00ff88 !important;
+            border-color: #00ff88 !important;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 255, 136, 0.2) !important;
+        }
+
+        .message {
+            padding: 14px 18px !important;
+            border-radius: 6px !important;
+            margin-bottom: 20px !important;
+            border-left: 4px solid !important;
+            display: none !important;
+            font-weight: 500 !important;
+            animation: slideIn 0.3s ease !important;
+        }
+
+        .message.show {
+            display: block !important;
+        }
+
+        .message.success {
+            background: rgba(0, 255, 136, 0.1) !important;
+            color: #00ff88 !important;
+            border-color: #00ff88 !important;
+        }
+
+        .message.error {
+            background: rgba(255, 51, 102, 0.1) !important;
+            color: #ff88aa !important;
+            border-color: #ff3366 !important;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px) !important;
+                opacity: 0 !important;
+            }
+
+            to {
+                transform: translateX(0) !important;
+                opacity: 1 !important;
+            }
+        }
+
+        .tracks-container {
+            display: grid !important;
+            gap: 12px !important;
+        }
+
+        .track-item {
+            background: rgba(0, 255, 136, 0.05) !important;
+            border: 1px solid rgba(0, 255, 136, 0.15) !important;
+            border-radius: 6px !important;
+            padding: 16px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .track-item:hover {
+            background: rgba(0, 255, 136, 0.08) !important;
+            border-color: rgba(0, 255, 136, 0.3) !important;
+        }
+
+        .track-info {
+            flex: 1 !important;
+        }
+
+        .track-name {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            font-size: 15px !important;
+            margin-bottom: 6px !important;
+        }
+
+        .track-meta {
+            color: #aabbcc !important;
+            font-size: 12px !important;
+            line-height: 1.5 !important;
+        }
+
+        .track-meta div {
+            margin: 3px 0 !important;
+        }
+
+        .btn-delete {
+            padding: 8px 16px !important;
+            background: #ff3366 !important;
+            color: white !important;
+            border: 2px solid #ff3366 !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease !important;
+            white-space: nowrap !important;
+            margin-left: 12px !important;
+        }
+
+        .btn-delete:hover {
+            background: #ff1a47 !important;
+            box-shadow: 0 4px 12px rgba(255, 51, 102, 0.4) !important;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr !important;
+            }
+
+            .button-group {
+                flex-direction: column !important;
+            }
+
+            .track-item {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+            }
+
+            .btn-delete {
+                margin-left: 0 !important;
+                margin-top: 12px !important;
+                width: 100% !important;
+            }
+
+            .header h1 {
+                font-size: 28px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 TRACK MANAGEMENT</h1>
+            <p>Upload and manage your music tracks</p>
+        </div>
+
+        <div class="card">
+            <h2>📤 Upload New Track</h2>
+
+            <div id="message" class="message"></div>
+
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="trackName">Track Name *</label>
+                    <input type="text" id="trackName" placeholder="e.g. P VS NP" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="artist">Artist *</label>
+                        <input type="text" id="artist" placeholder="e.g. Computational" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="genre">Genre</label>
+                        <input type="text" id="genre" placeholder="e.g. Metal" value="Metal">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="duration">Duration (seconds) *</label>
+                        <input type="number" id="duration" placeholder="e.g. 180" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price (€) *</label>
+                        <input type="number" id="price" placeholder="0.99" value="0.99" step="0.01" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="audioFile">MP3 File *</label>
+                    <div class="file-upload-area" onclick="document.getElementById('audioFile').click()">
+                        <p>📁 Click to select or drag & drop MP3 file</p>
+                        <span class="file-name">No file selected</span>
+                        <input type="file" id="audioFile" accept=".mp3,audio/mpeg" required>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">Upload Track</button>
+                    <button type="reset" class="btn btn-secondary">Clear Form</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>📋 Current Tracks</h2>
+            <div class="tracks-container" id="tracksList">
+                <p style="color: #aabbcc; text-align: center;">Loading tracks...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/admin/tracks';
+
+        // File selection display
+        document.getElementById('audioFile').addEventListener('change', (e) => {
+            const fileName = e.target.files[0]?.name || 'No file selected';
+            document.querySelector('.file-name').textContent = fileName;
+        });
+
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('trackName').value);
+            formData.append('artist', document.getElementById('artist').value);
+            formData.append('duration', document.getElementById('duration').value);
+            formData.append('genre', document.getElementById('genre').value);
+            formData.append('price', document.getElementById('price').value);
+            formData.append('audio', document.getElementById('audioFile').files[0]);
+
+            console.log('📤 Uploading track...');
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                console.log('API Response:', data);
+
+                if (response.ok) {
+                    showMessage('✅ Track uploaded successfully!', 'success');
+                    document.getElementById('uploadForm').reset();
+                    document.querySelector('.file-name').textContent = 'No file selected';
+                    setTimeout(loadTracks, 500);
+                } else {
+                    showMessage(`❌ Error: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                console.error('Upload error:', err);
+                showMessage(`❌ Upload failed: ${err.message}`, 'error');
+            }
+        });
+
+        // Load and display tracks
+        async function loadTracks() {
+            console.log('📋 Loading tracks...');
+            try {
+                const response = await fetch(`${API_BASE}/list`);
+                const tracks = await response.json();
+
+                console.log('Tracks loaded:', tracks);
+
+                const list = document.getElementById('tracksList');
+
+                if (!Array.isArray(tracks) || tracks.length === 0) {
+                    list.innerHTML = '<p style="color: #aabbcc; text-align: center;">No tracks yet</p>';
+                    return;
+                }
+
+                list.innerHTML = tracks.map(track => {
+                    const price = typeof track.price === 'number' ? track.price : parseFloat(track.price || '0.99');
+                    const priceStr = price.toFixed(2);
+
+                    return `
+                        <div class="track-item">
+                            <div class="track-info">
+                                <div class="track-name">${track.name || 'Unknown'}</div>
+                                <div class="track-meta">
+                                    <div>👤 Artist: ${track.artist || 'N/A'}</div>
+                                    <div>⏱️ Duration: ${Math.floor(track.duration / 60)}m ${track.duration % 60}s</div>
+                                    <div>💿 Genre: ${track.genre || 'N/A'}</div>
+                                    <div>💰 Price: €${priceStr}</div>
+                                    <div>📁 File: ${track.audio_filename || 'N/A'}</div>
+                                </div>
+                            </div>
+                            <button class="btn-delete" onclick="deleteTrack(${track.id})">🗑️ Delete</button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Load error:', err);
+                document.getElementById('tracksList').innerHTML =
+                    `<p style="color: #ff88aa;">Error loading tracks: ${err.message}</p>`;
+            }
+        }
+
+        // Delete track
+        async function deleteTrack(id) {
+            if (!confirm('Are you sure you want to delete this track?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('✅ Track deleted', 'success');
+                    loadTracks();
+                } else {
+                    showMessage(`❌ Error: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showMessage(`❌ Delete failed: ${err.message}`, 'error');
+            }
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = text;
+            msgEl.className = `message show ${type}`;
+            setTimeout(() => msgEl.classList.remove('show'), 4000);
+        }
+
+        // Load tracks on page load
+        loadTracks();
+    </script>
+</body>
+
+</html>
