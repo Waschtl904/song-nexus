@@ -7,7 +7,7 @@ const { pool } = require('../server');
 const router = express.Router();
 
 // ============================================================================
-// 🔐 MIDDLEWARE: Verify JWT (EXPORTIERT als Funktion!)
+// 🔐 MIDDLEWARE: Verify JWT
 // ============================================================================
 
 const verifyToken = (req, res, next) => {
@@ -40,17 +40,14 @@ router.post('/register', [
   const { email, password, username } = req.body;
 
   try {
-    // Check if user exists
     const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Hash password - FIX: Nutze default BCRYPT_ROUNDS wenn nicht in .env
     const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '10');
     const hashedPassword = await bcrypt.hash(password, bcryptRounds);
 
-    // Insert user
     const result = await pool.query(
       'INSERT INTO users (email, username, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, email, username, role',
       [email, username, hashedPassword, 'user']
@@ -102,7 +99,6 @@ router.post('/login', [
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Update last_login
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
@@ -119,7 +115,90 @@ router.post('/login', [
 });
 
 // ============================================================================
-// 🔄 REFRESH TOKEN (für später)
+// 🧪 DEV LOGIN
+// ============================================================================
+
+router.post('/dev-login', async (req, res) => {
+  try {
+    console.log('🧪 Dev login attempt...');
+
+    const devEmail = 'dev@localhost';
+    const devUsername = 'devuser';
+
+    let user = await pool.query(
+      'SELECT id, username, role FROM users WHERE email = $1',
+      [devEmail]
+    );
+
+    if (user.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash('dev123456', 10);
+      user = await pool.query(
+        'INSERT INTO users (email, username, password_hash, role, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, role',
+        [devEmail, devUsername, hashedPassword, 'admin', true]
+      );
+    }
+
+    const userData = user.rows[0];
+    const token = jwt.sign(
+      { id: userData.id, role: userData.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
+
+    res.json({
+      success: true,
+      message: '✅ Dev login successful',
+      user: { id: userData.id, username: userData.username, role: userData.role },
+      token
+    });
+  } catch (err) {
+    console.error('❌ Dev login error:', err);
+    res.status(500).json({ error: 'Dev login failed' });
+  }
+});
+
+// ============================================================================
+// 🔍 VERIFY TOKEN
+// ============================================================================
+
+router.post('/verify', verifyToken, (req, res) => {
+  res.json({
+    valid: true,
+    user: req.user
+  });
+});
+
+// ============================================================================
+// 👤 GET CURRENT USER
+// ============================================================================
+
+router.get('/me', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, email, username, role FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get user' });
+  }
+});
+
+// ============================================================================
+// 🔓 LOGOUT
+// ============================================================================
+
+router.post('/logout', verifyToken, (req, res) => {
+  res.json({ message: 'Logged out successfully' });
+});
+
+// ============================================================================
+// 🔄 REFRESH TOKEN
 // ============================================================================
 
 router.post('/refresh-token', verifyToken, (req, res) => {

@@ -1,293 +1,300 @@
+/**
+ * 🎵 SONG-NEXUS v6.0 - App Module
+ * Handles track loading, playback, and history management
+ */
+
 "use strict";
 
-// ========================================================================
-// 🛠️ DEVELOPMENT MODE – AUTO-LOGIN (DEVUSER)
-// ========================================================================
+const App = {
+  apiBase: 'http://localhost:3000/api',
 
-const DEV_MODE = true;
+  // ========================================================================
+  // 🎵 LOAD & DISPLAY TRACKS
+  // ========================================================================
 
-async function initDevMode() {
-  if (!DEV_MODE) return;
+  async loadTracks() {
+    try {
+      const token = Auth.getToken();
+      if (!token) {
+        console.warn('⚠️ No token for loading tracks');
+        return;
+      }
 
-  try {
-    const loginResponse = await fetch('http://localhost:3000/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'dev@nexus.local',
-        password: 'dev123'
-      })
-    });
+      console.log('📊 Loading tracks...');
 
-    if (loginResponse.ok) {
-      const data = await loginResponse.json();
-      token = data.token;
-      currentUser = data.user;
-      localStorage.setItem('token', token);
-      setTimeout(() => showUserDashboard(), 300);
-      console.log('%c🟣 DEV-MODE: Angemeldet als devuser', 'color: #dd00dd;');
-    } else {
-      console.warn('DEV-MODE: Login fehlgeschlagen');
+      const response = await fetch(`${this.apiBase}/tracks`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const tracks = await response.json();
+      console.log(`✅ Tracks loaded: ${tracks.length}`);
+      this.displayTracks(tracks);
+
+    } catch (error) {
+      console.error('❌ Track load error:', error);
+      const el = document.getElementById('tracksList');
+      if (el) {
+        el.innerHTML = `<div class="card" style="grid-column: 1/-1; text-align: center;"><p style="color: var(--text-secondary);">❌ Error loading tracks: ${error.message}</p></div>`;
+      }
     }
-  } catch (err) {
-    console.error('DEV-MODE Error:', err);
-  }
-}
+  },
 
-// ========================================================================
-// 📊 DASHBOARD FUNCTIONS
-// ========================================================================
+  displayTracks(tracks) {
+    const container = document.getElementById('tracksList');
+    if (!container) return;
 
-async function showUserDashboard() {
-  try {
-    const user = await APIClient.get('/users/profile', token);
-    const stats = await APIClient.get('/users/stats', token);
-    const purchases = await APIClient.get('/users/purchases', token);
-
-    UI.updateUserCard(user.username, user.email, stats.total_plays, stats.total_spent);
-    userPurchases = purchases || [];
-
-    await loadPlayHistory();
-    await loadPurchaseHistory();
-    await Tracks.loadTracks();
-
-    UI.showAuthSection(false);
-    UI.showUserSection(true);
-    UI.showTrackBrowser(true);
-    showControlsSection(true);
-  } catch (err) {
-    console.error('Dashboard load error:', err);
-  }
-}
-
-async function loadPlayHistory() {
-  try {
-    const history = await APIClient.get(`/play-history/user/${currentUser.id}`, token);
-    const container = document.getElementById('playHistoryContainer');
-
-    if (!history || !Array.isArray(history) || history.length === 0) {
-      container.innerHTML = '<p style="color: var(--text-secondary);">No play history yet</p>';
+    if (!tracks || tracks.length === 0) {
+      container.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;"><p style="color: var(--text-secondary);">🎵 No tracks available</p></div>';
       return;
     }
 
-    container.innerHTML = history.slice(0, 10).map(item => {
-      const trackName = (item.name || 'Unknown').toString();
-      const artistName = (item.artist || 'Unknown Artist').toString();
-      const playedDate = new Date(item.played_at || Date.now()).toLocaleDateString();
+    container.innerHTML = tracks.map(track => {
+      const isFree = track.is_free === true || (track.free_preview_duration && track.free_preview_duration >= 999999);
+      const price = track.price_eur || track.price || 0.99;
 
       return `
-        <div class="history-item">
-          <div>
-            <div class="history-track">🎵 ${UI.escapeHtml(trackName)}</div>
-            <div class="history-time">${UI.escapeHtml(artistName)}</div>
-          </div>
-          <div class="history-time">${playedDate}</div>
-        </div>
-      `;
-    }).join('');
-  } catch (err) {
-    console.error('Play history error:', err);
-    const container = document.getElementById('playHistoryContainer');
-    if (container) {
-      container.innerHTML = '<p style="color: var(--accent-pink);">Error loading play history</p>';
-    }
-  }
-}
-
-async function loadPurchaseHistory() {
-  try {
-    const history = await APIClient.get('/users/purchases', token);
-    const container = document.getElementById('purchaseHistoryContainer');
-
-    if (!history || !Array.isArray(history) || history.length === 0) {
-      container.innerHTML = '<p style="color: var(--text-secondary);">No purchases yet</p>';
-      return;
-    }
-
-    container.innerHTML = history.map(item => {
-      const trackName = (item.track_name || 'Unknown').toString();
-      const artistName = (item.artist_name || 'Unknown Artist').toString();
-      const price = parseFloat(item.price || 0).toFixed(2);
-      const purchaseDate = new Date(item.purchase_date || Date.now()).toLocaleDateString();
-
-      return `
-        <div class="history-item">
-          <div>
-            <div class="history-track">💿 ${UI.escapeHtml(trackName)}</div>
-            <div class="history-time">${UI.escapeHtml(artistName)}</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="color: var(--accent-pink); font-weight: 700;">€${price}</div>
-            <div class="history-time">${purchaseDate}</div>
+        <div class="card" style="cursor: pointer; transition: all 0.2s;" onclick="App.playTrack(${track.id}, '${this.escapeHtml(track.name)}', '${this.escapeHtml(track.audio_filename)}')">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+              <h3 style="margin: 0 0 8px 0; color: var(--accent-teal);">🎵 ${this.escapeHtml(track.name)}</h3>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 4px 0;">👤 ${this.escapeHtml(track.artist)}</p>
+              <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 4px 0;">🎸 ${track.genre}</p>
+              <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 4px 0;">▶️ ${track.play_count || 0} plays</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="color: var(--accent-pink); font-weight: 700; font-size: 1.1rem; margin-bottom: 8px;">
+                ${isFree ? '🎁 FREE' : '€' + parseFloat(price).toFixed(2)}
+              </div>
+              <span style="display: inline-block; background: rgba(0, 204, 119, 0.15); color: var(--accent-teal); padding: 4px 8px; border-radius: 3px; font-size: 0.75rem;">
+                ${isFree ? '✅ FREE' : '🎧 PREVIEW 40s'}
+              </span>
+            </div>
           </div>
         </div>
       `;
     }).join('');
-  } catch (err) {
-    console.error('Purchase history error:', err);
-    const container = document.getElementById('purchaseHistoryContainer');
-    if (container) {
-      container.innerHTML = '<p style="color: var(--accent-pink);">Error loading purchase history</p>';
+  },
+
+  // ========================================================================
+  // ▶️ PLAY TRACK - MIT BLOB & AUTHORIZATION
+  // ========================================================================
+
+  async playTrack(trackId, trackName, audioFilename) {
+    try {
+      const token = Auth.getToken();
+      if (!token) {
+        console.error('❌ No token for playback');
+        return;
+      }
+
+      console.log(`▶️ Playing: ${trackName} (${audioFilename})`);
+
+      // 🔐 Fetch audio mit Authorization Header
+      const response = await fetch(
+        `${this.apiBase}/tracks/audio/${encodeURIComponent(audioFilename)}`,
+        {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` },
+          credentials: 'include'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+      }
+
+      // 📦 Convert to Blob URL
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      console.log(`✅ Audio blob created: ${audioUrl}`);
+
+      // Create or update audio element
+      let audioPlayer = document.getElementById('globalAudioPlayer');
+      if (!audioPlayer) {
+        audioPlayer = document.createElement('audio');
+        audioPlayer.id = 'globalAudioPlayer';
+        audioPlayer.controls = true;
+        audioPlayer.style.cssText = 'width: 100%; margin-top: 20px; margin-bottom: 20px;';
+        const container = document.querySelector('.container');
+        if (container) {
+          container.insertBefore(audioPlayer, container.children[1]);
+        }
+      }
+
+      // 🎵 Set source and play
+      audioPlayer.src = audioUrl;
+      audioPlayer.play().catch(err => console.error('Play error:', err));
+
+      // Log play when ended
+      audioPlayer.onended = () => {
+        console.log(`✅ Track finished: ${trackName}`);
+        this.recordPlayback(trackId, trackName);
+      };
+
+    } catch (error) {
+      console.error('❌ Play error:', error);
+      alert(`❌ Play error: ${error.message}`);
     }
-  }
-}
-
-// ========================================================================
-// 🎚️ AUDIO PLAYER INITIALIZATION (MINIMAL ADDITION)
-// ========================================================================
-
-function initAudioPlayer() {
-  if (typeof AudioPlayer === 'undefined') {
-    console.warn('⚠️ AudioPlayer module not loaded');
-    return;
-  }
-
-  AudioPlayer.init();
-  AudioPlayer.setupKeyboardShortcuts();
-  console.log('🎚️ Audio Player initialized & ready');
-}
-
-// ========================================================================
-// 🗑️ CONTROLS SECTION
-// ========================================================================
-
-function showControlsSection(show = true) {
-  const el = document.getElementById('controlsSection');
-  if (el) {
-    el.style.display = show ? 'block' : 'none';
-  }
-}
-
-// ========================================================================
-// 🚀 INITIALIZATION
-// ========================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('%c⚡ SONG-NEXUS v6.0 – PRODUCTION READY ⚡', 'color: #00cc77; font-size: 16px; font-weight: bold;');
-  console.log('%c>> Modular Frontend Architecture', 'color: #00ffff; font-size: 12px;');
-
-  // Init theme
-  UI.initTheme();
-
-  // Initialize Audio Player
-  initAudioPlayer();
-
-  // Build Auth Section HTML
-  const authSection = document.getElementById('authSection');
-  if (authSection) {
-    authSection.innerHTML = `
-      <h2>🔑 Authentication</h2>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <div>
-          <h3 style="color: var(--accent-teal); font-size: 1rem; margin-bottom: 16px;">📝 REGISTER</h3>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="regEmail" placeholder="your@email.com">
-          </div>
-          <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="regUsername" placeholder="username">
-          </div>
-          <div class="form-group">
-            <label>Password (min 8 chars)</label>
-            <input type="password" id="regPassword" placeholder="••••••••">
-          </div>
-          <button class="button" onclick="register()">📝 Register</button>
-        </div>
-        <div>
-          <h3 style="color: var(--accent-teal); font-size: 1rem; margin-bottom: 16px;">🔐 LOGIN</h3>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="loginEmail" placeholder="your@email.com">
-          </div>
-          <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="loginPassword" placeholder="••••••••">
-          </div>
-          <button class="button" onclick="login()">🔐 Login</button>
-        </div>
-      </div>
-      <div class="status-message" id="authStatus"></div>
-    `;
-  }
-
-  // Build User Section HTML
-  const userSection = document.getElementById('userSection');
-  if (userSection) {
-    userSection.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>👤 User Dashboard</h2>
-        <button class="button button-secondary" onclick="logout()">🚪 Logout</button>
-      </div>
-
-      <div class="user-info">
-        <div class="user-card">
-          <div class="user-card-label">Username</div>
-          <div class="user-card-value" id="displayUsername">-</div>
-        </div>
-        <div class="user-card">
-          <div class="user-card-label">Email</div>
-          <div class="user-card-value" id="displayEmail" style="font-size: 0.9rem;">-</div>
-        </div>
-        <div class="user-card">
-          <div class="user-card-label">Total Plays</div>
-          <div class="user-card-value" id="totalPlays">0</div>
-        </div>
-        <div class="user-card">
-          <div class="user-card-label">Total Spent</div>
-          <div class="user-card-value" id="totalSpent">€0</div>
-        </div>
-      </div>
-
-      <div class="tabs">
-        <button class="tab-btn active" onclick="UI.switchTab('play-history')">🎵 Play History</button>
-        <button class="tab-btn" onclick="UI.switchTab('purchase-history')">💳 Purchase History</button>
-      </div>
-
-      <div id="play-history" class="tab-content active">
-        <div id="playHistoryContainer"><p style="color: var(--text-secondary);">Loading...</p></div>
-      </div>
-
-      <div id="purchase-history" class="tab-content">
-        <div id="purchaseHistoryContainer"><p style="color: var(--text-secondary);">Loading...</p></div>
-      </div>
-    `;
-  }
-
-  // Build Track Browser HTML
-  const trackBrowser = document.getElementById('trackBrowserSection');
-  if (trackBrowser) {
-    trackBrowser.innerHTML = `
-      <h2>🎵 Track Browser</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 20px;">Alle verfügbaren Tracks – Klick für Details</p>
-      <div class="status-message" id="trackStatus"></div>
-      <div id="trackContainer" class="track-grid">
-        <p style="color: var(--text-secondary);">Loading tracks...</p>
-      </div>
-    `;
-  }
-
-  // Build Modal HTML
-  const modal = document.getElementById('trackModal');
-  if (modal) {
-    modal.innerHTML = '<div class="modal-content"></div>';
-  }
+  },
 
   // ========================================================================
-  // 🗑️ RESET HISTORY BUTTON EVENT LISTENER
+  // 📊 RECORD PLAYBACK IN HISTORY
   // ========================================================================
-  const resetBtn = document.getElementById('resetHistoryBtn');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      console.log('✨ Reset History Button clicked');
-      UI.showResetHistoryModal();
-    });
-  }
 
-  // Start dev mode or wait for token
-  initDevMode();
+  async recordPlayback(trackId, trackName) {
+    try {
+      const token = Auth.getToken();
+      if (!token) return;
 
-  if (token && !DEV_MODE) {
-    showUserDashboard();
+      console.log(`📝 Recording play: track_id=${trackId}`);
+
+      const response = await fetch(`${this.apiBase}/play-history`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          track_id: trackId,
+          duration_played_seconds: null // Optional
+        })
+      });
+
+      if (!response.ok) {
+        console.warn(`⚠️ Failed to record play: HTTP ${response.status}`);
+        return;
+      }
+
+      console.log(`✅ Play recorded successfully`);
+      this.loadHistory();
+
+    } catch (error) {
+      console.error('❌ Record playback error:', error);
+    }
+  },
+
+  // ========================================================================
+  // 📊 LOAD & DISPLAY PLAY HISTORY
+  // ========================================================================
+
+  async loadHistory() {
+    try {
+      const token = Auth.getToken();
+      const user = Auth.getUser();
+
+      if (!token || !user) {
+        console.warn('⚠️ No auth for loading history');
+        return;
+      }
+
+      console.log(`📊 Loading play history for user ${user.id}...`);
+
+      const response = await fetch(`${this.apiBase}/play-history/user/${user.id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const history = await response.json();
+      console.log(`✅ History loaded: ${history.length} entries`);
+      this.displayHistory(history);
+
+    } catch (error) {
+      console.error('❌ History load error:', error);
+      const el = document.getElementById('historyList');
+      if (el) {
+        el.innerHTML = `<div class="card" style="text-align: center;"><p style="color: var(--text-secondary);">❌ Error loading history: ${error.message}</p></div>`;
+      }
+    }
+  },
+
+  displayHistory(history) {
+    const container = document.getElementById('historyList');
+    if (!container) return;
+
+    if (!history || history.length === 0) {
+      container.innerHTML = '<div class="card" style="text-align: center;"><p style="color: var(--text-secondary);">📊 No play history yet</p></div>';
+      return;
+    }
+
+    container.innerHTML = history.map((entry, index) => {
+      const playedAt = new Date(entry.played_at);
+      const timeStr = playedAt.toLocaleString('de-AT', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      return `
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="margin: 0 0 4px 0; color: var(--accent-teal);">#${index + 1} - ${this.escapeHtml(entry.name)}</h4>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 4px 0;">👤 ${this.escapeHtml(entry.artist)}</p>
+              <small style="color: var(--text-secondary);">⏰ ${timeStr}</small>
+            </div>
+            <button class="button button-secondary" onclick="App.playTrack(${entry.track_id}, '${this.escapeHtml(entry.name)}', '${this.escapeHtml(entry.audio_filename)}')" style="padding: 6px 12px; font-size: 0.8rem;">
+              ▶️ PLAY
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  // ========================================================================
+  // 🚪 LOGOUT - FIXED: clearToken/clearUser
+  // ========================================================================
+
+  logout() {
+    console.log('🔓 Logging out...');
+
+    // ✅ FIX: Nutze setToken/setUser statt clearToken/clearUser
+    Auth.setToken(null);
+    Auth.setUser(null);
+
+    // Stop audio playback
+    const audioPlayer = document.getElementById('globalAudioPlayer');
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.src = '';
+    }
+
+    updateUI();
+  },
+
+  // ========================================================================
+  // 🛡️ UTILITY: Escape HTML
+  // ========================================================================
+
+  escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
-});
+};
+
+// Make available globally
+window.App = App;
