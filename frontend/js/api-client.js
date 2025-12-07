@@ -4,7 +4,7 @@
 // 🔌 API CLIENT
 // ========================================================================
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://localhost:3000/api';
 
 class APIClient {
     static async request(method, endpoint, data = null, token = null) {

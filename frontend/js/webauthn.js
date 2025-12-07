@@ -1,5 +1,5 @@
 const WebAuthn = {
-    apiBase: 'http://localhost:3000/api/auth',
+    apiBase: 'https://localhost:3000/api/auth',
 
     async registerWithBiometric(username, email) {
         try {

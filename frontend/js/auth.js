@@ -1,5 +1,5 @@
 const Auth = {
-    apiBase: 'http://localhost:3000/api',
+    apiBase: 'https://localhost:3000/api',
 
     setToken(token) {
         localStorage.setItem('auth_token', token);

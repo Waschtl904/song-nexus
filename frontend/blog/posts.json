@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "title": "Welcome to Song-Nexus",
+        "slug": "welcome-to-song-nexus",
+        "date": "2025-12-07",
+        "author": "Sebastian",
+        "excerpt": "Discover a new way to stream music. Free, ad-free, and completely private. No tracking, no cookies, just pure music.",
+        "category": "getting-started"
+    },
+    {
+        "id": 2,
+        "title": "Why We Built This (And Why You Should Care)",
+        "slug": "why-we-built-this",
+        "date": "2025-12-06",
+        "author": "Sebastian",
+        "excerpt": "The story behind Song-Nexus: fighting back against invasive ads, tracking, and corporate control. Let's take back the internet.",
+        "category": "philosophy"
+    },
+    {
+        "id": 3,
+        "title": "WebAuthn: The Future of Secure Authentication",
+        "slug": "webauthn-secure-auth",
+        "date": "2025-12-05",
+        "author": "Sebastian",
+        "excerpt": "Learn how biometric authentication works, why passwords are dying, and how WebAuthn makes your digital life more secure.",
+        "category": "technology"
+    },
+    {
+        "id": 4,
+        "title": "Building Accessible Web Apps: The Right Way",
+        "slug": "accessible-web-apps",
+        "date": "2025-12-04",
+        "author": "Sebastian",
+        "excerpt": "Accessibility isn't optional. Discover practical tips for building websites that work for everyone, including users with disabilities.",
+        "category": "accessibility"
+    }
+]

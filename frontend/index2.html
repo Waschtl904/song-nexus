@@ -11,29 +11,16 @@
     <title>🎵 SONG-NEXUS – Free Music Streaming Platform</title>
 
     <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300ff00'>♪</text></svg>">
-
-    <!-- Fonts -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
-        rel="stylesheet">
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300cc77'>♪</text></svg>">
 
     <!-- CSS -->
-    <!-- Force Dark Mode für Cyberpunk Design -->
-    <script>
-        document.documentElement.setAttribute('data-color-scheme', 'dark');
-        if (document.documentElement.setAttribute) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
-    </script>
-
-    <!-- Cyberpunk CSS -->
     <link rel="stylesheet" href="css/styles-cyberpunk.css">
+    <link rel="stylesheet" href="css/player.css">
 </head>
 
 <body>
     <!-- ========================================================================
-         🎵 STICKY PLAYER (Always visible bottom-right)
+         🎵 STICKY PLAYER (Always visible top-right)
          ======================================================================== -->
     <div id="stickyPlayer" class="sticky-player">
         <div class="player-header">
@@ -92,9 +79,9 @@
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode">🌙</button>
                 <div id="userInfo" class="user-info" style="display: none;">
                     <span id="userDisplay">👤 User</span>
-                    <button class="button button-sm" id="logoutBtn">Logout</button>
+                    <button class="button button-sm" onclick="App.logout()">Logout</button>
                 </div>
-                <button id="authToggle" class="button button-sm">Login</button>
+                <button id="authToggle" class="button button-sm" onclick="App.toggleAuthModal()">Login</button>
             </div>
         </div>
     </header>
@@ -128,7 +115,8 @@
              ==================================================================== -->
         <div id="authModal" class="modal" style="display: none;">
             <div class="modal-content">
-                <button class="modal-close" aria-label="Close authentication modal">&times;</button>
+                <button class="modal-close" onclick="App.toggleAuthModal()"
+                    aria-label="Close authentication modal">&times;</button>
                 <h2>🔐 Authentication</h2>
                 <p style="color: var(--text-secondary); font-size: 0.9rem;">
                     Optional: Login for play history, playlists, and premium features.
@@ -136,29 +124,29 @@
 
                 <!-- Tabs -->
                 <div class="tabs">
-                    <button class="tab-btn active" data-tab="webauthn" aria-selected="true">👆
+                    <button class="tab-btn active" onclick="App.switchTab('webauthn', event)" aria-selected="true">👆
                         Fingerprint</button>
-                    <button class="tab-btn" data-tab="password" aria-selected="false">🔑
+                    <button class="tab-btn" onclick="App.switchTab('password', event)" aria-selected="false">🔑
                         Password</button>
-                    <button class="tab-btn" data-tab="magic-link" aria-selected="false">📧
+                    <button class="tab-btn" onclick="App.switchTab('magic-link', event)" aria-selected="false">📧
                         Email</button>
                 </div>
 
                 <!-- WebAuthn Tab -->
                 <div id="webauthn-tab" class="tab-content active">
                     <div style="text-align: center; padding: 20px 0;">
-                        <button class="button" id="webauthnBtn" aria-label="Login with fingerprint">👆 Use
+                        <button class="button" onclick="App.webauthnLogin()" aria-label="Login with fingerprint">👆 Use
                             Fingerprint</button>
                         <p style="color: var(--text-secondary); margin-top: 12px; font-size: 0.85rem;">
-                            First time? <a href="#" id="toggleBioRegisterBtn"
+                            First time? <a href="#" onclick="App.toggleBioRegister(true); return false;"
                                 style="color: var(--accent-teal); cursor: pointer;">Register with Fingerprint</a>
                         </p>
                         <div id="bioRegisterModal"
                             style="display: none; margin-top: 16px; padding: 16px; border: 1px solid var(--accent-teal); border-radius: 4px;">
                             <h3 style="color: var(--accent-teal); margin-bottom: 12px;">📝 Register</h3>
-                            <input type="text" id="bioRegUsername" placeholder="Username" class="form-control">
-                            <input type="email" id="bioRegEmail" placeholder="Email" class="form-control">
-                            <button class="button" id="registerBiometricBtn"
+                            <input type="text" id="bioRegUsername" placeholder="Username" class="form-input">
+                            <input type="email" id="bioRegEmail" placeholder="Email" class="form-input">
+                            <button class="button" onclick="App.registerBiometric()"
                                 style="width: 100%; margin-top: 12px;">Register</button>
                         </div>
                         <div id="bioStatus" class="status-message"></div>
@@ -167,16 +155,16 @@
 
                 <!-- Password Tab -->
                 <div id="password-tab" class="tab-content">
-                    <form data-form="password-login">
+                    <form onsubmit="App.passwordLogin(event)">
                         <div class="form-group">
                             <label for="loginEmail">Email</label>
                             <input type="email" id="loginEmail" placeholder="your@email.com" required
-                                class="form-control">
+                                class="form-input">
                         </div>
                         <div class="form-group">
                             <label for="loginPassword">Password</label>
                             <input type="password" id="loginPassword" placeholder="••••••••" required
-                                class="form-control">
+                                class="form-input">
                         </div>
                         <button type="submit" class="button" style="width: 100%;">🔐 Login</button>
                     </form>
@@ -187,9 +175,9 @@
                 <div id="magic-link-tab" class="tab-content">
                     <div class="form-group">
                         <label for="magicEmail">Email Address</label>
-                        <input type="email" id="magicEmail" placeholder="your@email.com" class="form-control">
+                        <input type="email" id="magicEmail" placeholder="your@email.com" class="form-input">
                     </div>
-                    <button class="button" id="magicLinkBtn" style="width: 100%;">📧 Send Login
+                    <button class="button" style="width: 100%;" onclick="App.sendMagicLink()">📧 Send Login
                         Link</button>
                     <div id="magicStatus" class="status-message"></div>
                 </div>

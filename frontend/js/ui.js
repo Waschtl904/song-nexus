@@ -187,7 +187,7 @@ const UI = {
             console.log(`🗑️ Deleting play history for user: ${userId}`);
 
             // API Call
-            const response = await fetch(`http://localhost:3000/api/play-history/user/${userId}`, {
+            const response = await fetch(`https://localhost:3000/api/play-history/user/${userId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,

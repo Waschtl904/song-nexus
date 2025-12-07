@@ -6,7 +6,7 @@
 "use strict";
 
 const App = {
-  apiBase: 'http://localhost:3000/api',
+  apiBase: 'https://localhost:3000/api',
 
   // ========================================================================
   // 🎵 LOAD & DISPLAY TRACKS

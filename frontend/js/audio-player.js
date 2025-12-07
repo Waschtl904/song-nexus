@@ -70,7 +70,7 @@ const AudioPlayer = {
 
 
         // ✅ RICHTIG: Nutze audio_filename statt track name
-        const audioUrl = `http://localhost:3000/api/tracks/audio/${track.audio_filename}`;
+        const audioUrl = `https://localhost:3000/api/tracks/audio/${track.audio_filename}`;
 
 
         audioElement.src = audioUrl;
@@ -343,7 +343,7 @@ const AudioPlayer = {
 
         try {
             const durationSec = Math.floor(audioElement.currentTime);
-            const response = await fetch('http://localhost:3000/api/play-history', {
+            const response = await fetch('https://localhost:3000/api/play-history', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

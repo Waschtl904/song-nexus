@@ -277,7 +277,7 @@ const Tracks = {
 
 
       // 2️⃣ Get PayPal Mode from Backend
-      const configResponse = await fetch('http://localhost:3000/api/payments/config');
+      const configResponse = await fetch('https://localhost:3000/api/payments/config');
       const config = await configResponse.json();
       const paypalMode = config.paypal_mode || 'sandbox';
 
@@ -335,7 +335,7 @@ const Tracks = {
 
 
 
-      const downloadLink = `http://localhost:3000/api/tracks/audio/${audioFilename}`;
+      const downloadLink = `https://localhost:3000/api/tracks/audio/${audioFilename}`;
 
 
 
