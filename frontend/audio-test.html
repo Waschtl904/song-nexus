@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song-Nexus Audio Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #222;
+            border: 1px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ff00ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #0a0a0a;
+            border-left: 3px solid #00ff00;
+            border-radius: 4px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 5px 5px 5px 0;
+            background: #333;
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .status.ok {
+            background: #003300;
+            color: #00ff00;
+        }
+
+        .status.error {
+            background: #330000;
+            color: #ff0000;
+        }
+
+        .status.warning {
+            background: #333300;
+            color: #ffff00;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        button:hover {
+            background: #00ff99;
+        }
+
+        button:active {
+            background: #00cc00;
+        }
+
+        #audioPlayer {
+            width: 100%;
+            margin: 10px 0;
+            background: #333;
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+        }
+
+        .log {
+            background: #000;
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+            padding: 10px;
+            height: 250px;
+            overflow-y: auto;
+            font-size: 11px;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #111;
+        }
+
+        .log-success {
+            color: #00ff00;
+        }
+
+        .log-error {
+            color: #ff0000;
+        }
+
+        .log-warning {
+            color: #ffff00;
+        }
+
+        .log-info {
+            color: #0099ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎵 Song-Nexus Audio Debug Console 🎵</h1>
+
+        <!-- AUTH STATUS -->
+        <div class="section">
+            <h2>🔐 Authentication Status</h2>
+            <div id="authStatus"></div>
+            <button onclick="checkAuth()">🔍 Check Auth</button>
+            <button onclick="clearAuth()">🗑️ Clear Auth</button>
+        </div>
+
+        <!-- TRACK LOADING -->
+        <div class="section">
+            <h2>📡 Track Loading</h2>
+            <button onclick="loadTracksDebug()">📥 Load Tracks</button>
+            <div id="trackStatus"></div>
+            <div id="tracksList"></div>
+        </div>
+
+        <!-- AUDIO TESTING -->
+        <div class="section">
+            <h2>🎵 Audio Test</h2>
+            <div>
+                <label>Select Track:</label>
+                <select id="trackSelect" style="padding: 8px; margin: 10px 0;">
+                    <option value="">-- Choose a track --</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="testAudioFetch()">📡 Test Fetch Only</button>
+                <button onclick="testAudioPlay()">▶️ Play Audio</button>
+                <button onclick="testAudioStop()">⏹️ Stop Audio</button>
+                <button onclick="testAudioResume()">▶️ Resume</button>
+            </div>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+
+        <!-- LOGS -->
+        <div class="section">
+            <h2>📋 Debug Log</h2>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+            <div id="debugLog" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // LOG SYSTEM
+        // ============================================================================
+
+        const logElement = document.getElementById('debugLog');
+        const maxLogs = 50;
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+
+            // Keep only last maxLogs entries
+            const entries = logElement.querySelectorAll('.log-entry');
+            if (entries.length > maxLogs) {
+                entries[0].remove();
+            }
+
+            // Scroll to bottom
+            logElement.scrollTop = logElement.scrollHeight;
+
+            // Also log to console
+            console.log(message);
+        }
+
+        function clearLog() {
+            logElement.innerHTML = '';
+            addLog('🗑️ Log cleared', 'info');
+        }
+
+        // ============================================================================
+        // AUTH FUNCTIONS
+        // ============================================================================
+
+        function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+            const authStatus = document.getElementById('authStatus');
+
+            if (token && user) {
+                authStatus.innerHTML = `
+                    <div class="status ok">✅ Authenticated</div>
+                    <div style="margin-top: 10px;">
+                        <div><strong>User:</strong> ${user.username}</div>
+                        <div><strong>ID:</strong> ${user.id}</div>
+                        <div><strong>Token:</strong> ${token.substring(0, 30)}...</div>
+                    </div>
+                `;
+                addLog(`✅ Authenticated as ${user.username}`, 'success');
+            } else {
+                authStatus.innerHTML = `<div class="status error">❌ Not Authenticated</div>`;
+                addLog('❌ Not authenticated - redirecting to login', 'error');
+                setTimeout(() => location.href = '/auth.html', 2000);
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            addLog('🗑️ Auth cleared', 'warning');
+            checkAuth();
+        }
+
+        // ============================================================================
+        // TRACK LOADING
+        // ============================================================================
+
+        let currentTracks = [];
+
+        async function loadTracksDebug() {
+            addLog('📡 Fetching /api/tracks...', 'info');
+
+            try {
+                const response = await fetch('/api/tracks');
+                addLog(`📊 Response Status: ${response.status}`, 'info');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const tracks = await response.json();
+                currentTracks = tracks;
+                addLog(`✅ Loaded ${tracks.length} tracks`, 'success');
+
+                // Update select dropdown
+                const select = document.getElementById('trackSelect');
+                select.innerHTML = '<option value="">-- Choose a track --</option>' +
+                    tracks.map((t, i) => `<option value="${i}">${t.title} (${t.audio_filename})</option>`).join('');
+
+                // Display track list
+                const tracksList = document.getElementById('tracksList');
+                tracksList.innerHTML = tracks.map((t, i) => `
+                    <div style="margin: 8px 0; padding: 8px; background: #111; border-radius: 4px;">
+                        <strong>${t.title}</strong> | ${t.audio_filename} | ${t.is_free ? '✅ Free' : '💰 Premium'}
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                addLog(`❌ Error loading tracks: ${error.message}`, 'error');
+            }
+        }
+
+        // ============================================================================
+        // AUDIO TESTING
+        // ============================================================================
+
+        async function testAudioFetch() {
+            const selectIndex = document.getElementById('trackSelect').value;
+            if (selectIndex === '') {
+                addLog('⚠️ Please select a track', 'warning');
+                return;
+            }
+
+            const track = currentTracks[selectIndex];
+            const token = localStorage.getItem('auth_token');
+
+            addLog(`📡 Fetching audio: ${track.audio_filename}`, 'info');
+
+            try {
+                const response = await fetch(`/api/tracks/audio/${track.audio_filename}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'audio/mpeg, audio/*'
+                    }
+                });
+
+                addLog(`📊 Fetch Status: ${response.status} (${response.statusText})`, 'info');
+                addLog(`📦 Content-Length: ${response.headers.get('content-length')} bytes`, 'info');
+                addLog(`📋 Content-Type: ${response.headers.get('content-type')}`, 'info');
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    addLog(`❌ Error: ${response.status} - ${text}`, 'error');
+                    return;
+                }
+
+                const blob = await response.blob();
+                addLog(`✅ Blob received: ${blob.size} bytes, Type: ${blob.type}`, 'success');
+
+            } catch (error) {
+                addLog(`❌ Fetch Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAudioPlay() {
+            const selectIndex = document.getElementById('trackSelect').value;
+            if (selectIndex === '') {
+                addLog('⚠️ Please select a track', 'warning');
+                return;
+            }
+
+            const track = currentTracks[selectIndex];
+            const token = localStorage.getItem('auth_token');
+            const audioElement = document.getElementById('audioPlayer');
+
+            addLog(`▶️ Playing: ${track.title}`, 'info');
+
+            try {
+                const response = await fetch(`/api/tracks/audio/${track.audio_filename}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    addLog(`❌ Fetch failed: ${response.status}`, 'error');
+                    return;
+                }
+
+                const blob = await response.blob();
+                addLog(`💾 Blob size: ${blob.size} bytes`, 'success');
+
+                const blobUrl = URL.createObjectURL(blob);
+                addLog(`🔗 Blob URL created: ${blobUrl.substring(0, 50)}...`, 'success');
+
+                audioElement.src = blobUrl;
+                addLog(`✅ Audio element src set`, 'success');
+
+                audioElement.play().then(() => {
+                    addLog(`▶️ Audio playback started`, 'success');
+                }).catch(err => {
+                    addLog(`❌ Playback error: ${err.message}`, 'error');
+                });
+
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function testAudioStop() {
+            const audio = document.getElementById('audioPlayer');
+            audio.pause();
+            audio.currentTime = 0;
+            addLog('⏹️ Audio stopped', 'info');
+        }
+
+        function testAudioResume() {
+            const audio = document.getElementById('audioPlayer');
+            audio.play();
+            addLog('▶️ Audio resumed', 'info');
+        }
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog('🚀 Audio Debug Console Started', 'success');
+            checkAuth();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎵 SONG-NEXUS v6.0 - Music Streaming Platform</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300cc77'>♪</text></svg>">
-    
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300cc77'>♪</text></svg>">
+
     <!-- 🎨 DEINE ORIGINAL CYBERPUNK CSS -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body>
     <!-- ============================================================================
          HEADER
@@ -21,7 +24,8 @@
             </div>
             <div id="userInfo" style="display: none; text-align: right; color: var(--accent-teal);">
                 <p id="userDisplay" style="margin: 0; font-weight: bold;"></p>
-                <button class="button button-secondary" onclick="App.logout()" style="margin-top: 8px; padding: 4px 12px; font-size: 0.9rem;">🔓 Logout</button>
+                <button class="button button-secondary" onclick="App.logout()"
+                    style="margin-top: 8px; padding: 4px 12px; font-size: 0.9rem;">🔓 Logout</button>
             </div>
         </div>
     </header>
@@ -35,7 +39,7 @@
              ==================================================================== -->
         <section class="auth-section active" id="authSection">
             <h2>🔐 Authentication</h2>
-            
+
             <!-- Auth Tabs -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('biometric', event)">👆 Fingerprint</button>
@@ -46,27 +50,31 @@
             <!-- 1️⃣ BIOMETRIC TAB (WebAuthn) -->
             <div id="biometric-tab" class="tab-content active">
                 <div style="text-align: center; padding: 20px 0;">
-                    <h2 style="color: var(--accent-teal); margin: 0 0 12px 0; font-size: 1.4rem;">👆 Scan Your Fingerprint</h2>
+                    <h2 style="color: var(--accent-teal); margin: 0 0 12px 0; font-size: 1.4rem;">👆 Scan Your
+                        Fingerprint</h2>
                     <p style="color: var(--text-secondary); margin: 0 0 20px 0; font-size: 0.9rem;">
-                        Fast, secure, and accessible for everyone.<br/>
+                        Fast, secure, and accessible for everyone.<br />
                         <small>(No password to remember)</small>
                     </p>
-                    
+
                     <button class="button" onclick="biometricLogin()" style="margin: 10px auto; display: inline-block;">
                         👆 Use Fingerprint / Face
                     </button>
-                    
+
                     <!-- 🧪 Dev Login Button (nur für Development) -->
-                    <button class="button button-secondary" onclick="WebAuthn.devLogin()" style="margin: 10px auto; display: inline-block; opacity: 0.6;">
+                    <button class="button button-secondary" onclick="WebAuthn.devLogin()"
+                        style="margin: 10px auto; display: inline-block; opacity: 0.6;">
                         🧪 Dev Login
                     </button>
-                    
+
                     <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 16px;">
-                        First time? <a href="#" onclick="toggleBioRegister(true); return false;" style="color: var(--accent-teal); cursor: pointer;">Register with Fingerprint</a>
+                        First time? <a href="#" onclick="toggleBioRegister(true); return false;"
+                            style="color: var(--accent-teal); cursor: pointer;">Register with Fingerprint</a>
                     </p>
 
                     <!-- Biometric Register Modal -->
-                    <div id="bioRegisterModal" style="display: none; background: rgba(15, 21, 39, 0.9); border: 1px solid var(--accent-teal); border-radius: 6px; padding: 24px; margin-top: 20px;">
+                    <div id="bioRegisterModal"
+                        style="display: none; background: rgba(15, 21, 39, 0.9); border: 1px solid var(--accent-teal); border-radius: 6px; padding: 24px; margin-top: 20px;">
                         <h3 style="color: var(--accent-teal); margin-bottom: 16px;">📝 Register with Fingerprint</h3>
                         <div class="form-group">
                             <label>Username</label>
@@ -89,7 +97,7 @@
             <div id="magic-link-tab" class="tab-content" style="padding: 20px;">
                 <h3 style="color: var(--accent-teal); margin-bottom: 16px;">📧 Magic Link</h3>
                 <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
-                    We'll send you a secure login link via email.<br/>
+                    We'll send you a secure login link via email.<br />
                     <small>(Perfect for accessibility)</small>
                 </p>
 
@@ -221,7 +229,7 @@
                 // Remove active from all tabs
                 document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                
+
                 // Add active to selected
                 document.getElementById(tabName + '-tab').classList.add('active');
                 event.target.classList.add('active');
@@ -314,10 +322,205 @@
                 console.log(`✅ Logged in as: ${user?.username || 'User'}`);
             }
             console.log('✅ App ready');
-            
+
             // ✨ UPDATE UI ON LOAD
             updateUI();
         });
+        // ============================================================================
+        // DEMO AUTH - Funktioniert OHNE Backend (für schnelle Tests)
+        // ============================================================================
+        // Kopiere diesen Code in deine auth-styled.html <script> section
+        // oder nutze ihn um dein Backend zu debuggen
+
+        const DEMO_MODE = true; // DEMO_MODE für schnelle Tests ohne Backend
+
+        // DEMO USERS (für lokale Tests)
+        const DEMO_USERS = {
+            'admin@test.local': {
+                username: 'Admin',
+                email: 'admin@test.local',
+                password: 'password123',
+                id: 1
+            },
+            'user@test.local': {
+                username: 'TestUser',
+                email: 'user@test.local',
+                password: 'password123',
+                id: 2
+            }
+        };
+
+        // ============================================================================
+        // ERWEITERTE LOGIN FUNKTION MIT FALLBACK
+        // ============================================================================
+
+        async function handleLoginWithFallback() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showMessage('loginMsg', '❌ Alle Felder ausfüllen!', 'error');
+                return;
+            }
+
+            setLoading('login', true);
+
+            try {
+                // 1. ZUERST: Versuche echten Backend-Login
+                console.log('📡 Versuche Backend Login...');
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                    signal: AbortSignal.timeout(3000) // 3 Sekunden Timeout
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showMessage('loginMsg', '✅ Backend Login erfolgreich!', 'success');
+                    setTimeout(() => location.href = '/app.html', 1000);
+                    return;
+                }
+
+                throw new Error('Backend nicht erreichbar');
+
+            } catch (backendError) {
+                console.warn('⚠️ Backend Login fehlgeschlagen:', backendError.message);
+
+                // 2. FALLBACK: Demo-Mode wenn Backend nicht läuft
+                if (DEMO_MODE) {
+                    console.log('📝 Nutze Demo-Mode...');
+                    const user = DEMO_USERS[email];
+
+                    if (!user || user.password !== password) {
+                        showMessage('loginMsg', '❌ Email oder Passwort falsch!\n💡 Demo-User: admin@test.local / password123', 'error');
+                        setLoading('login', false);
+                        return;
+                    }
+
+                    // Demo-Token erstellen
+                    const token = `demo_token_${user.id}_${Date.now()}`;
+                    localStorage.setItem('auth_token', token);
+                    localStorage.setItem('user', JSON.stringify({
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        isDemoUser: true
+                    }));
+
+                    showMessage('loginMsg', '✅ Demo-Mode: Login erfolgreich!', 'success');
+                    setTimeout(() => location.href = '/app.html', 1000);
+                    return;
+                }
+
+                showMessage('loginMsg', '❌ Backend nicht erreichbar!\n💡 Starten Sie den Server: npm start', 'error');
+                setLoading('login', false);
+            }
+        }
+
+        // ============================================================================
+        // ERWEITERTE REGISTER FUNKTION MIT FALLBACK
+        // ============================================================================
+
+        async function handleRegisterWithFallback() {
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const passwordConfirm = document.getElementById('regPasswordConfirm').value;
+
+            if (!username || !email || !password) {
+                showMessage('registerMsg', '❌ Alle Felder ausfüllen!', 'error');
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                showMessage('registerMsg', '❌ Passwörter stimmen nicht überein!', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('registerMsg', '❌ Passwort mindestens 6 Zeichen!', 'error');
+                return;
+            }
+
+            setLoading('register', true);
+
+            try {
+                // 1. ZUERST: Versuche echten Backend-Register
+                console.log('📡 Versuche Backend Register...');
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password }),
+                    signal: AbortSignal.timeout(3000)
+                });
+
+                if (response.ok) {
+                    showMessage('registerMsg', '✅ Registrierung erfolgreich!', 'success');
+                    setTimeout(() => {
+                        toggleForm('login');
+                        document.getElementById('loginEmail').value = email;
+                        setLoading('register', false);
+                    }, 1500);
+                    return;
+                }
+
+                throw new Error('Backend nicht erreichbar');
+
+            } catch (backendError) {
+                console.warn('⚠️ Backend Register fehlgeschlagen:', backendError.message);
+
+                // 2. FALLBACK: Demo-Mode wenn Backend nicht läuft
+                if (DEMO_MODE) {
+                    console.log('📝 Nutze Demo-Mode für Registrierung...');
+
+                    // Speichere neuen User in localStorage für Demo
+                    const newUser = {
+                        username,
+                        email,
+                        password,
+                        id: Math.floor(Math.random() * 10000)
+                    };
+                    localStorage.setItem(`demo_user_${email}`, JSON.stringify(newUser));
+
+                    showMessage('registerMsg', '✅ Demo-Registrierung erfolgreich!', 'success');
+                    setTimeout(() => {
+                        toggleForm('login');
+                        document.getElementById('loginEmail').value = email;
+                        document.getElementById('loginPassword').value = password;
+                        setLoading('register', false);
+                    }, 1500);
+                    return;
+                }
+
+                showMessage('registerMsg', '❌ Backend nicht erreichbar!\n💡 Starten Sie den Server: npm start', 'error');
+                setLoading('register', false);
+            }
+        }
+
+        // ============================================================================
+        // VERWENDUNG
+        // ============================================================================
+
+        /*
+        Ersetze in der HTML diese Zeilen:
+        
+        Von:
+          onclick="handleLogin()"
+          onclick="handleRegister()"
+        
+        Zu:
+          onclick="handleLoginWithFallback()"
+          onclick="handleRegisterWithFallback()"
+        
+        JETZT funktioniert:
+        ✅ Echter Backend-Login wenn /api/auth/login läuft
+        ✅ Demo-Mode wenn Backend nicht läuft
+        ✅ Test-Credentials: admin@test.local / password123
+        */
     </script>
 </body>
+
 </html>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song-Nexus - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0e1a;
+            --bg-darker: #050710;
+            --text-primary: #00ffff;
+            --text-secondary: #88ddff;
+            --accent-teal: #00cc77;
+            --accent-pink: #b7410e;
+            --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(0deg,
+                    rgba(0, 204, 119, 0.008),
+                    rgba(0, 204, 119, 0.008) 1px,
+                    transparent 1px,
+                    transparent 2px);
+            pointer-events: none;
+            z-index: 999;
+            animation: scanlines 8s linear infinite;
+            opacity: 0.5;
+        }
+
+        @keyframes scanlines {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(10px);
+            }
+        }
+
+        .container {
+            max-width: 400px;
+            width: 100%;
+            margin: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-box {
+            background: rgba(15, 21, 39, 0.8);
+            border: 2px solid var(--accent-teal);
+            border-radius: 6px;
+            padding: 40px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 30px rgba(0, 204, 119, 0.2);
+        }
+
+        h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--accent-teal);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 204, 119, 0.3);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 15px rgba(0, 204, 119, 0.25);
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--accent-teal), var(--accent-pink));
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+
+        .button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 204, 119, 0.35);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-secondary {
+            background: transparent;
+            border: 1px solid var(--accent-teal);
+            color: var(--accent-teal);
+            margin-top: 15px;
+        }
+
+        .button-secondary:hover:not(:disabled) {
+            background: rgba(0, 204, 119, 0.1);
+        }
+
+        .toggle-form {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .toggle-form button {
+            background: none;
+            border: none;
+            color: var(--accent-teal);
+            cursor: pointer;
+            font-weight: 700;
+            text-decoration: underline;
+            margin-left: 5px;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .toggle-form button:hover {
+            color: var(--accent-pink);
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: none;
+            border: 1px solid;
+            font-size: 0.9rem;
+        }
+
+        .message.success {
+            background: rgba(0, 204, 119, 0.15);
+            border-color: var(--accent-teal);
+            color: var(--accent-teal);
+            display: block;
+        }
+
+        .message.error {
+            background: rgba(255, 84, 89, 0.15);
+            border-color: #ff5459;
+            color: #ff5459;
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: var(--accent-teal);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 204, 119, 0.3);
+            border-top-color: var(--accent-teal);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .form-container {
+            display: none;
+        }
+
+        .form-container.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="login-box">
+            <h1>🎵 SONG-NEXUS</h1>
+            <p class="subtitle">// MUSIK STREAMING BETA v1.0</p>
+
+            <!-- LOGIN FORM -->
+            <div id="loginForm" class="form-container active">
+                <div id="loginMsg" class="message"></div>
+
+                <div class="form-group">
+                    <label for="loginEmail">EMAIL ADDRESS</label>
+                    <input type="email" id="loginEmail" placeholder="admin@song-nexus.local" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">PASSWORD</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+
+                <button class="button" onclick="handleLogin()">
+                    <span id="loginBtnText">AUTHENTICATE</span>
+                    <span id="loginSpinner" class="spinner" style="display: none;"></span>
+                </button>
+
+                <div class="toggle-form">
+                    Noch kein Konto?
+                    <button onclick="toggleForm('register')">Registrieren</button>
+                </div>
+            </div>
+
+            <!-- REGISTER FORM -->
+            <div id="registerForm" class="form-container">
+                <div id="registerMsg" class="message"></div>
+
+                <div class="form-group">
+                    <label for="regUsername">BENUTZERNAME</label>
+                    <input type="text" id="regUsername" placeholder="dein_username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="regEmail">EMAIL ADDRESS</label>
+                    <input type="email" id="regEmail" placeholder="deine@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="regPassword">PASSWORD</label>
+                    <input type="password" id="regPassword" placeholder="••••••••" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="regPasswordConfirm">PASSWORT WIEDERHOLEN</label>
+                    <input type="password" id="regPasswordConfirm" placeholder="••••••••" required>
+                </div>
+
+                <button class="button" onclick="handleRegister()">
+                    <span id="registerBtnText">CREATE ACCOUNT</span>
+                    <span id="registerSpinner" class="spinner" style="display: none;"></span>
+                </button>
+
+                <div class="toggle-form">
+                    Du hast bereits ein Konto?
+                    <button onclick="toggleForm('login')">Anmelden</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // FORM TOGGLING
+        // ============================================================================
+
+        function toggleForm(form) {
+            document.getElementById('loginForm').classList.toggle('active', form === 'login');
+            document.getElementById('registerForm').classList.toggle('active', form === 'register');
+        }
+
+        function showMessage(elementId, message, type) {
+            const msg = document.getElementById(elementId);
+            msg.textContent = message;
+            msg.className = `message ${type}`;
+        }
+
+        function setLoading(formType, loading) {
+            if (formType === 'login') {
+                document.getElementById('loginBtnText').style.display = loading ? 'none' : 'inline';
+                document.getElementById('loginSpinner').style.display = loading ? 'inline-block' : 'none';
+                document.querySelector('#loginForm .button').disabled = loading;
+            } else {
+                document.getElementById('registerBtnText').style.display = loading ? 'none' : 'inline';
+                document.getElementById('registerSpinner').style.display = loading ? 'inline-block' : 'none';
+                document.querySelector('#registerForm .button').disabled = loading;
+            }
+        }
+
+        // ============================================================================
+        // LOGIN HANDLER
+        // ============================================================================
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showMessage('loginMsg', '❌ Alle Felder ausfüllen!', 'error');
+                return;
+            }
+
+            setLoading('login', true);
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    showMessage('loginMsg', `❌ ${error.message || 'Login fehlgeschlagen'}`, 'error');
+                    setLoading('login', false);
+                    return;
+                }
+
+                const data = await response.json();
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                showMessage('loginMsg', '✅ Login erfolgreich! Weiterleitung...', 'success');
+                setTimeout(() => location.href = '/app.html', 1000);
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showMessage('loginMsg', `❌ Fehler: ${error.message}`, 'error');
+                setLoading('login', false);
+            }
+        }
+
+        // ============================================================================
+        // REGISTER HANDLER
+        // ============================================================================
+
+        async function handleRegister() {
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const passwordConfirm = document.getElementById('regPasswordConfirm').value;
+
+            if (!username || !email || !password) {
+                showMessage('registerMsg', '❌ Alle Felder ausfüllen!', 'error');
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                showMessage('registerMsg', '❌ Passwörter stimmen nicht überein!', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('registerMsg', '❌ Passwort mindestens 6 Zeichen!', 'error');
+                return;
+            }
+
+            setLoading('register', true);
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    showMessage('registerMsg', `❌ ${error.message || 'Registrierung fehlgeschlagen'}`, 'error');
+                    setLoading('register', false);
+                    return;
+                }
+
+                showMessage('registerMsg', '✅ Registrierung erfolgreich! Wechsel zum Login...', 'success');
+                setTimeout(() => {
+                    toggleForm('login');
+                    document.getElementById('loginEmail').value = email;
+                    setLoading('register', false);
+                }, 1500);
+
+            } catch (error) {
+                console.error('Register error:', error);
+                showMessage('registerMsg', `❌ Fehler: ${error.message}`, 'error');
+                setLoading('register', false);
+            }
+        }
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Wenn schon angemeldet → redirect to app
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                location.href = '/app.html';
+            }
+        });
+
+        // Enter-Key für Form-Submission
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const loginForm = document.getElementById('loginForm');
+                const registerForm = document.getElementById('registerForm');
+
+                if (loginForm.classList.contains('active')) {
+                    handleLogin();
+                } else if (registerForm.classList.contains('active')) {
+                    handleRegister();
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

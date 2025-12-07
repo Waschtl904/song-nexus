@@ -265,6 +265,7 @@ module.exports.pool = pool;
 console.log('🔧 Registering API routes...');
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/auth', require('./routes/webauthn'));  // 🆕 WEBAUTHN!
+app.use('/api/auth', require('./routes/auth-simple'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/tracks', require('./routes/tracks'));
 app.use('/api/users', require('./routes/users'));
