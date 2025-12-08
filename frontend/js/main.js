@@ -15,6 +15,9 @@ const App = {
     async init() {
         console.log('🚀 SONG-NEXUS Initializing...');
 
+        // ✅ NEW: Dark Mode Init FIRST (vor allem anderen!)
+        this.initDarkMode();
+
         // Check Auth Status
         this.token = localStorage.getItem('auth_token');
         this.user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -28,6 +31,9 @@ const App = {
 
         // Setup Event Listeners FIRST (before DOM operations)
         this.setupEventListeners();
+
+        // ✅ NEW: Setup Keyboard Navigation for A11y
+        this.setupKeyboardNavigation();
 
         // Load Content
         await Promise.all([
@@ -44,6 +50,14 @@ const App = {
         console.log('✅ App ready!');
     },
 
+    // ✅ NEW: DARK MODE INITIALIZATION
+    initDarkMode() {
+        // Force dark mode on load (before any rendering)
+        document.documentElement.setAttribute('data-color-scheme', 'dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        console.log('🌙 Dark mode initialized');
+    },
+
     // ===== EVENT LISTENERS (CSP-SAFE) =====
     setupEventListeners() {
         // Theme Toggle - CRITICAL: Must work immediately
@@ -57,6 +71,7 @@ const App = {
                 const next = current === 'dark' ? 'light' : 'dark';
                 console.log(`Switching from ${current} to ${next}`);
                 document.documentElement.setAttribute('data-theme', next);
+                document.documentElement.setAttribute('data-color-scheme', next);
                 localStorage.setItem('theme', next);
                 this.updateThemeButton(next);
             });
@@ -138,10 +153,97 @@ const App = {
         console.log('✅ All event listeners attached');
     },
 
+    // ✅ NEW: KEYBOARD NAVIGATION FOR ACCESSIBILITY
+    setupKeyboardNavigation() {
+        // ===== TAB NAVIGATION (Arrow Keys) =====
+        const tabs = document.querySelectorAll('[role="tab"]');
+        if (tabs.length > 0) {
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('keydown', (e) => {
+                    let newIndex = index;
+
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        newIndex = (index + 1) % tabs.length;
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        newIndex = (index - 1 + tabs.length) % tabs.length;
+                    } else if (e.key === 'Home') {
+                        e.preventDefault();
+                        newIndex = 0;
+                    } else if (e.key === 'End') {
+                        e.preventDefault();
+                        newIndex = tabs.length - 1;
+                    } else {
+                        return;
+                    }
+
+                    tabs[newIndex].focus();
+                    tabs[newIndex].click();
+                    console.log(`📑 Tab navigation: switched to tab ${newIndex}`);
+                });
+            });
+            console.log('✅ Tab keyboard navigation enabled');
+        }
+
+        // ===== SLIDER NAVIGATION (Seek Bar Arrow Keys) =====
+        const seekBar = document.getElementById('playerSeekBar');
+        if (seekBar) {
+            seekBar.addEventListener('keydown', (e) => {
+                const currentValue = parseInt(seekBar.getAttribute('aria-valuenow')) || 0;
+                const step = 5; // 5% per key
+                let newValue = currentValue;
+
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    newValue = Math.min(100, currentValue + step);
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    newValue = Math.max(0, currentValue - step);
+                } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    newValue = 0;
+                } else if (e.key === 'End') {
+                    e.preventDefault();
+                    newValue = 100;
+                } else {
+                    return;
+                }
+
+                seekBar.setAttribute('aria-valuenow', newValue);
+                console.log(`🎚️ Seek bar updated: ${newValue}%`);
+
+                // Dispatch custom event for audio-player.js to handle seek
+                if (window.AudioPlayer && window.AudioPlayer.seek) {
+                    const duration = window.AudioPlayer.audioElement?.duration || 0;
+                    window.AudioPlayer.seek(duration * (newValue / 100));
+                }
+            });
+            console.log('✅ Slider keyboard navigation enabled');
+        }
+
+        // ===== MODAL FOCUS MANAGEMENT =====
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && authModal.style.display !== 'none') {
+                    this.toggleAuthModal();
+                    const authToggle = document.getElementById('authToggle');
+                    if (authToggle) authToggle.focus();
+                    console.log('🚪 Modal closed via Escape key');
+                }
+            });
+            console.log('✅ Modal keyboard handling enabled');
+        }
+
+        console.log('✅ All keyboard navigation setup complete');
+    },
+
     // ===== THEME MANAGEMENT =====
     initTheme() {
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
+        document.documentElement.setAttribute('data-color-scheme', savedTheme);
         this.updateThemeButton(savedTheme);
         console.log(`🎨 Theme initialized: ${savedTheme}`);
     },
@@ -150,6 +252,7 @@ const App = {
         const btn = document.getElementById('themeToggle');
         if (btn) {
             btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+            btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
             console.log(`🎯 Theme button updated to: ${btn.textContent}`);
         }
     },
@@ -162,10 +265,23 @@ const App = {
 
             this.tracks = await response.json();
             this.renderTracks();
+
+            // ✅ NEW: Update ARIA busy state
+            const tracksList = document.getElementById('tracksList');
+            if (tracksList) {
+                tracksList.setAttribute('aria-busy', 'false');
+            }
+
             console.log(`✅ Loaded ${this.tracks.length} tracks`);
         } catch (err) {
             console.error('❌ Load tracks error:', err);
             this.showError('Failed to load tracks');
+
+            // ✅ NEW: Update ARIA busy state on error
+            const tracksList = document.getElementById('tracksList');
+            if (tracksList) {
+                tracksList.setAttribute('aria-busy', 'false');
+            }
         }
     },
 
@@ -191,7 +307,7 @@ const App = {
                 ${track.is_free ? '' : '<div class="track-badge">🔒 Premium</div>'}
                 ${track.is_premium ? '<div class="track-badge">💰 Paid</div>' : '<div class="track-badge" style="background: rgba(0, 204, 119, 0.1); color: var(--accent-teal); border-color: var(--accent-teal);">🆓 Free</div>'}
                 
-                <button class="button play-track-btn" data-filename="${this.escapeHtml(track.audio_filename)}" data-premium="${track.is_premium}" data-name="${this.escapeHtml(track.name)}" style="width: 100%; margin-top: 12px;">
+                <button class="button play-track-btn" data-filename="${this.escapeHtml(track.audio_filename)}" data-premium="${track.is_premium}" data-name="${this.escapeHtml(track.name)}" style="width: 100%; margin-top: 12px;" aria-label="Play ${this.escapeHtml(track.name)}">
                     ▶️ ${track.is_premium && !App.token ? '🔊 Preview 40s' : 'Play'}
                 </button>
             </div>
@@ -265,10 +381,23 @@ const App = {
 
             this.blogPosts = await response.json();
             this.renderBlogPosts();
+
+            // ✅ NEW: Update ARIA busy state
+            const blogList = document.getElementById('blogList');
+            if (blogList) {
+                blogList.setAttribute('aria-busy', 'false');
+            }
+
             console.log(`✅ Loaded ${this.blogPosts.length} blog posts`);
         } catch (err) {
             console.warn('⚠️ Blog load failed:', err);
             this.renderBlogPosts(true); // Show fallback
+
+            // ✅ NEW: Update ARIA busy state on error
+            const blogList = document.getElementById('blogList');
+            if (blogList) {
+                blogList.setAttribute('aria-busy', 'false');
+            }
         }
     },
 
@@ -291,19 +420,29 @@ const App = {
         const latest = this.blogPosts.slice(0, 4);
 
         blogList.innerHTML = latest.map(post => `
-            <div class="card blog-card" data-slug="${post.slug}">
+            <div class="card blog-card" data-slug="${post.slug}" role="button" tabindex="0" aria-label="Read ${this.escapeHtml(post.title)}">
                 <div class="blog-card-date">${new Date(post.date).toLocaleDateString()}</div>
                 <div class="blog-card-title">${this.escapeHtml(post.title)}</div>
                 <div class="blog-card-excerpt">${this.escapeHtml(post.excerpt)}</div>
-                <a href="blog/${post.slug}/" class="blog-card-link">Read More →</a>
+                <a href="blog/${post.slug}/" class="blog-card-link" aria-hidden="true">Read More →</a>
             </div>
         `).join('');
 
         // Add click listeners to blog cards
         document.querySelectorAll('.blog-card').forEach(card => {
-            card.addEventListener('click', () => {
+            const handleCardClick = () => {
                 const slug = card.getAttribute('data-slug');
                 window.location.href = `blog/${slug}/`;
+            };
+
+            card.addEventListener('click', handleCardClick);
+
+            // ✅ NEW: Keyboard support for blog cards (Enter + Space)
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCardClick();
+                }
             });
         });
     },
@@ -312,18 +451,36 @@ const App = {
     toggleAuthModal() {
         const modal = document.getElementById('authModal');
         if (modal) {
-            modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+            const isHidden = modal.style.display === 'none';
+            modal.style.display = isHidden ? 'flex' : 'none';
+            modal.setAttribute('aria-hidden', !isHidden);
+
+            if (isHidden) {
+                // Focus first focusable element in modal
+                const firstFocusable = modal.querySelector('button, input, a');
+                if (firstFocusable) firstFocusable.focus();
+            }
         }
     },
 
     switchTab(tabName, event) {
         if (event) event.preventDefault();
 
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        // Update all tab buttons
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            const isActive = b.getAttribute('data-tab') === tabName;
+            b.classList.toggle('active', isActive);
+            b.setAttribute('aria-selected', isActive);
+        });
 
-        document.getElementById(tabName + '-tab')?.classList.add('active');
-        event.target?.classList.add('active');
+        // Update all tab content
+        document.querySelectorAll('.tab-content').forEach(t => {
+            const isActive = t.id === tabName + '-tab';
+            t.classList.toggle('active', isActive);
+            t.setAttribute('aria-hidden', !isActive);
+        });
+
+        console.log(`📑 Switched to tab: ${tabName}`);
     },
 
     async passwordLogin(event) {
@@ -445,6 +602,8 @@ const App = {
         el.textContent = message;
         el.className = `status-message ${type}`;
         el.style.display = 'block';
+        el.setAttribute('role', 'alert');
+        el.setAttribute('aria-live', 'polite');
 
         if (type !== 'loading') {
             setTimeout(() => el.style.display = 'none', 4000);

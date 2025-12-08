@@ -1,14 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="🎵 SONG-NEXUS – Free, ad-free music streaming. No cookies, no tracking, pure audio.">
+        content="🎵 SONG-NEXUS – Kostenlose, werbefreie Musikstreaming-Plattform. Keine Cookies, keine Tracking, reine Audio-Qualität.">
+    <meta name="keywords" content="musik streaming, kostenlos, keine werbung, datenschutz, open source">
     <meta name="theme-color" content="#0a0e1a">
+    <meta name="color-scheme" content="dark light">
 
-    <title>🎵 SONG-NEXUS – Free Music Streaming Platform</title>
+    <!-- Open Graph (Social Sharing) -->
+    <meta property="og:title" content="🎵 SONG-NEXUS – Kostenlose Musikstreaming">
+    <meta property="og:description"
+        content="Höre Musik frei, ohne Werbung, ohne Cookies, ohne Tracking. Barrierefreie Streaming-Plattform.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://song-nexus.com">
+    <meta property="og:image"
+        content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect fill='%230a0e1a' width='200' height='200'/><text x='50%' y='50%' font-size='100' fill='%2300ff00' text-anchor='middle' dy='.3em'>♪</text></svg>">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="🎵 SONG-NEXUS – Kostenlose Musikstreaming">
+    <meta name="twitter:description" content="Musik frei hören, ohne Werbung, ohne Tracking.">
+
+    <!-- Canonical URL (für SEO) -->
+    <link rel="canonical" href="https://song-nexus.com">
+
+    <!-- Performance: Preconnect zu Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Performance: DNS Prefetch für API -->
+    <link rel="dns-prefetch" href="https://api.paypal.com">
+
+    <title>🎵 SONG-NEXUS – Kostenlose Musikstreaming-Plattform</title>
 
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300ff00'>♪</text></svg>">
@@ -19,15 +45,6 @@
         rel="stylesheet">
 
     <!-- CSS -->
-    <!-- Force Dark Mode für Cyberpunk Design -->
-    <script>
-        document.documentElement.setAttribute('data-color-scheme', 'dark');
-        if (document.documentElement.setAttribute) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
-    </script>
-
-    <!-- Cyberpunk CSS -->
     <link rel="stylesheet" href="css/styles-cyberpunk.css">
 </head>
 
@@ -38,43 +55,46 @@
     <div id="stickyPlayer" class="sticky-player">
         <div class="player-header">
             <div class="now-playing">
-                <div class="track-name">Ready to play...</div>
-                <div class="track-artist">Select a track</div>
+                <div class="track-name">Bereit zum Abspielen...</div>
+                <div class="track-artist">Wählen Sie einen Track</div>
             </div>
-            <button id="playerMinimize" class="player-btn" aria-label="Minimize player" title="Minimize">−</button>
+            <button id="playerMinimize" class="player-btn" aria-label="Player minimieren" title="Minimieren">−</button>
         </div>
 
         <div id="playerContent" class="player-content">
             <!-- Waveform Visualizer -->
-            <canvas id="playerWaveform" class="waveform" aria-hidden="true"></canvas>
+            <canvas id="playerWaveform" class="waveform" aria-hidden="true" width="300" height="60"></canvas>
 
             <!-- Time Display -->
             <div class="time-display">
-                <span id="playerCurrentTime">0:00</span>
-                <div id="playerSeekBar" class="seek-bar" role="slider" aria-label="Seek"></div>
-                <span id="playerDuration">0:00</span>
+                <span id="playerCurrentTime" aria-live="polite">0:00</span>
+                <div id="playerSeekBar" class="seek-bar" role="slider" aria-label="Track-Position" aria-valuemin="0"
+                    aria-valuemax="100" aria-valuenow="0" tabindex="0">
+                </div>
+                <span id="playerDuration" aria-label="Gesamtdauer">0:00</span>
             </div>
 
             <!-- Preview Badge -->
-            <div id="previewBadge" class="preview-badge" style="display: none;">
-                📢 40s PREVIEW • Buy to unlock full track
+            <div id="previewBadge" class="preview-badge" style="display: none;" role="alert">
+                📢 40s VORSCHAU • Kaufen zum Freischalten
             </div>
 
             <!-- Controls -->
             <div class="player-controls">
-                <button id="playerPlayBtn" class="btn-control" aria-label="Play" title="Play">▶️</button>
-                <button id="playerPauseBtn" class="btn-control" style="display: none;" aria-label="Pause"
-                    title="Pause">⏸️</button>
-                <button id="playerStopBtn" class="btn-control" aria-label="Stop" title="Stop">⏹️</button>
-                <button id="playerLoopBtn" class="btn-control" aria-label="Loop" title="Loop">🔄</button>
-                <button id="playerMuteBtn" class="btn-control" aria-label="Mute" title="Mute">🔊</button>
+                <button id="playerPlayBtn" class="btn-control" aria-label="Abspielen" title="Abspielen">▶️</button>
+                <button id="playerPauseBtn" class="btn-control" style="display: none;" aria-label="Pausieren"
+                    title="Pausieren">⏸️</button>
+                <button id="playerStopBtn" class="btn-control" aria-label="Stoppen" title="Stoppen">⏹️</button>
+                <button id="playerLoopBtn" class="btn-control" aria-label="Schleife" title="Schleife">🔄</button>
+                <button id="playerMuteBtn" class="btn-control" aria-label="Stummschalten"
+                    title="Stummschalten">🔊</button>
             </div>
 
             <!-- Volume Slider -->
             <div class="volume-control">
-                <label for="playerVolumeSlider" class="volume-label">Vol:</label>
+                <label for="playerVolumeSlider" class="volume-label">Lautstärke:</label>
                 <input id="playerVolumeSlider" type="range" min="0" max="100" value="80" class="volume-slider"
-                    aria-label="Volume control">
+                    aria-label="Lautstärkeregler" aria-valuemin="0" aria-valuemax="100">
             </div>
         </div>
     </div>
@@ -82,19 +102,20 @@
     <!-- ========================================================================
          HEADER
          ======================================================================== -->
-    <header>
+    <header role="banner">
         <div class="header-content">
             <div class="logo-section">
                 <h1>♪ SONG-NEXUS</h1>
-                <p class="subtitle">🆓 Free • 🔒 Secure • 🚫 Ad-Free • 🍪 Cookie-Free</p>
+                <p class="subtitle">🆓 Kostenlos • 🔒 Sicher • 🚫 Werbefrei • 🍪 Cookie-frei</p>
             </div>
             <div class="header-actions">
-                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode">🌙</button>
-                <div id="userInfo" class="user-info" style="display: none;">
-                    <span id="userDisplay">👤 User</span>
-                    <button class="button button-sm" id="logoutBtn">Logout</button>
+                <button class="theme-toggle" id="themeToggle" aria-label="Dunkelmodus / Hellmodus umschalten"
+                    aria-pressed="true">🌙</button>
+                <div id="userInfo" class="user-info" style="display: none;" role="complementary">
+                    <span id="userDisplay">👤 Benutzer</span>
+                    <button class="button button-sm" id="logoutBtn" aria-label="Abmelden">Abmelden</button>
                 </div>
-                <button id="authToggle" class="button button-sm">Login</button>
+                <button id="authToggle" class="button button-sm" aria-label="Anmeldung öffnen">Anmelden</button>
             </div>
         </div>
     </header>
@@ -102,23 +123,23 @@
     <!-- ========================================================================
          MAIN CONTENT
          ======================================================================== -->
-    <main class="container">
+    <main class="container" role="main">
 
         <!-- ====================================================================
              🎬 HERO SECTION
              ==================================================================== -->
-        <section class="hero">
+        <section class="hero" aria-labelledby="hero-heading">
             <div class="hero-content">
-                <h2>Welcome to SONG-NEXUS</h2>
+                <h2 id="hero-heading">Willkommen bei SONG-NEXUS</h2>
                 <p class="hero-subtitle">
-                    🎵 Stream amazing music without ads, without cookies, without tracking.<br>
-                    <strong>Free to listen. Optional login for personal features.</strong>
+                    🎵 Musikstreaming ohne Werbung, ohne Cookies, ohne Tracking.<br>
+                    <strong>Kostenlos hören. Optional anmelden für persönliche Funktionen.</strong>
                 </p>
-                <div class="hero-features">
-                    <span class="feature">✅ No Registration Required</span>
-                    <span class="feature">✅ Zero Ads</span>
-                    <span class="feature">✅ Open Source</span>
-                    <span class="feature">✅ WCAG 2.2 Accessible</span>
+                <div class="hero-features" role="list">
+                    <span class="feature" role="listitem">✅ Keine Registrierung erforderlich</span>
+                    <span class="feature" role="listitem">✅ Werbefrei</span>
+                    <span class="feature" role="listitem">✅ Open Source</span>
+                    <span class="feature" role="listitem">✅ WCAG 2.2 Barrierefrei</span>
                 </div>
             </div>
         </section>
@@ -126,72 +147,76 @@
         <!-- ====================================================================
              🔐 OPTIONAL AUTH MODAL
              ==================================================================== -->
-        <div id="authModal" class="modal" style="display: none;">
+        <div id="authModal" class="modal" style="display: none;" role="dialog" aria-labelledby="auth-modal-title"
+            aria-modal="true">
             <div class="modal-content">
-                <button class="modal-close" aria-label="Close authentication modal">&times;</button>
-                <h2>🔐 Authentication</h2>
+                <button class="modal-close" aria-label="Authentifizierungsmodal schließen">&times;</button>
+                <h2 id="auth-modal-title">🔐 Authentifizierung</h2>
                 <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                    Optional: Login for play history, playlists, and premium features.
+                    Optional: Melden Sie sich an, um Verlauf, Wiedergabelisten und Premium-Funktionen zu nutzen.
                 </p>
 
                 <!-- Tabs -->
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="webauthn" aria-selected="true">👆
-                        Fingerprint</button>
-                    <button class="tab-btn" data-tab="password" aria-selected="false">🔑
-                        Password</button>
-                    <button class="tab-btn" data-tab="magic-link" aria-selected="false">📧
-                        Email</button>
+                <div class="tabs" role="tablist">
+                    <button class="tab-btn active" data-tab="webauthn" aria-selected="true" role="tab"
+                        aria-controls="webauthn-tab" id="tab-webauthn">👆 Fingerabdruck</button>
+                    <button class="tab-btn" data-tab="password" aria-selected="false" role="tab"
+                        aria-controls="password-tab" id="tab-password">🔑 Passwort</button>
+                    <button class="tab-btn" data-tab="magic-link" aria-selected="false" role="tab"
+                        aria-controls="magic-link-tab" id="tab-magic">📧 E-Mail</button>
                 </div>
 
                 <!-- WebAuthn Tab -->
-                <div id="webauthn-tab" class="tab-content active">
+                <div id="webauthn-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-webauthn">
                     <div style="text-align: center; padding: 20px 0;">
-                        <button class="button" id="webauthnBtn" aria-label="Login with fingerprint">👆 Use
-                            Fingerprint</button>
+                        <button class="button" id="webauthnBtn" aria-label="Mit Fingerabdruck anmelden">👆 Fingerabdruck
+                            verwenden</button>
                         <p style="color: var(--text-secondary); margin-top: 12px; font-size: 0.85rem;">
-                            First time? <a href="#" id="toggleBioRegisterBtn"
-                                style="color: var(--accent-teal); cursor: pointer;">Register with Fingerprint</a>
+                            Erste Anmeldung? <a href="#" id="toggleBioRegisterBtn"
+                                style="color: var(--accent-teal); cursor: pointer;">Mit Fingerabdruck registrieren</a>
                         </p>
                         <div id="bioRegisterModal"
                             style="display: none; margin-top: 16px; padding: 16px; border: 1px solid var(--accent-teal); border-radius: 4px;">
-                            <h3 style="color: var(--accent-teal); margin-bottom: 12px;">📝 Register</h3>
-                            <input type="text" id="bioRegUsername" placeholder="Username" class="form-control">
-                            <input type="email" id="bioRegEmail" placeholder="Email" class="form-control">
+                            <h3 style="color: var(--accent-teal); margin-bottom: 12px;">📝 Registrierung</h3>
+                            <input type="text" id="bioRegUsername" placeholder="Benutzername" class="form-control"
+                                aria-label="Benutzername">
+                            <input type="email" id="bioRegEmail" placeholder="E-Mail" class="form-control"
+                                aria-label="E-Mail-Adresse">
                             <button class="button" id="registerBiometricBtn"
-                                style="width: 100%; margin-top: 12px;">Register</button>
+                                style="width: 100%; margin-top: 12px;">Registrieren</button>
                         </div>
-                        <div id="bioStatus" class="status-message"></div>
+                        <div id="bioStatus" class="status-message" role="alert" aria-live="polite"></div>
                     </div>
                 </div>
 
                 <!-- Password Tab -->
-                <div id="password-tab" class="tab-content">
-                    <form data-form="password-login">
+                <div id="password-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-password">
+                    <form data-form="password-login" novalidate>
                         <div class="form-group">
-                            <label for="loginEmail">Email</label>
-                            <input type="email" id="loginEmail" placeholder="your@email.com" required
-                                class="form-control">
+                            <label for="loginEmail">E-Mail</label>
+                            <input type="email" id="loginEmail" placeholder="ihre@email.com" required
+                                class="form-control" aria-required="true">
                         </div>
                         <div class="form-group">
-                            <label for="loginPassword">Password</label>
+                            <label for="loginPassword">Passwort</label>
                             <input type="password" id="loginPassword" placeholder="••••••••" required
-                                class="form-control">
+                                class="form-control" aria-required="true">
                         </div>
-                        <button type="submit" class="button" style="width: 100%;">🔐 Login</button>
+                        <button type="submit" class="button" style="width: 100%;">🔐 Anmelden</button>
                     </form>
-                    <div id="passwordStatus" class="status-message"></div>
+                    <div id="passwordStatus" class="status-message" role="alert" aria-live="polite"></div>
                 </div>
 
                 <!-- Magic Link Tab -->
-                <div id="magic-link-tab" class="tab-content">
+                <div id="magic-link-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-magic">
                     <div class="form-group">
-                        <label for="magicEmail">Email Address</label>
-                        <input type="email" id="magicEmail" placeholder="your@email.com" class="form-control">
+                        <label for="magicEmail">E-Mail-Adresse</label>
+                        <input type="email" id="magicEmail" placeholder="ihre@email.com" class="form-control"
+                            aria-label="E-Mail-Adresse" aria-required="true">
                     </div>
-                    <button class="button" id="magicLinkBtn" style="width: 100%;">📧 Send Login
-                        Link</button>
-                    <div id="magicStatus" class="status-message"></div>
+                    <button class="button" id="magicLinkBtn" style="width: 100%;">📧 Anmeldelink
+                        senden</button>
+                    <div id="magicStatus" class="status-message" role="alert" aria-live="polite"></div>
                 </div>
             </div>
         </div>
@@ -199,12 +224,14 @@
         <!-- ====================================================================
              🎵 FEATURED TRACKS
              ==================================================================== -->
-        <section class="featured-section">
-            <h2>🎵 Featured Tracks</h2>
-            <p class="section-subtitle">Free music, no login required. 40s preview for premium tracks.</p>
-            <div id="tracksList" class="track-grid" role="region" aria-label="Featured tracks">
+        <section class="featured-section" aria-labelledby="tracks-heading">
+            <h2 id="tracks-heading">🎵 Beliebte Tracks</h2>
+            <p class="section-subtitle">Kostenlose Musik, keine Anmeldung erforderlich. 40 Sekunden Vorschau für
+                Premium-Tracks.</p>
+            <div id="tracksList" class="track-grid" role="region" aria-label="Beliebte Tracks" aria-live="polite"
+                aria-busy="true">
                 <div class="card" style="grid-column: 1/-1; text-align: center;">
-                    <p style="color: var(--text-secondary);">⏳ Loading tracks...</p>
+                    <p style="color: var(--text-secondary);">⏳ Tracks werden geladen...</p>
                 </div>
             </div>
         </section>
@@ -212,15 +239,16 @@
         <!-- ====================================================================
              📝 BLOG PREVIEW
              ==================================================================== -->
-        <section class="blog-section">
-            <h2>📝 Latest from the Blog</h2>
-            <div id="blogList" class="blog-grid" role="region" aria-label="Blog posts">
+        <section class="blog-section" aria-labelledby="blog-heading">
+            <h2 id="blog-heading">📝 Neueste aus dem Blog</h2>
+            <div id="blogList" class="blog-grid" role="region" aria-label="Blog-Beiträge" aria-live="polite"
+                aria-busy="true">
                 <div class="card" style="grid-column: 1/-1; text-align: center;">
-                    <p style="color: var(--text-secondary);">⏳ Loading blog posts...</p>
+                    <p style="color: var(--text-secondary);">⏳ Blog-Beiträge werden geladen...</p>
                 </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
-                <a href="blog/" class="button">📖 Read All Posts →</a>
+                <a href="blog/" class="button" aria-label="Alle Blog-Beiträge anzeigen">📖 Alle Beiträge →</a>
             </div>
         </section>
 
@@ -229,30 +257,33 @@
     <!-- ========================================================================
          FOOTER
          ======================================================================== -->
-    <footer>
+    <footer role="contentinfo">
         <div class="footer-content">
             <div class="footer-section">
-                <h4>🎵 SONG-NEXUS</h4>
-                <p>Free, ad-free music streaming with zero tracking.</p>
+                <h3>🎵 SONG-NEXUS</h3>
+                <p>Kostenlose, werbefreie Musikstreaming ohne Tracking.</p>
             </div>
             <div class="footer-section">
-                <h4>Links</h4>
+                <h3>Links</h3>
                 <ul>
-                    <li><a href="/">Home</a></li>
-                    <li><a href="blog/">Blog</a></li>
-                    <li><a href="docs/">Docs</a></li>
+                    <li><a href="/" aria-label="Zur Startseite">Startseite</a></li>
+                    <li><a href="blog/" aria-label="Zum Blog">Blog</a></li>
+                    <li><a href="/docs/" aria-label="Zur Dokumentation">Dokumentation</a></li>
                 </ul>
             </div>
             <div class="footer-section">
-                <h4>Legal</h4>
+                <h3>Rechtlich</h3>
                 <ul>
-                    <li><a href="/LICENSE">License</a></li>
-                    <li><a href="https://github.com/Waschtl904/song-nexus">GitHub</a></li>
+                    <li><a href="/LICENSE" aria-label="Lizenzinformationen">Lizenz</a></li>
+                    <li><a href="https://github.com/Waschtl904/song-nexus" aria-label="GitHub Repository"
+                            rel="noopener noreferrer" target="_blank">GitHub</a></li>
+                    <li><a href="/privacy-policy/" aria-label="Datenschutzerklärung">Datenschutz</a></li>
                 </ul>
             </div>
         </div>
         <p style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; margin-top: 20px;">
-            🎵 SONG-NEXUS v6.0 • Built with ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Accessible
+            🎵 SONG-NEXUS v6.1 • Gebaut mit ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Barrierefrei |
+            <span style="color: var(--accent-green);">🍪 Keine Cookies • 📊 Kein Tracking</span>
         </p>
     </footer>
 
