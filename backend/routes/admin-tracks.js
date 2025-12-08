@@ -10,73 +10,57 @@
  * - Soft-Delete (DB only, files stay) ✅
  * - Error Handling ✅
  * 
+ * FIXED:
+ * - ✅ Import pool aus server.js (nicht db.js)
+ * - ✅ JWT verifyToken von auth.js importiert
+ * 
  * Author: Sebastian (Waschtl904)
  * Last Updated: December 8, 2025
  */
+
 
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const pool = require('../db');
+const { pool } = require('../server');  // ✅ FIXED: Import aus server.js
+const jwt = require('jsonwebtoken');
+
 
 const router = express.Router();
+
 
 // ============================================================================
 // 1️⃣ MULTER CONFIGURATION - File Upload Settings
 // ============================================================================
-/**
- * Multer speichert Dateien im backend/public/audio/ Ordner
- * 
- * WARUM MULTER?
- * - Validiert MIME-Types (nur MP3/WAV)
- * - Prüft Dateigröße (max 100MB)
- * - Speichert mit eindeutigem Namen (verhindert Datei-Überschreibung)
- * - Integiert sich mit Express
- * - Production-ready
- */
 
 const storage = multer.diskStorage({
-    // 📁 Wohin werden Dateien gespeichert?
     destination: (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../public/audio');
         cb(null, uploadDir);
     },
 
-    // 📝 Wie werden Dateien benannt?
-    // Format: timestamp_userid_originalname
-    // Beispiel: 1702057200000_3_P_VS_NP.mp3
     filename: (req, file, cb) => {
         const timestamp = Date.now();
-        const userId = req.user.id;  // Kommt von JWT Token
-        const ext = path.extname(file.originalname);  // .mp3, .wav
-        const name = path.basename(file.originalname, ext);  // Dateiname ohne Extension
+        const userId = req.user.id;
+        const ext = path.extname(file.originalname);
+        const name = path.basename(file.originalname, ext);
 
         const safeName = name
-            .replace(/[^a-zA-Z0-9_-]/g, '_')  // Nur sichere Zeichen
-            .substring(0, 50);  // Max 50 Zeichen
+            .replace(/[^a-zA-Z0-9_-]/g, '_')
+            .substring(0, 50);
 
         const filename = `${timestamp}_${userId}_${safeName}${ext}`;
         cb(null, filename);
     }
 });
 
-/**
- * MULTER FILTER - Was ist erlaubt?
- * 
- * Akzeptiert: MP3, WAV
- * Ablehnt: EXE, JS, andere Audio-Formate
- */
+
 const fileFilter = (req, file, cb) => {
-    // Erlaubte MIME-Types
     const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/x-wav'];
-
-    // Erlaubte File-Extensions (Backup-Check)
     const allowedExts = ['.mp3', '.wav'];
-
     const ext = path.extname(file.originalname).toLowerCase();
 
-    // ❌ Dateityp nicht erlaubt
     if (!allowedMimes.includes(file.mimetype) || !allowedExts.includes(ext)) {
         return cb(
             new Error(`Dateiformat nicht erlaubt! Nur MP3 & WAV. Erhalten: ${file.mimetype}`),
@@ -84,45 +68,26 @@ const fileFilter = (req, file, cb) => {
         );
     }
 
-    // ✅ Datei ist ok
     cb(null, true);
 };
 
-/**
- * MULTER INSTANCE - mit Settings
- * 
- * limits.fileSize: Max 100MB (100 * 1024 * 1024 Bytes)
- * fileFilter: Nur MP3/WAV
- * storage: Speicherort + Dateiname
- */
+
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 100 * 1024 * 1024  // 100MB in Bytes
+        fileSize: 100 * 1024 * 1024  // 100MB
     }
 });
+
 
 // ============================================================================
 // 2️⃣ MIDDLEWARE - JWT Token Verification
 // ============================================================================
-/**
- * MIDDLEWARE: Authentifizierung prüfen
- * 
- * Token Format: "Bearer eyJhbGciOiJIUzI1NiIs..."
- * 
- * Was passiert hier:
- * 1. Liest Authorization Header aus
- * 2. Extrahiert den Token
- * 3. Verifiziert mit JWT_SECRET
- * 4. Speichert User-Daten in req.user
- * 5. Nächste Funktion wird aufgerufen
- * 
- * WENN Token ungültig: 401 Unauthorized
- */
+
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];  // "Bearer TOKEN" → TOKEN
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({
@@ -131,12 +96,11 @@ const authenticateToken = (req, res, next) => {
         });
     }
 
-    const jwt = require('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;  // { id, username, role, ... }
+        req.user = decoded;
         next();
     } catch (err) {
         return res.status(403).json({
@@ -146,19 +110,11 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+
 // ============================================================================
 // 3️⃣ MIDDLEWARE - Admin Role Check
 // ============================================================================
-/**
- * MIDDLEWARE: Ist der User Admin?
- * 
- * Prüft: req.user.role === 'admin'
- * 
- * WARUM?
- * - Nur Admins dürfen Uploads machen
- * - Verhindert, dass normale User Dateien hochladen
- * - Sicherheits-Layer
- */
+
 const requireAdmin = (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({
@@ -169,28 +125,18 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 
+
 // ============================================================================
-// 4️⃣ ROUTE: POST /admin/tracks/upload
+// 4️⃣ ROUTE: POST /upload (wird zu /api/admin/tracks/upload)
 // ============================================================================
-/**
- * FLOW:
- * 1. JWT Token prüfen (authenticateToken)
- * 2. Admin-Role prüfen (requireAdmin)
- * 3. Datei validieren & hochladen (upload.single('audio'))
- * 4. Formulardaten validieren (trackName, artist, etc.)
- * 5. In Datenbank speichern
- * 6. Response (success/error)
- */
+
 router.post(
     '/upload',
-    authenticateToken,           // Middleware 1: JWT
-    requireAdmin,                // Middleware 2: Admin?
-    upload.single('audio'),      // Middleware 3: Multer
+    authenticateToken,
+    requireAdmin,
+    upload.single('audio'),
     async (req, res) => {
         try {
-            // ============================================================
-            // DATEI PRÜFEN
-            // ============================================================
             if (!req.file) {
                 return res.status(400).json({
                     success: false,
@@ -204,14 +150,9 @@ router.post(
                 user: req.user.username
             });
 
-            // ============================================================
-            // FORMULAR-DATEN VALIDIEREN
-            // ============================================================
             const { name, artist, duration, genre, price, is_free } = req.body;
 
-            // Pflichtfelder prüfen
             if (!name || !artist || !duration || !price) {
-                // Datei löschen wenn Validierung fehlschlägt
                 await fs.unlink(req.file.path);
                 return res.status(400).json({
                     success: false,
@@ -219,7 +160,6 @@ router.post(
                 });
             }
 
-            // Datentypen prüfen
             const durationNum = parseInt(duration);
             const priceNum = parseFloat(price);
 
@@ -239,27 +179,6 @@ router.post(
                 });
             }
 
-            // ============================================================
-            // IN DATENBANK SPEICHERN
-            // ============================================================
-            /**
-             * INSERT INTO tracks (
-             *   name, artist, duration, genre, price_eur, 
-             *   is_free, audio_filename, uploaded_by
-             * )
-             * VALUES (...)
-             * 
-             * Spalten:
-             * - name: Track-Name (z.B. "P VS NP")
-             * - artist: Artist-Name (z.B. "Computational")
-             * - duration: Länge in Sekunden
-             * - genre: Genre (z.B. "Metal")
-             * - price_eur: Preis in Euro
-             * - is_free: Boolean - ist kostenlos?
-             * - audio_filename: Speichername der Datei (was Multer erstellt hat)
-             * - uploaded_by: Admin-ID (wer hat hochgeladen?)
-             * - created_at: Timestamp (automatisch)
-             */
             const query = `
                 INSERT INTO tracks (
                     name, artist, duration, genre, price_eur, 
@@ -270,14 +189,14 @@ router.post(
             `;
 
             const values = [
-                name,                              // $1
-                artist,                            // $2
-                durationNum,                       // $3
-                genre || 'Other',                  // $4 (Standard: "Other")
-                priceNum,                          // $5
-                is_free === 'true' || is_free === true,  // $6 (Boolean)
-                req.file.filename,                 // $7 (von Multer)
-                req.user.id                        // $8 (Admin-ID)
+                name,
+                artist,
+                durationNum,
+                genre || 'Other',
+                priceNum,
+                is_free === 'true' || is_free === true,
+                req.file.filename,
+                req.user.id
             ];
 
             const result = await pool.query(query, values);
@@ -285,9 +204,6 @@ router.post(
 
             console.log('✅ Track in DB gespeichert:', track);
 
-            // ============================================================
-            // SUCCESS RESPONSE
-            // ============================================================
             res.status(201).json({
                 success: true,
                 message: '✅ Track erfolgreich hochgeladen!',
@@ -303,7 +219,6 @@ router.post(
         } catch (err) {
             console.error('❌ Upload Fehler:', err.message);
 
-            // Datei löschen wenn Fehler
             if (req.file) {
                 try {
                     await fs.unlink(req.file.path);
@@ -320,17 +235,11 @@ router.post(
     }
 );
 
+
 // ============================================================================
-// 5️⃣ ROUTE: GET /admin/tracks/list
+// 5️⃣ ROUTE: GET /list (wird zu /api/admin/tracks/list)
 // ============================================================================
-/**
- * Alle Tracks auflisten (für Admin-Dashboard)
- * 
- * Nur Admins dürfen sehen:
- * - audio_filename (Dateipfad)
- * - uploaded_by (Wer hat hochgeladen)
- * - created_at (Wann hochgeladen)
- */
+
 router.get('/list', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const query = `
@@ -354,24 +263,11 @@ router.get('/list', authenticateToken, requireAdmin, async (req, res) => {
     }
 });
 
+
 // ============================================================================
-// 6️⃣ ROUTE: DELETE /admin/tracks/:id
+// 6️⃣ ROUTE: DELETE /:id (wird zu /api/admin/tracks/:id)
 // ============================================================================
-/**
- * Track löschen - SOFT DELETE PATTERN
- * 
- * SOFT DELETE = nur DB Entry markieren, Datei BLEIBT!
- * 
- * WHY?
- * - Datei bleibt sicher auf dem Server
- * - Man kann später wiederherstellen
- * - Keine Datenverluste durch Unfälle
- * - Audit Trail möglich (wer hat gelöscht, wann)
- * 
- * UPDATE tracks SET is_deleted = true WHERE id = ?
- * 
- * Die Datei bleibt in backend/public/audio/ bestehen!
- */
+
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const trackId = parseInt(req.params.id);
@@ -383,9 +279,6 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
             });
         }
 
-        // ============================================================
-        // TRACK PRÜFEN
-        // ============================================================
         const checkQuery = 'SELECT id, name, audio_filename FROM tracks WHERE id = $1';
         const checkResult = await pool.query(checkQuery, [trackId]);
 
@@ -398,9 +291,6 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
 
         const track = checkResult.rows[0];
 
-        // ============================================================
-        // SOFT DELETE - Nur DB markieren
-        // ============================================================
         const deleteQuery = `
             UPDATE tracks 
             SET is_deleted = true, deleted_at = NOW()
@@ -413,9 +303,6 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
         console.log(`🗑️  Track gelöscht (Soft Delete): ${track.name}`);
         console.log(`📁 Datei BLEIBT bestehen: ${track.audio_filename}`);
 
-        // ============================================================
-        // SUCCESS RESPONSE
-        // ============================================================
         res.json({
             success: true,
             message: '✅ Track gelöscht!',
@@ -432,14 +319,11 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 });
 
+
 // ============================================================================
-// 7️⃣ ROUTE: PUT /admin/tracks/:id (Optional - Update Metadata)
+// 7️⃣ ROUTE: PUT /:id (Optional - Update Metadata)
 // ============================================================================
-/**
- * Track Metadaten updaten (Name, Artist, Price, etc.)
- * 
- * Datei wird NICHT angefasst - nur Datenbank-Info!
- */
+
 router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const trackId = parseInt(req.params.id);
@@ -452,7 +336,6 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
             });
         }
 
-        // Nur nicht-NULL Felder updaten
         const updates = [];
         const values = [];
         let paramIndex = 1;
@@ -518,30 +401,25 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 });
 
+
 // ============================================================================
 // ERROR HANDLER - Multer spezifisch
 // ============================================================================
-/**
- * Behandelt Multer-Fehler separat
- * Z.B. wenn Datei zu groß ist
- */
+
 router.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        // LIMIT_FILE_SIZE: Datei zu groß
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(413).json({
                 success: false,
                 error: 'Datei zu groß! Maximum: 100MB'
             });
         }
-        // Andere Multer Fehler
         return res.status(400).json({
             success: false,
             error: `Upload Fehler: ${err.message}`
         });
     }
 
-    // Andere Fehler
     if (err) {
         return res.status(400).json({
             success: false,
@@ -551,5 +429,6 @@ router.use((err, req, res, next) => {
 
     next();
 });
+
 
 module.exports = router;

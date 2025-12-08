@@ -621,9 +621,9 @@
         // ============================================================================
         const API_BASE = `${window.location.origin}/api`;
         const ADMIN_ROUTES = {
-            upload: `${API_BASE}/tracks`,           // ← POST /api/tracks (CREATE)
-            list: `${API_BASE}/tracks/admin/all`,   // ← GET /api/tracks/admin/all (LIST ALL)
-            delete: (id) => `${API_BASE}/tracks/${id}`  // ← DELETE /api/tracks/:id
+            upload: `${API_BASE}/admin/tracks/upload`,
+            list: `${API_BASE}/admin/tracks/list`,
+            delete: (id) => `${API_BASE}/admin/tracks/${id}`
         };
 
         console.log('🎵 SONG-NEXUS Admin Upload Started');
