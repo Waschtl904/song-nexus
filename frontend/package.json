@@ -3,9 +3,10 @@
     "version": "1.0.0",
     "description": "Frontend for SONG-NEXUS - Music streaming platform",
     "scripts": {
-        "start": "http-server -p 5500 --cors",
+        "start": "node server.js",
+        "start:http": "http-server -p 5500 --cors",
         "start:no-cors": "http-server -p 5500",
-        "build": "echo 'Static les ready for deployment'",
+        "build": "echo 'Static files ready for deployment'",
         "preview": "http-server -p 8080"
     },
     "dependencies": {

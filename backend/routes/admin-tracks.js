@@ -1,5 +1,5 @@
 /**
- * 🎵 ADMIN TRACKS ROUTE - Song-Nexus v6.2
+ * 🎵 ADMIN TRACKS ROUTE - Song-Nexus v6.2.1
  * 
  * Sicher Upload & Management für Admin-User
  * Features:
@@ -13,11 +13,11 @@
  * FIXED:
  * - ✅ Import pool aus server.js (nicht db.js)
  * - ✅ JWT verifyToken von auth.js importiert
+ * - ✅ Spalte uploaded_by entfernt (nicht in DB vorhanden)
  * 
  * Author: Sebastian (Waschtl904)
  * Last Updated: December 8, 2025
  */
-
 
 const express = require('express');
 const multer = require('multer');
@@ -26,9 +26,7 @@ const fs = require('fs').promises;
 const { pool } = require('../server');  // ✅ FIXED: Import aus server.js
 const jwt = require('jsonwebtoken');
 
-
 const router = express.Router();
-
 
 // ============================================================================
 // 1️⃣ MULTER CONFIGURATION - File Upload Settings
@@ -55,7 +53,6 @@ const storage = multer.diskStorage({
     }
 });
 
-
 const fileFilter = (req, file, cb) => {
     const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/x-wav'];
     const allowedExts = ['.mp3', '.wav'];
@@ -71,7 +68,6 @@ const fileFilter = (req, file, cb) => {
     cb(null, true);
 };
 
-
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
@@ -79,7 +75,6 @@ const upload = multer({
         fileSize: 100 * 1024 * 1024  // 100MB
     }
 });
-
 
 // ============================================================================
 // 2️⃣ MIDDLEWARE - JWT Token Verification
@@ -110,7 +105,6 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
-
 // ============================================================================
 // 3️⃣ MIDDLEWARE - Admin Role Check
 // ============================================================================
@@ -124,7 +118,6 @@ const requireAdmin = (req, res, next) => {
     }
     next();
 };
-
 
 // ============================================================================
 // 4️⃣ ROUTE: POST /upload (wird zu /api/admin/tracks/upload)
@@ -182,9 +175,9 @@ router.post(
             const query = `
                 INSERT INTO tracks (
                     name, artist, duration, genre, price_eur, 
-                    is_free, audio_filename, uploaded_by
+                    is_free, audio_filename
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id, name, artist, price_eur, audio_filename;
             `;
 
@@ -195,8 +188,7 @@ router.post(
                 genre || 'Other',
                 priceNum,
                 is_free === 'true' || is_free === true,
-                req.file.filename,
-                req.user.id
+                req.file.filename
             ];
 
             const result = await pool.query(query, values);
@@ -235,7 +227,6 @@ router.post(
     }
 );
 
-
 // ============================================================================
 // 5️⃣ ROUTE: GET /list (wird zu /api/admin/tracks/list)
 // ============================================================================
@@ -245,7 +236,7 @@ router.get('/list', authenticateToken, requireAdmin, async (req, res) => {
         const query = `
             SELECT 
                 id, name, artist, duration, genre, price_eur, 
-                is_free, audio_filename, uploaded_by, created_at
+                is_free, audio_filename, created_at
             FROM tracks
             WHERE is_deleted = false
             ORDER BY created_at DESC;
@@ -262,7 +253,6 @@ router.get('/list', authenticateToken, requireAdmin, async (req, res) => {
         });
     }
 });
-
 
 // ============================================================================
 // 6️⃣ ROUTE: DELETE /:id (wird zu /api/admin/tracks/:id)
@@ -318,7 +308,6 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
         });
     }
 });
-
 
 // ============================================================================
 // 7️⃣ ROUTE: PUT /:id (Optional - Update Metadata)
@@ -401,7 +390,6 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 });
 
-
 // ============================================================================
 // ERROR HANDLER - Multer spezifisch
 // ============================================================================
@@ -429,6 +417,5 @@ router.use((err, req, res, next) => {
 
     next();
 });
-
 
 module.exports = router;

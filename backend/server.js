@@ -122,13 +122,16 @@ app.use(helmet({
 // ✅ IMPROVED: CORS Configuration (HTTPS only in production)
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production'
-        ? ['https://yourdomain.com', 'https://www.yourdomain.com']  // Set in .env for production
+        ? ['https://yourdomain.com', 'https://www.yourdomain.com']
         : [
+            'http://localhost:5500',       // ✅ HTTP hinzugefügt
             'https://localhost:5500',
+            'http://127.0.0.1:5500',       // ✅ HTTP hinzugefügt
             'https://127.0.0.1:5500',
+            'http://localhost:3000',       // ✅ HTTP hinzugefügt
             'https://localhost:3000',
         ],
-    credentials: true,  // ✅ Allow Authorization header + cookies if needed
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
         'Content-Type',

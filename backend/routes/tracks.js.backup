@@ -5,21 +5,17 @@ const path = require('path');
 const { pool } = require('../server');
 const { verifyToken } = require('./auth');
 
-
 const router = express.Router();
 
-
 // ============================================================================
-// 🎵 GET /api/tracks - Liste aller Tracks (Public) - FIXED: Filter Soft-Deletes
+// 🎵 GET /api/tracks - Liste aller Tracks (Public)
 // ============================================================================
-
 
 router.get('/', async (req, res) => {
   try {
     const { search, genre, limit = 50, offset = 0, sort = 'name' } = req.query;
-    let query = 'SELECT id, name, artist, genre, description, price_eur, play_count, is_free, free_preview_duration, audio_filename, price, duration FROM tracks WHERE is_published = TRUE AND is_deleted = FALSE';
+    let query = 'SELECT id, name, artist, genre, description, price_eur, play_count, is_free, free_preview_duration, audio_filename, price, duration FROM tracks WHERE is_published = TRUE';
     const params = [];
-
 
     // Search Filter
     if (search) {
@@ -27,28 +23,23 @@ router.get('/', async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-
     // Genre Filter
     if (genre) {
       query += ' AND genre = $' + (params.length + 1);
       params.push(genre);
     }
 
-
     // Sorting
     const validSort = ['name', 'artist', 'created_at', 'play_count'];
     const sortBy = validSort.includes(sort) ? sort : 'name';
     query += ` ORDER BY ${sortBy} ASC`;
 
-
     // Pagination
     query += ' LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
     params.push(parseInt(limit), parseInt(offset));
 
-
     console.log('📊 Query:', query);
     console.log('📊 Params:', params);
-
 
     const result = await pool.query(query, params);
     console.log(`✅ Tracks found: ${result.rows.length}`);
@@ -59,16 +50,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-
 // ============================================================================
-// 🎵 GET /api/tracks/:id - Einzelner Track mit Stats - FIXED: Filter Soft-Deletes
+// 🎵 GET /api/tracks/:id - Einzelner Track mit Stats
 // ============================================================================
-
 
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
 
     const result = await pool.query(
       `SELECT 
@@ -76,15 +64,13 @@ router.get('/:id', async (req, res) => {
         price_eur, play_count, duration_seconds, 
         audio_filename, created_at, is_published
        FROM tracks 
-       WHERE id = $1 AND is_published = TRUE AND is_deleted = FALSE`,
+       WHERE id = $1 AND is_published = TRUE`,
       [id]
     );
-
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Track not found' });
     }
-
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -93,11 +79,9 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-
 // ============================================================================
 // ➕ POST /api/tracks - Create Track (Admin only)
 // ============================================================================
-
 
 router.post('/', verifyToken, [
   body('name').trim().isLength({ min: 1, max: 100 }),
@@ -112,19 +96,16 @@ router.post('/', verifyToken, [
     return res.status(400).json({ errors: errors.array() });
   }
 
-
   // Check Admin Role
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
-
 
   const {
     name, artist, genre, description,
     audio_filename, price_eur = 0.99,
     duration_seconds, is_published = false
   } = req.body;
-
 
   try {
     // Check ob Audio-Datei existiert
@@ -133,11 +114,9 @@ router.post('/', verifyToken, [
       return res.status(400).json({ error: 'Audio file not found in /public/audio' });
     }
 
-
     // Get File Size
     const stat = fs.statSync(audioPath);
     const fileSize = stat.size;
-
 
     const result = await pool.query(
       `INSERT INTO tracks 
@@ -147,7 +126,6 @@ router.post('/', verifyToken, [
       [name, artist, genre, description, audio_filename, price_eur, duration_seconds, fileSize, is_published]
     );
 
-
     console.log(`✅ Track created: ${result.rows[0].id} (${audio_filename})`);
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -156,19 +134,16 @@ router.post('/', verifyToken, [
   }
 });
 
-
 // ============================================================================
-// 🎵 GET /api/tracks/admin/all - ALLE Tracks (Admin für Dashboard) - FIXED: Filter Soft-Deletes
+// 🎵 GET /api/tracks/admin/all - ALLE Tracks (Admin für Dashboard)
 // ============================================================================
-
 
 router.get('/admin/all', verifyToken, async (req, res) => {
   try {
-    // ✅ Admin sieht ALLE Tracks (auch unpublished) ABER NICHT gelöschte!
+    // ✅ Admin sieht ALLE Tracks (auch unpublished)
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
-
 
     const result = await pool.query(
       `SELECT 
@@ -176,12 +151,10 @@ router.get('/admin/all', verifyToken, async (req, res) => {
         price_eur, price, play_count, duration_seconds, duration,
         audio_filename, created_at, is_published, is_free, free_preview_duration
        FROM tracks 
-       WHERE is_deleted = FALSE
        ORDER BY created_at DESC`
     );
 
-
-    console.log(`✅ Admin fetched ${result.rows.length} tracks (unpublished included, soft-deleted excluded)`);
+    console.log(`✅ Admin fetched ${result.rows.length} tracks (including unpublished)`);
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Admin tracks error:', err);
@@ -189,32 +162,25 @@ router.get('/admin/all', verifyToken, async (req, res) => {
   }
 });
 
-
 // ============================================================================
 // 🔊 GET /api/tracks/audio/:filename - FIXED Audio Streaming mit Authentication
 // ============================================================================
-
 
 router.get('/audio/:filename', async (req, res) => {
   try {
     console.log('\n========== AUDIO STREAM REQUEST ==========');
 
-
     // 1. Sanitize filename - verhindert Path Traversal!
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._ \-]/g, '');
-
 
     if (!filename) {
       console.log('❌ Invalid filename');
       return res.status(400).json({ error: 'Invalid filename' });
     }
 
-
     console.log(`📁 Requested file: ${filename}`);
 
-
     const filepath = path.join(__dirname, '../public/audio', filename);
-
 
     // 2. Überprüfe ob Datei existiert
     if (!fs.existsSync(filepath)) {
@@ -222,19 +188,16 @@ router.get('/audio/:filename', async (req, res) => {
       return res.status(404).json({ error: 'Audio file not found' });
     }
 
-
     console.log(`✅ File exists: ${filepath}`);
 
-
-    // 3. 🧠 Track zu diesem Filename finden - FIXED: Filtere auch Soft-Deletes!
+    // 3. 🧠 Track zu diesem Filename finden
     const trackResult = await pool.query(
       `SELECT id, is_free, free_preview_duration, duration_seconds
        FROM tracks
-       WHERE audio_filename = $1 AND is_deleted = FALSE
+       WHERE audio_filename = $1
        LIMIT 1`,
       [filename]
     );
-
 
     if (trackResult.rows.length === 0) {
       console.warn(`⚠️ No track record for audio file: ${filename}`);
@@ -243,15 +206,12 @@ router.get('/audio/:filename', async (req, res) => {
       return servePreview(filepath, filename, null, req, res);
     }
 
-
     const track = trackResult.rows[0];
     console.log(`📊 Track found:`, track);
-
 
     // 4. 🧠 Prüfen ob User vollen Zugriff hat
     let hasFullAccess = false;
     let userId = null;
-
 
     // ✅ FREE TRACK: Immer vollen Zugriff!
     if (track.is_free === true) {
@@ -262,17 +222,14 @@ router.get('/audio/:filename', async (req, res) => {
       const authHeader = req.headers.authorization || '';
       console.log(`🔑 Auth header present: ${!!authHeader}`);
 
-
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.slice(7);
         console.log(`🔑 Token present: ${token.substring(0, 20)}...`);
-
 
         try {
           const decoded = verifyToken(token);
           userId = decoded.id || decoded.userId;
           console.log(`👤 User ID from token: ${userId}`);
-
 
           // Prüfe ob User das Track gekauft hat
           const purchaseResult = await pool.query(
@@ -281,7 +238,6 @@ router.get('/audio/:filename', async (req, res) => {
              LIMIT 1`,
             [userId, track.id]
           );
-
 
           if (purchaseResult.rows.length > 0) {
             hasFullAccess = true;
@@ -297,21 +253,18 @@ router.get('/audio/:filename', async (req, res) => {
       }
     }
 
-
     // 5. 📤 SERVE FILE
     const stat = fs.statSync(filepath);
     const filesize = stat.size;
 
-
     // Set CORS & Streaming Headers
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Access-Control-Allow-Origin', 'https://localhost:5500');
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5500');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Accept-Ranges', 'bytes');
-
 
     // Wenn voller Zugriff → normaler Range-Stream
     if (hasFullAccess) {
@@ -319,11 +272,9 @@ router.get('/audio/:filename', async (req, res) => {
       return serveFullFile(filepath, filename, filesize, req.headers.range, res);
     }
 
-
     // Kein voller Zugriff → 40s Preview
     console.log(`🎧 PREVIEW MODE - Streaming 40s preview`);
     return servePreview(filepath, filename, track, req, res);
-
 
   } catch (err) {
     console.error('❌ Audio streaming error:', err);
@@ -331,11 +282,9 @@ router.get('/audio/:filename', async (req, res) => {
   }
 });
 
-
 // ============================================================================
 // HELPER: Streame volle Datei mit Range Support
 // ============================================================================
-
 
 function serveFullFile(filepath, filename, filesize, range, res) {
   try {
@@ -344,10 +293,8 @@ function serveFullFile(filepath, filename, filesize, range, res) {
       let start = parseInt(parts[0], 10);
       let end = parts[1] ? parseInt(parts[1], 10) : filesize - 1;
 
-
       if (isNaN(start) || start < 0) start = 0;
       if (isNaN(end) || end >= filesize) end = filesize - 1;
-
 
       if (start > end || start >= filesize) {
         console.warn(`❌ Invalid range: ${start}-${end}/${filesize}`);
@@ -355,12 +302,10 @@ function serveFullFile(filepath, filename, filesize, range, res) {
         return;
       }
 
-
       res.status(206);
       res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
       res.setHeader('Content-Length', end - start + 1);
       res.setHeader('Cache-Control', 'public, max-age=86400');
-
 
       console.log(`📤 206 Partial Content: bytes ${start}-${end}/${filesize}`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
@@ -368,7 +313,6 @@ function serveFullFile(filepath, filename, filesize, range, res) {
       // No range header → send full file
       res.setHeader('Content-Length', filesize);
       res.setHeader('Cache-Control', 'public, max-age=86400');
-
 
       console.log(`📤 200 OK: Full file (${(filesize / 1024 / 1024).toFixed(2)} MB)`);
       fs.createReadStream(filepath).pipe(res);
@@ -381,63 +325,50 @@ function serveFullFile(filepath, filename, filesize, range, res) {
   }
 }
 
-
 // ============================================================================
 // HELPER: Streame 40 Sekunden Preview
 // ============================================================================
-
 
 function servePreview(filepath, filename, track, req, res) {
   try {
     const stat = fs.statSync(filepath);
     const filesize = stat.size;
 
-
     // Standard 40 Sekunden Preview
     const PREVIEW_SECONDS = 40;
 
-
     // Berechne durchschnittliche Bytes pro Sekunde
     let avgBytesPerSecond = 128000; // ~128 kbps default
-
 
     if (track && track.duration_seconds && track.duration_seconds > 0) {
       avgBytesPerSecond = Math.floor(filesize / track.duration_seconds);
       console.log(`📊 Calculated speed: ${avgBytesPerSecond} bytes/sec (from ${filesize} bytes, ${track.duration_seconds}s duration)`);
     }
 
-
     const previewBytes = avgBytesPerSecond * PREVIEW_SECONDS;
     const maxPreviewEnd = Math.min(filesize - 1, previewBytes);
 
-
     console.log(`🎧 Preview: ~${PREVIEW_SECONDS}s = ~${Math.floor(previewBytes / 1024)} KB`);
 
-
     const range = req.headers.range;
-
 
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
       let start = parseInt(parts[0], 10);
       let end = parts[1] ? parseInt(parts[1], 10) : maxPreviewEnd;
 
-
       if (isNaN(start) || start < 0) start = 0;
       if (isNaN(end) || end > maxPreviewEnd) end = maxPreviewEnd;
-
 
       if (start > end || start >= filesize) {
         res.status(416).send('Requested range not satisfiable');
         return;
       }
 
-
       res.status(206);
       res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
       res.setHeader('Content-Length', end - start + 1);
       res.setHeader('Cache-Control', 'no-store');
-
 
       console.log(`📤 206 Preview: bytes ${start}-${end} (max ${maxPreviewEnd})`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
@@ -447,7 +378,6 @@ function servePreview(filepath, filename, track, req, res) {
       res.setHeader('Content-Range', `bytes 0-${maxPreviewEnd}/${filesize}`);
       res.setHeader('Content-Length', maxPreviewEnd + 1);
       res.setHeader('Cache-Control', 'no-store');
-
 
       console.log(`📤 206 Preview: bytes 0-${maxPreviewEnd}/${filesize}`);
       fs.createReadStream(filepath, { start: 0, end: maxPreviewEnd }).pipe(res);
@@ -460,11 +390,9 @@ function servePreview(filepath, filename, track, req, res) {
   }
 }
 
-
 // ============================================================================
 // 📋 GET /api/tracks/audio/list/available - Audio File List (Admin)
 // ============================================================================
-
 
 router.get('/audio/list/available', verifyToken, (req, res) => {
   try {
@@ -472,14 +400,11 @@ router.get('/audio/list/available', verifyToken, (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-
     const audioDir = path.join(__dirname, '../public/audio');
-
 
     if (!fs.existsSync(audioDir)) {
       return res.json([]);
     }
-
 
     const files = fs.readdirSync(audioDir)
       .filter(file => /\.(mp3|wav|m4a|flac)$/i.test(file))
@@ -494,7 +419,6 @@ router.get('/audio/list/available', verifyToken, (req, res) => {
         };
       });
 
-
     res.json(files);
   } catch (err) {
     console.error('❌ Audio list error:', err);
@@ -502,16 +426,14 @@ router.get('/audio/list/available', verifyToken, (req, res) => {
   }
 });
 
-
 // ============================================================================
 // 📊 GET /api/tracks/genres - Liste aller Genres
 // ============================================================================
 
-
 router.get('/genres/list', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT DISTINCT genre FROM tracks WHERE is_published = TRUE AND is_deleted = FALSE ORDER BY genre`
+      `SELECT DISTINCT genre FROM tracks WHERE is_published = TRUE ORDER BY genre`
     );
     res.json(result.rows.map(r => r.genre));
   } catch (err) {
@@ -519,6 +441,5 @@ router.get('/genres/list', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch genres' });
   }
 });
-
 
 module.exports = router;
