@@ -2,7 +2,7 @@
 
 
 // ========================================================================
-// 🎚️ AUDIO PLAYER MODULE (Rust-Steel Cyberpunk Edition)
+// 🎚️ AUDIO PLAYER MODULE (Cyberpunk Edition)
 // ========================================================================
 
 
@@ -194,9 +194,9 @@ const AudioPlayer = {
         }
 
 
-        const currentEl = document.getElementById('modalCurrentTime');
-        const durationEl = document.getElementById('modalDuration');
-        const seekBar = document.getElementById('modalSeekBar');
+        const currentEl = document.getElementById('playerCurrentTime');
+        const durationEl = document.getElementById('playerDuration');
+        const seekBar = document.getElementById('playerSeekBar');
 
 
         if (currentEl) {
@@ -230,7 +230,7 @@ const AudioPlayer = {
         }
 
 
-        const durationEl = document.getElementById('modalDuration');
+        const durationEl = document.getElementById('playerDuration');
         if (durationEl) {
             durationEl.textContent = this.formatTime(displayDuration);
         }
@@ -238,10 +238,10 @@ const AudioPlayer = {
 
 
     updatePlayerUI() {
-        const playBtn = document.getElementById('modalPlayBtn');
-        const pauseBtn = document.getElementById('modalPauseBtn');
-        const loopBtn = document.getElementById('modalLoopBtn');
-        const volumeSlider = document.getElementById('modalVolumeSlider');
+        const playBtn = document.getElementById('playerPlayBtn');
+        const pauseBtn = document.getElementById('playerPauseBtn');
+        const loopBtn = document.getElementById('playerLoopBtn');
+        const volumeSlider = document.getElementById('playerVolumeSlider');
 
 
         if (playBtn && pauseBtn) {
@@ -266,7 +266,7 @@ const AudioPlayer = {
 
     // ===== WAVEFORM VISUALIZER =====
     drawWaveform() {
-        const canvas = document.getElementById('modalWaveform');
+        const canvas = document.getElementById('playerWaveform');
         if (!canvas) return;
 
 

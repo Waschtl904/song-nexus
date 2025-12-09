@@ -1,8 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   STICKY PLAYER – CLEAN VERSION (matches your original design exactly)
+   STICKY PLAYER – MINIMAL & PERFORMANT
    ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ========== Animation ========== */
 
 @keyframes playerSpin {
     to {
@@ -10,56 +8,40 @@
     }
 }
 
-
-/* ========== Player Container ========== */
-
 .sticky-player {
     position: fixed;
     bottom: 20px;
     right: 20px;
     width: 350px;
     max-width: 90vw;
-
     background: rgba(10, 14, 26, 0.4);
     border: 1.5px solid rgba(0, 204, 119, 0.4);
     border-radius: 6px;
-
-    box-shadow:
-        0 0 20px rgba(0, 204, 119, 0.1),
-        inset 0 0 15px rgba(0, 204, 119, 0.04);
-
+    box-shadow: 0 0 20px rgba(0, 204, 119, 0.1), inset 0 0 15px rgba(0, 204, 119, 0.04);
     backdrop-filter: blur(12px);
-    transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 400;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sticky-player.minimized .player-content {
     display: none;
 }
 
-
-/* ========== Header ========== */
-
 .player-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-
-    padding: 12px;
     background: rgba(0, 204, 119, 0.08);
     border-bottom: 1px solid rgba(0, 204, 119, 0.15);
-
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .player-header:hover {
     background: rgba(0, 204, 119, 0.12);
 }
-
-
-/* ========== Now Playing Text ========== */
 
 .now-playing {
     flex: 1;
@@ -67,47 +49,37 @@
 }
 
 .track-name {
-    font-size: 0.9rem;
-    font-weight: 700;
-    text-transform: uppercase;
-
     color: #00cc77;
-    letter-spacing: 0.5px;
-
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-
+    letter-spacing: 0.5px;
     text-shadow: 0 0 8px rgba(0, 204, 119, 0.15);
 }
 
 .track-artist {
-    margin-top: 2px;
-    font-size: 0.75rem;
     color: #88ddff;
-
+    font-size: 0.75rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-top: 2px;
 }
-
-
-/* ========== Header Buttons ========== */
 
 .player-btn {
     background: transparent;
     border: none;
-    padding: 4px 8px;
-
-    font-size: 1.2rem;
     color: #00cc77;
-
     cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    transition: 0.3s;
 }
 
 .player-btn:hover {
@@ -115,55 +87,40 @@
     transform: scale(1.1);
 }
 
-
-/* ========== Player Content ========== */
-
 .player-content {
     padding: 16px;
 }
 
-
-/* ========== Waveform ========== */
-
 .waveform {
     width: 100%;
     height: 40px;
-    margin-bottom: 12px;
-
     display: block;
+    margin-bottom: 12px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
     border: 1px solid rgba(0, 204, 119, 0.15);
 }
 
-
-/* ========== Time + Seekbar ========== */
-
 .time-display {
     display: flex;
     align-items: center;
     gap: 8px;
-
     margin-bottom: 12px;
     font-size: 0.75rem;
-    font-weight: 600;
-
     color: #88ddff;
-    font-family: "JetBrains Mono", monospace;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
 }
 
 .seek-bar {
     flex: 1;
     height: 6px;
-
-    position: relative;
-    cursor: pointer;
-
     background: rgba(0, 204, 119, 0.1);
     border-radius: 4px;
+    cursor: pointer;
+    transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
     border: 1px solid rgba(0, 204, 119, 0.15);
-
-    transition: height 0.3s;
 }
 
 .seek-bar:hover {
@@ -171,78 +128,59 @@
 }
 
 .seek-bar::after {
-    content: "";
-
+    content: '';
     position: absolute;
     top: -2px;
     left: 0;
     height: 10px;
-
     background: #00cc77;
     border-radius: 9999px;
-
     box-shadow: 0 0 10px rgba(0, 204, 119, 0.4);
-    transition: box-shadow 0.3s;
+    transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-
-/* ========== Preview Badge ========== */
-
 .preview-badge {
-    margin-bottom: 12px;
-    padding: 8px 12px;
-
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    text-align: center;
-    letter-spacing: 0.3px;
-
     background: rgba(183, 65, 14, 0.15);
     border: 1px solid rgba(183, 65, 14, 0.3);
     color: #e09040;
-
+    padding: 8px 12px;
     border-radius: 4px;
+    font-size: 0.7rem;
+    text-align: center;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
 }
-
-
-/* ========== Player Controls ========== */
 
 .player-controls {
     display: flex;
     justify-content: center;
-    flex-wrap: wrap;
     gap: 8px;
-
     margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .btn-control {
+    background: rgba(0, 204, 119, 0.08);
+    border: 1px solid rgba(0, 204, 119, 0.15);
+    color: #00cc77;
+    cursor: pointer;
+    padding: 10px 16px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     align-items: center;
     justify-content: center;
-
-    padding: 10px 16px;
     min-width: 40px;
-
-    font-size: 0.9rem;
-    font-weight: 600;
-
-    color: #00cc77;
-
-    background: rgba(0, 204, 119, 0.08);
-    border: 1px solid rgba(0, 204, 119, 0.15);
-    border-radius: 4px;
-
-    cursor: pointer;
-    transition: 0.3s;
 }
 
 .btn-control:hover:not(:disabled) {
     background: linear-gradient(135deg, #00cc77, #b7410e);
     color: #0a0e1a;
     border-color: #00cc77;
-
     box-shadow: 0 0 15px rgba(0, 204, 119, 0.2);
     transform: translateY(-2px);
 }
@@ -252,62 +190,72 @@
     cursor: not-allowed;
 }
 
-
-/* ========== Volume Controls ========== */
-
 .volume-control {
     display: flex;
     align-items: center;
     gap: 8px;
-
     padding: 10px 12px;
-
     background: rgba(0, 204, 119, 0.06);
-    border: 1px solid rgba(0, 204, 119, 0.15);
     border-radius: 4px;
+    border: 1px solid rgba(0, 204, 119, 0.15);
 }
 
 .volume-label {
-    min-width: 32px;
+    color: #88ddff;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #88ddff;
-
     text-transform: uppercase;
     letter-spacing: 0.3px;
+    min-width: 32px;
 }
 
 .volume-slider {
     flex: 1;
     height: 4px;
-
     -webkit-appearance: none;
     appearance: none;
-
     background: rgba(0, 204, 119, 0.15);
     border-radius: 9999px;
-
+    outline: none;
     cursor: pointer;
 }
 
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #00cc77;
+    border-radius: 9999px;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-/* Slider Thumb */
+.volume-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
+    transform: scale(1.15);
+}
 
-.volume-slider::-webkit-slider-thumb,
 .volume-slider::-moz-range-thumb {
     width: 14px;
     height: 14px;
     background: #00cc77;
-
     border-radius: 9999px;
+    cursor: pointer;
+    border: none;
     box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
-    transition: 0.3s;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.volume-slider::-webkit-slider-thumb:hover,
 .volume-slider::-moz-range-thumb:hover {
     box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
     transform: scale(1.15);
+}
+
+.volume-slider::-moz-range-track {
+    background: transparent;
+    border: none;
 }
 
 .volume-slider::-moz-range-progress {
@@ -316,24 +264,15 @@
     border-radius: 9999px;
 }
 
-
-/* ========== Loading Spinner ========== */
-
 .loading-spinner {
+    display: inline-block;
     width: 16px;
     height: 16px;
-
-    display: inline-block;
-
     border: 2px solid rgba(0, 204, 119, 0.3);
     border-top-color: #00cc77;
-
     border-radius: 50%;
     animation: playerSpin 0.8s linear infinite;
 }
-
-
-/* ========== Responsive ========== */
 
 @media (max-width: 768px) {
     .sticky-player {
@@ -416,7 +355,11 @@
         min-width: 28px;
     }
 
-    .volume-slider::-webkit-slider-thumb,
+    .volume-slider::-webkit-slider-thumb {
+        width: 12px;
+        height: 12px;
+    }
+
     .volume-slider::-moz-range-thumb {
         width: 12px;
         height: 12px;

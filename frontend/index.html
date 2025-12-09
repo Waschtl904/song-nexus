@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="🎵 SONG-NEXUS – Kostenlose, werbefreie Musikstreaming-Plattform. Keine Cookies, keine Tracking, reine Audio-Qualität.">
+        content="🎵 SONG-NEXUS – Kostenlose, werbefreie Musikstreaming-Plattform. Keine Cookies, kein Tracking, reine Audio-Qualität.">
     <meta name="keywords" content="musik streaming, kostenlos, keine werbung, datenschutz, open source">
     <meta name="theme-color" content="#0a0e1a">
     <meta name="color-scheme" content="dark light">
@@ -21,7 +21,7 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="🎵 SONG-NEXUS – Kostenlose Musikstreaming">
+    <meta name="twitter:title" content="🎵 SONG-NEXUS – Musikstreaming">
     <meta name="twitter:description" content="Musik frei hören, ohne Werbung, ohne Tracking.">
 
     <!-- Canonical URL (für SEO) -->
@@ -34,7 +34,7 @@
     <!-- Performance: DNS Prefetch für API -->
     <link rel="dns-prefetch" href="https://api.paypal.com">
 
-    <title>🎵 SONG-NEXUS – Kostenlose Musikstreaming-Plattform</title>
+    <title>🎵 SONG-NEXUS – Musikstreaming-Plattform</title>
 
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300ff00'>♪</text></svg>">
@@ -105,8 +105,21 @@
     <header role="banner">
         <div class="header-content">
             <div class="logo-section">
-                <h1>♪ SONG-NEXUS</h1>
-                <p class="subtitle">🆓 Kostenlos • 🔒 Sicher • 🚫 Werbefrei • 🍪 Cookie-frei</p>
+                <h1 id="neonSign">♪ SONG-NEXUS</h1>
+                <!-- Optional: Grime overlay -->
+                <div class="neon-grime" style="
+                    position: absolute;
+                    top: -10px;
+                    left: 0;
+                    width: 100%;
+                    height: 120%;
+                    pointer-events: none;
+                    background: radial-gradient(circle at 30% 40%, rgba(0,0,0,0.25), transparent),
+                                radial-gradient(circle at 70% 60%, rgba(0,0,0,0.2), transparent),
+                                radial-gradient(circle at 20% 80%, rgba(80,40,0,0.15), transparent);
+                    filter: blur(8px);
+                "></div>
+                <p class="subtitle"></p>
             </div>
             <div class="header-actions">
                 <button class="theme-toggle" id="themeToggle" aria-label="Dunkelmodus / Hellmodus umschalten"
@@ -133,13 +146,13 @@
                 <h2 id="hero-heading">Willkommen bei SONG-NEXUS</h2>
                 <p class="hero-subtitle">
                     🎵 Musikstreaming ohne Werbung, ohne Cookies, ohne Tracking.<br>
-                    <strong>Kostenlos hören. Optional anmelden für persönliche Funktionen.</strong>
+                    <strong>Optional anmelden für persönliche Funktionen.</strong>
                 </p>
                 <div class="hero-features" role="list">
-                    <span class="feature" role="listitem">✅ Keine Registrierung erforderlich</span>
-                    <span class="feature" role="listitem">✅ Werbefrei</span>
-                    <span class="feature" role="listitem">✅ Open Source</span>
-                    <span class="feature" role="listitem">✅ WCAG 2.2 Barrierefrei</span>
+                    <span class="feature" role="listitem"></span>
+                    <span class="feature" role="listitem"></span>
+                    <span class="feature" role="listitem"></span>
+                    <span class="feature" role="listitem"></span>
                 </div>
             </div>
         </section>
@@ -226,7 +239,7 @@
              ==================================================================== -->
         <section class="featured-section" aria-labelledby="tracks-heading">
             <h2 id="tracks-heading">🎵 Beliebte Tracks</h2>
-            <p class="section-subtitle">Kostenlose Musik, keine Anmeldung erforderlich. 40 Sekunden Vorschau für
+            <p class="section-subtitle">Musik, keine Anmeldung erforderlich. 40 Sekunden Vorschau für
                 Premium-Tracks.</p>
             <div id="tracksList" class="track-grid" role="region" aria-label="Beliebte Tracks" aria-live="polite"
                 aria-busy="true">

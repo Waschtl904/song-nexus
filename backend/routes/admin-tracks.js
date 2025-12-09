@@ -143,7 +143,7 @@ router.post(
                 user: req.user.username
             });
 
-            const { name, artist, duration, genre, price, is_free } = req.body;
+            const { name, artist, duration, genre, price, is_free, is_published } = req.body;
 
             if (!name || !artist || !duration || !price) {
                 await fs.unlink(req.file.path);
@@ -175,10 +175,10 @@ router.post(
             const query = `
                 INSERT INTO tracks (
                     name, artist, duration, genre, price_eur, 
-                    is_free, audio_filename
+                    is_free, audio_filename, is_published
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING id, name, artist, price_eur, audio_filename;
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id, name, artist, price_eur, audio_filename, is_published;
             `;
 
             const values = [
@@ -188,7 +188,8 @@ router.post(
                 genre || 'Other',
                 priceNum,
                 is_free === 'true' || is_free === true,
-                req.file.filename
+                req.file.filename,
+                is_published === 'true' || is_published === true  // ✅ NEW!
             ];
 
             const result = await pool.query(query, values);

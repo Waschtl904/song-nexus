@@ -622,5 +622,137 @@ window.addEventListener('load', () => {
     App.init();
 });
 
+// ========================================================================
+// 🎮 PLAYER CONTROLS - Button Event Listeners
+// ========================================================================
+
+function setupPlayerControls() {
+    console.log('🎮 Setting up player controls...');
+
+    // Play Button
+    const playBtn = document.getElementById('playerPlayBtn');
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            console.log('▶️ Play clicked');
+            window.AudioPlayer.play();
+        });
+    }
+
+    // Pause Button
+    const pauseBtn = document.getElementById('playerPauseBtn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            console.log('⏸️ Pause clicked');
+            window.AudioPlayer.pause();
+        });
+    }
+
+    // Stop Button
+    const stopBtn = document.getElementById('playerStopBtn');
+    if (stopBtn) {
+        stopBtn.addEventListener('click', () => {
+            console.log('⏹️ Stop clicked');
+            window.AudioPlayer.stop();
+        });
+    }
+
+    // Loop Button
+    const loopBtn = document.getElementById('playerLoopBtn');
+    if (loopBtn) {
+        loopBtn.addEventListener('click', () => {
+            console.log('🔄 Loop toggled');
+            window.AudioPlayer.toggleLoop();
+        });
+    }
+
+    // Mute Button
+    const muteBtn = document.getElementById('playerMuteBtn');
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            console.log('🔊 Mute toggled');
+            window.AudioPlayer.toggleMute();
+        });
+    }
+
+    // Volume Slider
+    const volumeSlider = document.getElementById('playerVolumeSlider');
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', (e) => {
+            const volume = parseInt(e.target.value);
+            console.log(`🔊 Volume set to ${volume}%`);
+            window.AudioPlayer.setVolume(volume);
+        });
+    }
+
+    // Seek Bar
+    const seekBar = document.getElementById('playerSeekBar');
+    if (seekBar) {
+        seekBar.addEventListener('input', (e) => {
+            const percent = parseInt(e.target.value);
+            const duration = window.AudioPlayer.state.duration;
+            const seconds = (percent / 100) * duration;
+            console.log(`⏱️ Seek to ${seconds.toFixed(1)}s`);
+            window.AudioPlayer.setTime(seconds);
+        });
+    }
+
+    // Player Minimize Button
+    const minimizeBtn = document.getElementById('playerMinimize');
+    const playerContent = document.getElementById('playerContent');
+    if (minimizeBtn && playerContent) {
+        minimizeBtn.addEventListener('click', () => {
+            const isHidden = playerContent.style.display === 'none';
+            playerContent.style.display = isHidden ? 'block' : 'none';
+            minimizeBtn.textContent = isHidden ? '−' : '+';
+            console.log('📦 Player minimized/maximized');
+        });
+    }
+
+    console.log('✅ Player controls setup complete');
+}
+
+// Initialize controls when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupPlayerControls);
+} else {
+    setupPlayerControls();
+}
+
+// In main.js hinzufügen:
+
+function initNeonSign() {
+    const h1 = document.querySelector('.logo-section h1');
+    if (!h1) return;
+
+    const text = h1.textContent;
+
+    // Zufällig 1-2 Buchstaben auswählen, die dunkel sein sollen
+    const brokenIndices = [];
+    const numBroken = Math.floor(Math.random() * 2) + 1; // 1-2 Buchstaben
+
+    while (brokenIndices.length < numBroken) {
+        const idx = Math.floor(Math.random() * text.length);
+        if (!brokenIndices.includes(idx) && text[idx] !== ' ' && text[idx] !== '♪' && text[idx] !== '-') {
+            brokenIndices.push(idx);
+        }
+    }
+
+    // HTML mit broken letters generieren
+    let html = '';
+    for (let i = 0; i < text.length; i++) {
+        if (brokenIndices.includes(i)) {
+            html += `<span class="broken-letter">${text[i]}</span>`;
+        } else {
+            html += text[i];
+        }
+    }
+
+    h1.innerHTML = html;
+    console.log(`💡 Neon sign initialized - ${numBroken} broken letters`);
+}
+
+// In App.init() aufrufen, nach initDarkMode():
+initNeonSign();
+
 // Make global
 window.App = App;
