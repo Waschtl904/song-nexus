@@ -3,6 +3,7 @@
 // ============================================================================
 // 🎵 SONG-NEXUS MAIN APPLICATION
 // ✅ UPDATED: Nutzt APIClient + config.js statt hardcoded URLs
+// ✅ FIXED: WebAuthn Listener entfernt (sind in auth.js)
 // ============================================================================
 
 const App = {
@@ -80,7 +81,11 @@ const App = {
 
     // ===== EVENT LISTENERS (CSP-SAFE) =====
     setupEventListeners() {
-        // Theme Toggle
+        console.log('🔌 Setting up event listeners...');
+
+        // ========================================================================
+        // 🎨 THEME TOGGLE
+        // ========================================================================
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
             themeToggle.addEventListener('click', (e) => {
@@ -92,96 +97,98 @@ const App = {
                 document.documentElement.setAttribute('data-color-scheme', next);
                 localStorage.setItem('theme', next);
                 this.updateThemeButton(next);
+                console.log(`🎨 Theme switched to: ${next}`);
             });
+            console.log('✅ Theme toggle listener attached');
         }
 
-        // Auth Modal Toggle
+        // ========================================================================
+        // 🔐 AUTH MODAL TOGGLE
+        // ========================================================================
         const authToggle = document.getElementById('authToggle');
         if (authToggle) {
-            authToggle.addEventListener('click', () => this.toggleAuthModal());
+            authToggle.addEventListener('click', () => {
+                console.log('🔐 Auth modal toggle clicked');
+                this.toggleAuthModal();
+            });
+            console.log('✅ Auth toggle listener attached');
         }
 
-        // Modal Close Button
+        // ========================================================================
+        // 🔴 MODAL CLOSE BUTTON
+        // ========================================================================
         const modalClose = document.querySelector('.modal-close');
         if (modalClose) {
-            modalClose.addEventListener('click', () => this.toggleAuthModal());
+            modalClose.addEventListener('click', () => {
+                console.log('🔴 Modal close button clicked');
+                this.toggleAuthModal();
+            });
+            console.log('✅ Modal close listener attached');
         }
 
-        // Tab Buttons
+        // ========================================================================
+        // 📑 TAB SWITCHING
+        // ========================================================================
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const tabName = btn.getAttribute('data-tab');
+                console.log(`📑 Tab clicked: ${tabName}`);
                 this.switchTab(tabName, e);
             });
         });
+        console.log('✅ Tab buttons listeners attached');
 
-        // Password Login Form
+        // ========================================================================
+        // 📝 PASSWORD LOGIN FORM (kept from auth.js backup)
+        // ========================================================================
         const passwordForm = document.querySelector('form[data-form="password-login"]');
         if (passwordForm) {
             passwordForm.addEventListener('submit', (e) => {
                 if (typeof Auth !== 'undefined') {
+                    console.log('📝 Password form submitted');
                     Auth.login(e);
                 }
             });
+            console.log('✅ Password login form listener attached');
         }
 
-        // Magic Link Button
+        // ========================================================================
+        // 📧 MAGIC LINK BUTTON (kept - not in auth.js)
+        // ========================================================================
         const magicLinkBtn = document.getElementById('magicLinkBtn');
         if (magicLinkBtn) {
             magicLinkBtn.addEventListener('click', () => {
                 if (typeof Auth !== 'undefined') {
+                    console.log('📧 Magic link button clicked');
                     Auth.loginWithMagicLink();
                 }
             });
+            console.log('✅ Magic link button listener attached');
         }
 
-        // WebAuthn Button (LOGIN)
-        const webauthnBtn = document.getElementById('webauthnBtn');
-        if (webauthnBtn) {
-            webauthnBtn.addEventListener('click', () => {
-                if (typeof Auth !== 'undefined') {
-                    Auth.authenticateWithWebAuthn();
-                }
-            });
-        }
-
-        // Register Biometric Button
-        const registerBiometricBtn = document.getElementById('registerBiometricBtn');
-        if (registerBiometricBtn) {
-            registerBiometricBtn.addEventListener('click', () => {
-                if (typeof Auth !== 'undefined') {
-                    Auth.registerWithWebAuthn();
-                }
-            });
-        }
-
-        // Dev Login Button
-        const devLoginBtn = document.getElementById('devLoginBtn');
-        if (devLoginBtn) {
-            devLoginBtn.addEventListener('click', () => {
-                if (typeof Auth !== 'undefined') {
-                    Auth.devLogin();
-                }
-            });
-        }
-
-        // Logout Button
+        // ========================================================================
+        // 🚪 LOGOUT BUTTON
+        // ========================================================================
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
+                console.log('🚪 Logout button clicked');
                 if (typeof Auth !== 'undefined') {
                     Auth.logout();
                 } else {
                     this.logout();
                 }
             });
+            console.log('✅ Logout button listener attached');
         }
 
-        console.log('✅ All event listeners attached');
+        console.log('✅ All main event listeners attached');
     },
 
     // ✅ NEW: KEYBOARD NAVIGATION FOR ACCESSIBILITY
     setupKeyboardNavigation() {
+        console.log('⌨️ Setting up keyboard navigation...');
+
         // ===== TAB NAVIGATION (Arrow Keys) =====
         const tabs = document.querySelectorAll('[role="tab"]');
         if (tabs.length > 0) {
@@ -207,8 +214,10 @@ const App = {
 
                     tabs[newIndex].focus();
                     tabs[newIndex].click();
+                    console.log(`⌨️ Tab navigation: ${newIndex}`);
                 });
             });
+            console.log('✅ Tab keyboard navigation setup');
         }
 
         // ===== MODAL FOCUS MANAGEMENT =====
@@ -216,11 +225,13 @@ const App = {
         if (authModal) {
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && authModal.style.display !== 'none') {
+                    console.log('⌨️ ESC pressed - closing modal');
                     this.toggleAuthModal();
                     const authToggle = document.getElementById('authToggle');
                     if (authToggle) authToggle.focus();
                 }
             });
+            console.log('✅ Modal keyboard management setup');
         }
 
         console.log('✅ Keyboard navigation setup complete');
@@ -246,6 +257,8 @@ const App = {
     // ===== LOAD TRACKS =====
     async loadTracks() {
         try {
+            console.log('🎵 Loading tracks...');
+
             // ✅ NEW: Nutze APIClient statt direktes fetch
             if (typeof APIClient !== 'undefined') {
                 this.tracks = await APIClient.getTracks();
@@ -313,11 +326,15 @@ const App = {
                 );
             });
         });
+
+        console.log('✅ Tracks rendered');
     },
 
     // ===== PLAY TRACK =====
     async playTrack(trackId, filename, isPremium, trackName) {
         try {
+            console.log(`▶️ Playing track: ${trackName}`);
+
             const track = {
                 id: trackId,
                 name: trackName,
@@ -355,6 +372,8 @@ const App = {
     // ===== LOAD BLOG POSTS =====
     async loadBlogPosts() {
         try {
+            console.log('📝 Loading blog posts...');
+
             const response = await fetch('blog/posts.json');
             if (!response.ok) throw new Error('Failed to load blog');
 
@@ -418,6 +437,8 @@ const App = {
                 }
             });
         });
+
+        console.log('✅ Blog posts rendered');
     },
 
     // ===== AUTHENTICATION =====
@@ -432,6 +453,8 @@ const App = {
                 const firstFocusable = modal.querySelector('button, input, a');
                 if (firstFocusable) firstFocusable.focus();
             }
+
+            console.log(`${isHidden ? '📖 Auth modal opened' : '🔐 Auth modal closed'}`);
         }
     },
 
@@ -455,6 +478,8 @@ const App = {
 
     // ===== LOGOUT =====
     logout() {
+        console.log('🚪 Logging out...');
+
         if (typeof Auth !== 'undefined') {
             Auth.logout();
         } else {
@@ -480,9 +505,11 @@ const App = {
                     userDisplay.textContent = `👤 ${this.user.username || this.user.email}`;
                 }
             }
+            console.log(`👤 User logged in: ${this.user.email}`);
         } else {
             if (authToggle) authToggle.style.display = 'inline-block';
             if (userInfo) userInfo.style.display = 'none';
+            console.log('👤 User logged out');
         }
     },
 
@@ -509,7 +536,7 @@ const App = {
     },
 
     showError(message) {
-        console.error(message);
+        console.error('❌ ' + message);
     }
 };
 
@@ -529,6 +556,7 @@ function setupPlayerControls() {
     const playBtn = document.getElementById('playerPlayBtn');
     if (playBtn) {
         playBtn.addEventListener('click', () => {
+            console.log('▶️ Play button clicked');
             window.AudioPlayer?.play();
         });
     }
@@ -536,6 +564,7 @@ function setupPlayerControls() {
     const pauseBtn = document.getElementById('playerPauseBtn');
     if (pauseBtn) {
         pauseBtn.addEventListener('click', () => {
+            console.log('⏸️ Pause button clicked');
             window.AudioPlayer?.pause();
         });
     }
@@ -543,6 +572,7 @@ function setupPlayerControls() {
     const stopBtn = document.getElementById('playerStopBtn');
     if (stopBtn) {
         stopBtn.addEventListener('click', () => {
+            console.log('⏹️ Stop button clicked');
             window.AudioPlayer?.stop();
         });
     }
@@ -550,6 +580,7 @@ function setupPlayerControls() {
     const loopBtn = document.getElementById('playerLoopBtn');
     if (loopBtn) {
         loopBtn.addEventListener('click', () => {
+            console.log('🔄 Loop button clicked');
             window.AudioPlayer?.toggleLoop();
         });
     }
@@ -557,6 +588,7 @@ function setupPlayerControls() {
     const muteBtn = document.getElementById('playerMuteBtn');
     if (muteBtn) {
         muteBtn.addEventListener('click', () => {
+            console.log('🔊 Mute button clicked');
             window.AudioPlayer?.toggleMute();
         });
     }
@@ -586,6 +618,7 @@ function setupPlayerControls() {
             const isHidden = playerContent.style.display === 'none';
             playerContent.style.display = isHidden ? 'block' : 'none';
             minimizeBtn.textContent = isHidden ? '−' : '+';
+            console.log(`${isHidden ? '📖' : '🔧'} Player ${isHidden ? 'expanded' : 'minimized'}`);
         });
     }
 
@@ -600,3 +633,5 @@ if (document.readyState === 'loading') {
 
 // Make global
 window.App = App;
+
+console.log('✅ main.js loaded and ready!');

@@ -1,9 +1,11 @@
 // ============================================================================
-// 🔐 AUTH MODULE - Authentication UI & Management
-// ✅ UPDATED: Nutzt APIClient + config.js statt hardcoded URLs
+// 🔐 AUTH MODULE - Authentication UI & Management (FIXED)
+// ✅ UPDATED: Mit Doppel-Klick Schutz + WebAuthn Debug
 // ============================================================================
 
 const Auth = {
+    isProcessing: false,  // ✅ NEW: Prevent double-clicks
+
     /**
      * Gibt die Auth API Base URL zurück (dynamisch aus config.js)
      */
@@ -11,7 +13,6 @@ const Auth = {
         if (typeof window !== 'undefined' && window.songNexusConfig) {
             return window.songNexusConfig.getApiBaseUrl();
         }
-        // Fallback
         return 'https://localhost:3000/api';
     },
 
@@ -71,22 +72,18 @@ const Auth = {
         try {
             console.log('📝 Registering:', email);
 
-            // ✅ NEW: Nutze APIClient statt direktes fetch
             if (typeof APIClient !== 'undefined') {
                 const result = await APIClient.register(email, password);
                 console.log('✅ Registration successful!', result);
 
-                // Token wird von APIClient bereits gespeichert
                 if (result.user) {
                     this.setUser(result.user);
                 }
 
-                // Reload nach Verzögerung
                 setTimeout(() => location.reload(), 1000);
                 return;
             }
 
-            // Fallback: Direktes fetch
             const apiBase = this.getApiBase();
             const res = await fetch(`${apiBase}/auth/register`, {
                 method: 'POST',
@@ -119,38 +116,34 @@ const Auth = {
 
     async login(event) {
         event.preventDefault();
-        const email = document.getElementById('loginEmail')?.value;
+        const username = document.getElementById('loginEmail')?.value;
         const password = document.getElementById('loginPassword')?.value;
 
-        if (!email || !password) {
+        if (!username || !password) {
             console.warn('⚠️ Missing login fields');
             return;
         }
 
         try {
-            console.log('🔓 Logging in:', email);
+            console.log('🔓 Logging in:', username);
 
-            // ✅ NEW: Nutze APIClient statt direktes fetch
             if (typeof APIClient !== 'undefined') {
-                const result = await APIClient.login(email, password);
+                const result = await APIClient.login(username, password);
                 console.log('✅ Login successful!', result);
 
-                // Token wird von APIClient bereits gespeichert
                 if (result.user) {
                     this.setUser(result.user);
                 }
 
-                // Reload nach Verzögerung
                 setTimeout(() => location.reload(), 1000);
                 return;
             }
 
-            // Fallback: Direktes fetch
             const apiBase = this.getApiBase();
             const res = await fetch(`${apiBase}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ username, password }),
                 credentials: 'include'
             });
 
@@ -179,7 +172,7 @@ const Auth = {
     async loginWithMagicLink(event) {
         if (event) event.preventDefault();
 
-        const email = document.getElementById('magicLinkEmail')?.value;
+        const email = document.getElementById('magicEmail')?.value;
         if (!email) {
             console.warn('⚠️ Email field missing');
             return;
@@ -188,23 +181,20 @@ const Auth = {
         try {
             console.log('📧 Sending magic link to:', email);
 
-            // ✅ NEW: Nutze WebAuthn oder APIClient
             if (typeof WebAuthn !== 'undefined') {
                 const result = await WebAuthn.loginWithMagicLink(email);
                 console.log('✅ Magic link sent!');
-                alert('✅ Check your email for the magic link!');
+                document.getElementById('magicStatus').textContent = '✅ Check your email for the magic link!';
                 return;
             }
 
-            // Fallback: APIClient
             if (typeof APIClient !== 'undefined') {
                 const result = await APIClient.sendMagicLink(email);
                 console.log('✅ Magic link sent!');
-                alert('✅ Check your email for the magic link!');
+                document.getElementById('magicStatus').textContent = '✅ Check your email for the magic link!';
                 return;
             }
 
-            // Letzter Fallback
             const apiBase = this.getApiBase();
             const res = await fetch(`${apiBase}/auth/send-magic-link`, {
                 method: 'POST',
@@ -216,11 +206,11 @@ const Auth = {
             if (!res.ok) throw new Error('Failed to send magic link');
 
             console.log('✅ Magic link sent!');
-            alert('✅ Check your email for the magic link!');
+            document.getElementById('magicStatus').textContent = '✅ Check your email for the magic link!';
 
         } catch (error) {
             console.error('❌ Magic link error:', error.message);
-            alert(`❌ Failed to send magic link: ${error.message}`);
+            document.getElementById('magicStatus').textContent = `❌ ${error.message}`;
         }
     },
 
@@ -240,7 +230,6 @@ const Auth = {
 
             console.log('🔐 Verifying magic link token...');
 
-            // ✅ NEW: Nutze WebAuthn oder APIClient
             if (typeof WebAuthn !== 'undefined') {
                 const result = await WebAuthn.verifyMagicLink(token);
                 console.log('✅ Magic link verified!', result);
@@ -252,14 +241,11 @@ const Auth = {
                     this.setUser(result.user);
                 }
 
-                // Remove token from URL
                 window.history.replaceState({}, document.title, url.pathname);
-
                 setTimeout(() => location.reload(), 1000);
                 return result;
             }
 
-            // Fallback: APIClient
             if (typeof APIClient !== 'undefined') {
                 const result = await APIClient.verifyMagicLink(token);
                 console.log('✅ Magic link verified!', result);
@@ -268,9 +254,7 @@ const Auth = {
                     this.setUser(result.user);
                 }
 
-                // Remove token from URL
                 window.history.replaceState({}, document.title, url.pathname);
-
                 setTimeout(() => location.reload(), 1000);
                 return result;
             }
@@ -283,26 +267,45 @@ const Auth = {
     },
 
     // ========================================================================
-    // 🎚️ WEBAUTHN REGISTRATION
+    // 🎚️ WEBAUTHN REGISTRATION (FIXED WITH GUARD)
     // ========================================================================
 
     async registerWithWebAuthn(event) {
         if (event) event.preventDefault();
 
-        const username = document.getElementById('webauthnUsername')?.value;
-        const email = document.getElementById('webauthnEmail')?.value;
+        // ✅ NEW: Double-click protection
+        if (this.isProcessing) {
+            console.warn('⚠️ WebAuthn already processing...');
+            return;
+        }
+
+        const username = document.getElementById('bioRegUsername')?.value;
+        const email = document.getElementById('bioRegEmail')?.value;
 
         if (!username || !email) {
             console.warn('⚠️ Missing WebAuthn registration fields');
+            document.getElementById('bioStatus').textContent = '❌ Benutzername und E-Mail erforderlich';
             return;
         }
 
         try {
+            // ✅ NEW: Check WebAuthn availability BEFORE processing
+            console.log('🔍 Checking WebAuthn availability...');
+            if (!navigator.credentials) {
+                throw new Error('WebAuthn not supported in this browser');
+            }
+            if (!window.PublicKeyCredential) {
+                throw new Error('PublicKeyCredential not available');
+            }
+
             if (typeof WebAuthn === 'undefined') {
                 throw new Error('WebAuthn module not loaded');
             }
 
+            this.isProcessing = true;
             console.log('🔐 Starting WebAuthn registration...');
+            document.getElementById('bioStatus').textContent = '⏳ Registrierung wird durchgeführt...';
+
             const result = await WebAuthn.registerWithBiometric(username, email);
             console.log('✅ WebAuthn registration successful!', result);
 
@@ -313,34 +316,49 @@ const Auth = {
                 this.setUser(result.user);
             }
 
-            setTimeout(() => location.reload(), 1000);
+            document.getElementById('bioStatus').textContent = '✅ Registrierung erfolgreich!';
+            setTimeout(() => location.reload(), 1500);
 
         } catch (error) {
             console.error('❌ WebAuthn registration error:', error.message);
-            alert(`❌ WebAuthn registration failed: ${error.message}`);
+            document.getElementById('bioStatus').textContent = `❌ ${error.message}`;
+        } finally {
+            this.isProcessing = false;
         }
     },
 
     // ========================================================================
-    // 🔐 WEBAUTHN AUTHENTICATION
+    // 🔐 WEBAUTHN AUTHENTICATION (FIXED WITH GUARD)
     // ========================================================================
 
     async authenticateWithWebAuthn(event) {
         if (event) event.preventDefault();
 
-        const email = document.getElementById('webauthnAuthEmail')?.value;
-        if (!email) {
-            console.warn('⚠️ Email field missing');
+        // ✅ NEW: Double-click protection
+        if (this.isProcessing) {
+            console.warn('⚠️ WebAuthn already processing...');
             return;
         }
 
         try {
+            // ✅ NEW: Check WebAuthn availability BEFORE processing
+            console.log('🔍 Checking WebAuthn availability...');
+            if (!navigator.credentials) {
+                throw new Error('WebAuthn not supported in this browser');
+            }
+            if (!window.PublicKeyCredential) {
+                throw new Error('PublicKeyCredential not available');
+            }
+
             if (typeof WebAuthn === 'undefined') {
                 throw new Error('WebAuthn module not loaded');
             }
 
+            this.isProcessing = true;
             console.log('🔐 Starting WebAuthn authentication...');
-            const result = await WebAuthn.authenticateWithBiometric(email);
+            document.getElementById('bioStatus').textContent = '⏳ Authentifizierung wird durchgeführt...';
+
+            const result = await WebAuthn.authenticateWithBiometric();
             console.log('✅ WebAuthn authentication successful!', result);
 
             if (result.token) {
@@ -350,11 +368,14 @@ const Auth = {
                 this.setUser(result.user);
             }
 
-            setTimeout(() => location.reload(), 1000);
+            document.getElementById('bioStatus').textContent = '✅ Authentifizierung erfolgreich!';
+            setTimeout(() => location.reload(), 1500);
 
         } catch (error) {
             console.error('❌ WebAuthn authentication error:', error.message);
-            alert(`❌ WebAuthn authentication failed: ${error.message}`);
+            document.getElementById('bioStatus').textContent = `❌ ${error.message}`;
+        } finally {
+            this.isProcessing = false;
         }
     },
 
@@ -416,7 +437,6 @@ const Auth = {
         this.clearToken();
         this.setUser(null);
 
-        // Stop any playback
         if (typeof AudioPlayer !== 'undefined' && AudioPlayer.stop) {
             AudioPlayer.stop();
         }
@@ -462,7 +482,90 @@ const Auth = {
     }
 };
 
-console.log('✅ Auth loaded with ngrok + APIClient support');
+// ============================================================================
+// 🔌 EVENT LISTENERS - SETUP UI HANDLERS
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔌 Setting up Auth event listeners...');
+
+    // ========================================================================
+    // 📝 PASSWORD LOGIN FORM
+    // ========================================================================
+    const passwordForm = document.querySelector('form[data-form="password-login"]');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', (e) => Auth.login(e));
+        console.log('✅ Password login form listener attached');
+    }
+
+    // ========================================================================
+    // 👆 WEBAUTHN - LOGIN BUTTON
+    // ========================================================================
+    const webauthnBtn = document.getElementById('webauthnBtn');
+    if (webauthnBtn) {
+        webauthnBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('👆 WebAuthn Login button clicked');
+            Auth.authenticateWithWebAuthn();
+        });
+        console.log('✅ WebAuthn login button listener attached');
+    }
+
+    // ========================================================================
+    // 👆 WEBAUTHN - TOGGLE REGISTRATION FORM
+    // ========================================================================
+    const toggleBioRegisterBtn = document.getElementById('toggleBioRegisterBtn');
+    if (toggleBioRegisterBtn) {
+        toggleBioRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('📝 Toggle registration form');
+            const bioRegModal = document.getElementById('bioRegisterModal');
+            if (bioRegModal) {
+                bioRegModal.style.display = bioRegModal.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+        console.log('✅ Toggle registration form listener attached');
+    }
+
+    // ========================================================================
+    // 👆 WEBAUTHN - REGISTRATION BUTTON
+    // ========================================================================
+    const registerBiometricBtn = document.getElementById('registerBiometricBtn');
+    if (registerBiometricBtn) {
+        registerBiometricBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('📝 WebAuthn Register button clicked');
+            Auth.registerWithWebAuthn();
+        });
+        console.log('✅ WebAuthn register button listener attached');
+    }
+
+    // ========================================================================
+    // 📧 MAGIC LINK BUTTON
+    // ========================================================================
+    const magicLinkBtn = document.getElementById('magicLinkBtn');
+    if (magicLinkBtn) {
+        magicLinkBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('📧 Magic link button clicked');
+            Auth.loginWithMagicLink();
+        });
+        console.log('✅ Magic link button listener attached');
+    }
+
+    // ========================================================================
+    // 🧪 DEV LOGIN (if element exists)
+    // ========================================================================
+    const devLoginBtn = document.getElementById('devLoginBtn');
+    if (devLoginBtn) {
+        devLoginBtn.addEventListener('click', (e) => Auth.devLogin(e));
+        console.log('✅ Dev login button listener attached');
+    }
+
+    console.log('✅ All Auth event listeners attached!');
+});
+
+console.log('✅ Auth loaded with ngrok + APIClient support + WebAuthn Guards');
 
 // Global reference
 window.Auth = Auth;

@@ -3,8 +3,8 @@
     "version": "1.0.0",
     "description": "Frontend for SONG-NEXUS - Music streaming platform with HTTPS support",
     "scripts": {
-        "start": "http-server -p 5500 -S -C backend/certs/localhost.pem -K backend/certs/localhost-key.pem --cors",
-        "start:https": "http-server -p 5500 -S -C backend/certs/localhost.pem -K backend/certs/localhost-key.pem --cors",
+        "start": "http-server -p 5500 -S -C certs/localhost.pem -K certs/localhost-key.pem --cors",
+        "start:https": "http-server -p 5500 -S -C certs/localhost.pem -K certs/localhost-key.pem --cors",
         "start:http": "http-server -p 5500 --cors",
         "start:no-cors": "http-server -p 5500",
         "build": "echo 'Static files ready for deployment'",

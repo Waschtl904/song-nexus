@@ -180,6 +180,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));  // ← Explizit für pre-flight!
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -188,28 +189,30 @@ app.use(compression());
 // ============================================================================
 // 🔐 SESSION MIDDLEWARE (für WebAuthn Challenges)
 // ============================================================================
-// ✅ IMPROVED: Conditional cookie settings for ngrok + localhost
-const getSessionCookieSettings = () => {
-    const isNgrok = process.env.ALLOWED_ORIGINS?.includes('ngrok');
-    const isProd = process.env.NODE_ENV === 'production';
-
-    return {
-        secure: (USE_HTTPS && NODE_ENV === 'development') || isProd || isNgrok,  // HTTPS for dev with mkcert or prod/ngrok
-        httpOnly: true,
-        sameSite: isProd ? 'strict' : (isNgrok ? 'none' : 'lax'),  // Conditional sameSite
-        maxAge: 1000 * 60 * 15  // 15 minutes
-    };
-};
 
 app.use(session({
     secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-secret-change-in-prod',
     resave: false,
     saveUninitialized: false,
-    cookie: getSessionCookieSettings()
+    cookie: {
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 15
+    },
+    name: 'connect.sid'
 }));
 
 console.log('✅ Session middleware configured');
-console.log('   Cookie settings:', getSessionCookieSettings());
+
+// ✅ FÜGE DAS HIER EIN:
+app.use((req, res, next) => {
+    console.log('🍪 Cookie Header erhalten:', req.headers.cookie);
+    console.log('📋 Session ID:', req.sessionID);
+    console.log('💾 Session Data:', req.session);
+    next();
+});
 
 // ============================================================================
 // 🛡️ RATE LIMITING
@@ -256,7 +259,8 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
 };
 
 app.use('/api/', rateLimit(30, 60 * 1000));
-app.use('/api/auth/', rateLimit(5, 15 * 60 * 1000));
+app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));  // ← WebAuthn braucht mehr!
+app.use('/api/auth/', rateLimit(10, 15 * 60 * 1000));  // ← Erhöht von 5 auf 10
 app.use('/public/audio/', rateLimit(20, 60 * 1000));
 
 console.log('✅ Rate limiting enabled');

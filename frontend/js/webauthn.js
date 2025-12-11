@@ -1,6 +1,5 @@
 // ============================================================================
-// 🔐 WEBAUTHN - Biometric Authentication & Registration
-// ✅ UPDATED: Nutzt APIClient + config.js statt hardcoded URLs
+// 🔐 WEBAUTHN - FIREFOX & EDGE FIX
 // ============================================================================
 
 const WebAuthn = {
@@ -11,7 +10,6 @@ const WebAuthn = {
         if (typeof window !== 'undefined' && window.songNexusConfig) {
             return window.songNexusConfig.getApiBaseUrl();
         }
-        // Fallback
         return 'https://localhost:3000/api';
     },
 
@@ -36,13 +34,11 @@ const WebAuthn = {
     convertRegistrationOptions(options) {
         console.log('🔄 Converting registration options...');
 
-        // Challenge muss ArrayBuffer sein
         if (options.challenge && typeof options.challenge === 'string') {
             console.log('   ✅ Converting challenge to ArrayBuffer');
             options.challenge = this.base64urlToBuffer(options.challenge);
         }
 
-        // User ID muss ArrayBuffer sein
         if (options.user && options.user.id && typeof options.user.id === 'string') {
             console.log('   ✅ Converting user.id to ArrayBuffer');
             options.user.id = this.base64urlToBuffer(options.user.id);
@@ -55,13 +51,11 @@ const WebAuthn = {
     convertAuthenticationOptions(options) {
         console.log('🔄 Converting authentication options...');
 
-        // Challenge muss ArrayBuffer sein
         if (options.challenge && typeof options.challenge === 'string') {
             console.log('   ✅ Converting challenge to ArrayBuffer');
             options.challenge = this.base64urlToBuffer(options.challenge);
         }
 
-        // AllowCredentials müssen konvertiert werden
         if (options.allowCredentials && Array.isArray(options.allowCredentials)) {
             console.log('   ✅ Converting allowCredentials to ArrayBuffer');
             options.allowCredentials = options.allowCredentials.map(cred => ({
@@ -75,151 +69,251 @@ const WebAuthn = {
     },
 
     // ========================================================================
-    // 📝 REGISTER WITH BIOMETRIC
+    // 📝 REGISTER WITH BIOMETRIC (FIREFOX & EDGE FIXED!)
     // ========================================================================
     async registerWithBiometric(username, email) {
-        try {
-            console.log('📝 Registering:', email);
+        const maxRetries = 3;
+        let lastError;
 
-            // ✅ NEW: Nutze getApiBase() statt hardcoded
-            const apiBase = this.getApiBase();
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`📝 Registration attempt ${attempt}/${maxRetries}...`);
+                console.log('Registering:', email);
 
-            // 1️⃣ Get options from server
-            console.log('1️⃣ Fetching registration options from server...');
-            console.log(`   URL: ${apiBase}/auth/webauthn/register-options`);
+                const apiBase = this.getApiBase();
 
-            const optionsRes = await fetch(`${apiBase}/auth/webauthn/register-options`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email }),
-                credentials: 'include'  // ✅ Important für Sessions!
-            });
+                // 1️⃣ Get options from server
+                console.log('1️⃣ Fetching registration options from server...');
+                console.log(`   URL: ${apiBase}/auth/webauthn/register-options`);
 
-            if (!optionsRes.ok) {
-                throw new Error(`Server error: ${optionsRes.status}`);
+                const optionsRes = await fetch(`${apiBase}/auth/webauthn/register-options`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email }),
+                    credentials: 'include'  // ← FÜGE DAS EIN!
+                });
+
+                if (!optionsRes.ok) {
+                    const errorData = await optionsRes.json().catch(() => ({}));
+                    const error = new Error(`Server error ${optionsRes.status}: ${errorData.error || 'Unknown error'}`);
+                    error.status = optionsRes.status;
+                    throw error;
+                }
+
+                let options = await optionsRes.json();
+                console.log('📋 Raw options from server:', options);
+
+                // 2️⃣ Convert options (Base64URL → ArrayBuffer)
+                console.log('2️⃣ Converting options for WebAuthn API...');
+                options = this.convertRegistrationOptions(options);
+                console.log('📋 Converted options ready for WebAuthn:', options);
+
+                // ✅ FIREFOX & EDGE FIX: Ensure only required credential type
+                const cleanOptions = {
+                    challenge: options.challenge,
+                    rp: options.rp,
+                    user: options.user,
+                    pubKeyCredParams: options.pubKeyCredParams,
+                    timeout: options.timeout,
+                    attestation: options.attestation || 'none',
+                    authenticatorSelection: {
+                        authenticatorAttachment: undefined,
+                        userVerification: 'preferred',
+                        residentKey: 'discouraged'
+                    }
+                };
+
+                console.log('✅ Final cleaned options for navigator.credentials.create():', {
+                    challenge: typeof cleanOptions.challenge,
+                    rp: cleanOptions.rp,
+                    user: cleanOptions.user,
+                    pubKeyCredParams: cleanOptions.pubKeyCredParams,
+                    authenticatorSelection: cleanOptions.authenticatorSelection
+                });
+
+                // 3️⃣ Call WebAuthn API with CLEAN options
+                console.log('3️⃣ Calling navigator.credentials.create()...');
+
+                // ✅ DEBUG: Check if WebAuthn is available
+                if (!navigator.credentials) {
+                    throw new Error('navigator.credentials not available');
+                }
+
+                if (!window.PublicKeyCredential) {
+                    throw new Error('PublicKeyCredential not available');
+                }
+
+                console.log('✅ WebAuthn API available, calling create()...');
+
+                const credential = await navigator.credentials.create({
+                    publicKey: cleanOptions
+                });
+
+                if (!credential) {
+                    throw new Error('Registration cancelled by user or no authenticator available');
+                }
+                console.log('✅ Credential created:', credential);
+
+                // 4️⃣ Send credential to server for verification
+                console.log('4️⃣ Sending credential to server for verification...');
+                const verifyRes = await fetch(`${apiBase}/auth/webauthn/register-verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.credentialToJSON(credential)),
+                    credentials: 'include'
+                });
+
+                if (!verifyRes.ok) {
+                    const error = await verifyRes.json().catch(() => ({}));
+                    const err = new Error(`Verification failed: ${error.error || 'Unknown error'}`);
+                    err.status = verifyRes.status;
+                    throw err;
+                }
+
+                const result = await verifyRes.json();
+                console.log('✅ Registration successful!', result);
+
+                if (result.token && typeof APIClient !== 'undefined') {
+                    APIClient.setToken(result.token);
+                    console.log('✅ Token stored via APIClient');
+                }
+
+                return result;
+
+            } catch (error) {
+                lastError = error;
+                console.error(`❌ Attempt ${attempt} failed:`, error.message);
+
+                if (error.status === 429 && attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.log(`⏳ Rate limited. Waiting ${delay}ms before retry...`);
+                    await new Promise(r => setTimeout(r, delay));
+                    continue;
+                }
+
+                throw error;
             }
-
-            let options = await optionsRes.json();
-            console.log('📋 Raw options from server:', options);
-
-            // 2️⃣ Convert options (Base64URL → ArrayBuffer)
-            console.log('2️⃣ Converting options for WebAuthn API...');
-            options = this.convertRegistrationOptions(options);
-            console.log('📋 Converted options ready for WebAuthn:', options);
-
-            // 3️⃣ Call WebAuthn API
-            console.log('3️⃣ Calling navigator.credentials.create()...');
-            const credential = await navigator.credentials.create(options);
-
-            if (!credential) {
-                throw new Error('Registration cancelled by user or no authenticator available');
-            }
-            console.log('✅ Credential created:', credential);
-
-            // 4️⃣ Send credential to server for verification
-            console.log('4️⃣ Sending credential to server for verification...');
-            const verifyRes = await fetch(`${apiBase}/auth/webauthn/register-verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(this.credentialToJSON(credential)),
-                credentials: 'include'  // ✅ Important für Sessions!
-            });
-
-            if (!verifyRes.ok) {
-                const error = await verifyRes.json();
-                throw new Error(`Verification failed: ${error.error}`);
-            }
-
-            const result = await verifyRes.json();
-            console.log('✅ Registration successful!', result);
-
-            // ✅ NEW: Speichere Token mit APIClient
-            if (result.token && typeof APIClient !== 'undefined') {
-                APIClient.setToken(result.token);
-                console.log('✅ Token stored via APIClient');
-            }
-
-            return result;
-
-        } catch (error) {
-            console.error('❌ Registration error:', error.message);
-            console.error('❌ Full error object:', error);
-            throw error;
         }
+
+        throw lastError;
     },
 
     // ========================================================================
-    // 🔓 AUTHENTICATE WITH BIOMETRIC
+    // 🔓 AUTHENTICATE WITH BIOMETRIC (FIREFOX & EDGE FIXED!)
     // ========================================================================
-    async authenticateWithBiometric(email) {
-        try {
-            console.log('🔐 Starting authentication...');
+    async authenticateWithBiometric() {
+        const maxRetries = 3;
+        let lastError;
 
-            // ✅ NEW: Nutze getApiBase() statt hardcoded
-            const apiBase = this.getApiBase();
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`🔐 Authentication attempt ${attempt}/${maxRetries}...`);
+                console.log('Starting authentication (NO email needed)...');
 
-            // 1️⃣ Get authentication options from server
-            console.log('1️⃣ Fetching authentication options from server...');
-            console.log(`   URL: ${apiBase}/auth/webauthn/authenticate-options`);
+                const apiBase = this.getApiBase();
 
-            const optionsRes = await fetch(`${apiBase}/auth/webauthn/authenticate-options`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-                credentials: 'include'  // ✅ Important für Sessions!
-            });
+                // 1️⃣ Get authentication options from server
+                console.log('1️⃣ Fetching authentication options from server...');
+                console.log(`   URL: ${apiBase}/auth/webauthn/authenticate-options`);
 
-            if (!optionsRes.ok) {
-                throw new Error(`Server error: ${optionsRes.status}`);
+                const optionsRes = await fetch(`${apiBase}/auth/webauthn/authenticate-options`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                    credentials: 'include'  // ← FÜGE DAS EIN!
+                });
+
+                if (!optionsRes.ok) {
+                    const errorData = await optionsRes.json().catch(() => ({}));
+                    const error = new Error(`Server error ${optionsRes.status}: ${errorData.error || 'Unknown error'}`);
+                    error.status = optionsRes.status;
+                    throw error;
+                }
+
+                let options = await optionsRes.json();
+                console.log('📋 Raw auth options from server:', options);
+
+                // 2️⃣ Convert options (Base64URL → ArrayBuffer)
+                console.log('2️⃣ Converting options for WebAuthn API...');
+                options = this.convertAuthenticationOptions(options);
+                console.log('📋 Converted auth options ready for WebAuthn:', options);
+
+                // ✅ FIREFOX & EDGE FIX: Ensure only required credential type
+                const cleanOptions = {
+                    challenge: options.challenge,
+                    timeout: options.timeout,
+                    rpId: options.rpId,
+                    userVerification: options.userVerification || 'preferred',
+                    allowCredentials: options.allowCredentials || []
+                };
+
+                console.log('✅ Final cleaned options for navigator.credentials.get():', {
+                    challenge: typeof cleanOptions.challenge,
+                    rpId: cleanOptions.rpId,
+                    userVerification: cleanOptions.userVerification,
+                    allowCredentials: cleanOptions.allowCredentials.length
+                });
+
+                // 3️⃣ Call WebAuthn API with CLEAN options
+                console.log('3️⃣ Calling navigator.credentials.get()...');
+
+                if (!navigator.credentials) {
+                    throw new Error('navigator.credentials not available');
+                }
+
+                console.log('✅ WebAuthn API available, calling get()...');
+
+                const assertion = await navigator.credentials.get({
+                    publicKey: cleanOptions
+                });
+
+                if (!assertion) {
+                    throw new Error('Authentication cancelled by user');
+                }
+                console.log('✅ Assertion received:', assertion);
+
+                // 4️⃣ Send assertion to server for verification
+                console.log('4️⃣ Sending assertion to server for verification...');
+                const verifyRes = await fetch(`${apiBase}/auth/webauthn/authenticate-verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.assertionToJSON(assertion)),
+                    credentials: 'include'
+                });
+
+                if (!verifyRes.ok) {
+                    const error = await verifyRes.json().catch(() => ({}));
+                    const err = new Error(`Verification failed: ${error.error || 'Unknown error'}`);
+                    err.status = verifyRes.status;
+                    throw err;
+                }
+
+                const result = await verifyRes.json();
+                console.log('✅ Authentication successful!', result);
+
+                if (result.token && typeof APIClient !== 'undefined') {
+                    APIClient.setToken(result.token);
+                    console.log('✅ Token stored via APIClient');
+                }
+
+                return result;
+
+            } catch (error) {
+                lastError = error;
+                console.error(`❌ Attempt ${attempt} failed:`, error.message);
+
+                if (error.status === 429 && attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.log(`⏳ Rate limited. Waiting ${delay}ms before retry...`);
+                    await new Promise(r => setTimeout(r, delay));
+                    continue;
+                }
+
+                throw error;
             }
-
-            let options = await optionsRes.json();
-            console.log('📋 Raw auth options from server:', options);
-
-            // 2️⃣ Convert options (Base64URL → ArrayBuffer)
-            console.log('2️⃣ Converting options for WebAuthn API...');
-            options = this.convertAuthenticationOptions(options);
-            console.log('📋 Converted auth options ready for WebAuthn:', options);
-
-            // 3️⃣ Call WebAuthn API
-            console.log('3️⃣ Calling navigator.credentials.get()...');
-            const assertion = await navigator.credentials.get(options);
-
-            if (!assertion) {
-                throw new Error('Authentication cancelled by user');
-            }
-            console.log('✅ Assertion received:', assertion);
-
-            // 4️⃣ Send assertion to server for verification
-            console.log('4️⃣ Sending assertion to server for verification...');
-            const verifyRes = await fetch(`${apiBase}/auth/webauthn/authenticate-verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(this.assertionToJSON(assertion)),
-                credentials: 'include'  // ✅ Important für Sessions!
-            });
-
-            if (!verifyRes.ok) {
-                const error = await verifyRes.json();
-                throw new Error(`Verification failed: ${error.error}`);
-            }
-
-            const result = await verifyRes.json();
-            console.log('✅ Authentication successful!', result);
-
-            // ✅ NEW: Speichere Token mit APIClient
-            if (result.token && typeof APIClient !== 'undefined') {
-                APIClient.setToken(result.token);
-                console.log('✅ Token stored via APIClient');
-            }
-
-            return result;
-
-        } catch (error) {
-            console.error('❌ Authentication error:', error.message);
-            console.error('❌ Full error object:', error);
-            throw error;
         }
+
+        throw lastError;
     },
 
     // ========================================================================
@@ -229,12 +323,10 @@ const WebAuthn = {
         try {
             console.log('📧 Sending magic link to:', email);
 
-            // ✅ NEW: Nutze APIClient statt direktes fetch
             if (typeof APIClient !== 'undefined') {
                 return await APIClient.sendMagicLink(email);
             }
 
-            // Fallback
             const apiBase = this.getApiBase();
             const res = await fetch(`${apiBase}/auth/send-magic-link`, {
                 method: 'POST',
@@ -243,7 +335,11 @@ const WebAuthn = {
                 credentials: 'include'
             });
 
-            if (!res.ok) throw new Error('Failed to send magic link');
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(`Failed to send magic link: ${error.error || 'Unknown error'}`);
+            }
+
             const result = await res.json();
             console.log('✅ Magic link sent!');
             return result;
@@ -261,12 +357,10 @@ const WebAuthn = {
         try {
             console.log('🔐 Verifying magic link...');
 
-            // ✅ NEW: Nutze APIClient statt direktes fetch
             if (typeof APIClient !== 'undefined') {
                 return await APIClient.verifyMagicLink(token);
             }
 
-            // Fallback
             const apiBase = this.getApiBase();
             const res = await fetch(`${apiBase}/auth/verify-magic-link`, {
                 method: 'POST',
@@ -275,11 +369,14 @@ const WebAuthn = {
                 credentials: 'include'
             });
 
-            if (!res.ok) throw new Error('Verification failed');
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(`Verification failed: ${error.error || 'Unknown error'}`);
+            }
+
             const result = await res.json();
             console.log('✅ Magic link verified!');
 
-            // ✅ NEW: Speichere Token mit APIClient
             if (result.token && typeof APIClient !== 'undefined') {
                 APIClient.setToken(result.token);
                 console.log('✅ Token stored via APIClient');
@@ -294,31 +391,30 @@ const WebAuthn = {
     },
 
     // ========================================================================
-    // 🧪 DEV LOGIN (nur für Development!)
+    // 🧪 DEV LOGIN
     // ========================================================================
     async devLogin() {
         try {
             console.log('🧪 Dev login...');
 
-            // ✅ NEW: Nutze getApiBase() statt hardcoded
             const apiBase = this.getApiBase();
             console.log(`   URL: ${apiBase}/auth/dev-login`);
 
             const response = await fetch(`${apiBase}/auth/dev-login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'  // ✅ Important für Sessions!
+                credentials: 'include'
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                const error = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${error.error || 'Unknown error'}`);
             }
 
             const result = await response.json();
             console.log('✅ Dev login result:', result);
 
             if (result.success || result.token) {
-                // ✅ NEW: Nutze APIClient statt direktes Auth.setToken
                 if (typeof APIClient !== 'undefined') {
                     APIClient.setToken(result.token);
                     console.log('✅ Token stored via APIClient');
@@ -382,7 +478,6 @@ const WebAuthn = {
     }
 };
 
-console.log('✅ WebAuthn loaded with enhanced debugging + ngrok support');
+console.log('✅ WebAuthn loaded with FIREFOX & EDGE FIX - publicKey wrapper added');
 
-// Global reference
 window.WebAuthn = WebAuthn;
