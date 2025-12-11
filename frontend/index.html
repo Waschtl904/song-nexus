@@ -52,13 +52,17 @@
     <!-- ========================================================================
          🎵 STICKY PLAYER (Always visible bottom-right)
          ======================================================================== -->
-    <div id="stickyPlayer" class="sticky-player">
-        <div class="player-header">
+    <div id="stickyPlayer" class="sticky-player" data-draggable>
+        <div class="player-header" id="playerHeader">
             <div class="now-playing">
                 <div class="track-name">Bereit zum Abspielen...</div>
                 <div class="track-artist">Wählen Sie einen Track</div>
             </div>
-            <button id="playerMinimize" class="player-btn" aria-label="Player minimieren" title="Minimieren">−</button>
+            <div class="player-controls-header">
+                <button id="playerMinimize" class="player-btn" aria-label="Player minimieren"
+                    title="Minimieren">−</button>
+                <button id="playerClose" class="player-btn" aria-label="Player schließen" title="Schließen">✕</button>
+            </div>
         </div>
 
         <div id="playerContent" class="player-content">
@@ -97,6 +101,9 @@
                     aria-label="Lautstärkeregler" aria-valuemin="0" aria-valuemax="100">
             </div>
         </div>
+
+        <!-- ✅ Resize Handle (unten rechts) -->
+        <div class="player-resize-handle" id="playerResizeHandle" aria-label="Player vergrößern/verkleinern"></div>
     </div>
 
     <!-- ========================================================================
@@ -295,16 +302,45 @@
             </div>
         </div>
         <p style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; margin-top: 20px;">
-            🎵 SONG-NEXUS v6.1 • Gebaut mit ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Barrierefrei |
+            🎵 SONG-NEXUS v6.2 • Gebaut mit ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Barrierefrei |
             <span style="color: var(--accent-green);">🍪 Keine Cookies • 📊 Kein Tracking</span>
         </p>
     </footer>
 
     <!-- ========================================================================
-         SCRIPTS
+         ✅ OPTIMIZED SCRIPT LOAD ORDER (11 MODULES)
          ======================================================================== -->
+
+    <!-- 1️⃣ CONFIG – Central configuration (FIRST!) -->
+    <script src="js/config.js"></script>
+
+    <!-- 2️⃣ API CLIENT – All API calls -->
+    <script src="js/api-client.js"></script>
+
+    <!-- 3️⃣ AUTH – Authentication logic -->
+    <script src="js/auth.js"></script>
+
+    <!-- 4️⃣ WEBAUTHN – Biometric authentication -->
+    <script src="js/webauthn.js"></script>
+
+    <!-- 5️⃣ AUDIO PLAYER – Audio playback engine -->
     <script src="js/audio-player.js"></script>
+
+    <!-- 6️⃣ PLAYER – Player wrapper/integration -->
+    <script src="js/player.js"></script>
+
+    <!-- 7️⃣ TRACKS – Track browser + modal -->
+    <script src="js/tracks.js"></script>
+
+    <!-- 8️⃣ UI – UI utilities + theme management -->
+    <script src="js/ui.js"></script>
+
+    <!-- 9️⃣ PLAYER DRAGGABLE – Draggable/resizable player -->
+    <script src="js/player-draggable.js"></script>
+
+    <!-- 🔟 MAIN – Main app controller -->
     <script src="js/main.js"></script>
+
 </body>
 
 </html>

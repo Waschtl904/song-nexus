@@ -1,13 +1,19 @@
 {
     "name": "song-nexus",
     "version": "1.0.0",
-    "description": "Full-stack music streaming platform with PayPal integration",
+    "description": "Full-stack music streaming platform with PayPal integration and HTTPS support",
     "scripts": {
         "start": "concurrently \"npm run server\" \"npm run client\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
+        "start:local": "concurrently \"npm run server:local\" \"npm run client:https\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
+        "start:prod": "concurrently \"npm run server:prod\" \"npm run client\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
         "server": "cd backend && npm start",
+        "server:local": "cd backend && npm run start:local",
+        "server:prod": "cd backend && npm run start:prod",
         "client": "cd frontend && npm start",
-        "dev": "concurrently \"npm run server:dev\" \"npm run client\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
-        "server:dev": "cd backend && npm run dev",
+        "client:https": "cd frontend && npm run start:https",
+        "client:http": "cd frontend && npm run start:http",
+        "dev": "concurrently \"npm run server:dev\" \"npm run client:https\" --names \"BACKEND\" \"FRONTEND\" --prefix \"[{time}]\" --kill-others-on-exit",
+        "server:dev": "cd backend && npm run dev:local",
         "stop": "taskkill /IM node.exe /F"
     },
     "devDependencies": {

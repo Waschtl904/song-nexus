@@ -116,7 +116,7 @@ header {
     padding: 25px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(4px);
     box-shadow: 0 0 20px rgba(0, 204, 119, 0.15), inset 0 0 15px rgba(0, 204, 119, 0.05);
 }
 
@@ -1027,146 +1027,107 @@ footer p {
 }
 
 /* ========================================================================
-   💡 NEON TUBE SIGN – Ultra-Realistic 3D Vintage (Heavy Wear & Grime)
+   🎮 STICKY PLAYER – Draggable & Resizable
    ======================================================================== */
 
-.logo-section h1 {
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 4rem;
+.sticky-player {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    min-width: 280px;
+    max-width: 600px;
+    background: rgba(10, 14, 26, 0.95);
+    border: 2px solid var(--accent-teal);
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 204, 0, 0.2);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+
+    /* Wichtig: Damit Dragging funktioniert */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ===== PLAYER HEADER (Draggable) ===== */
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(0, 204, 0, 0.1), rgba(0, 100, 50, 0.05));
+    border-bottom: 1px solid rgba(0, 204, 0, 0.2);
+    cursor: move;
+    /* ← Zeigt dass es draggbar ist */
+    border-radius: 6px 6px 0 0;
+}
+
+.player-header:active {
+    background: linear-gradient(135deg, rgba(0, 204, 0, 0.15), rgba(0, 100, 50, 0.1));
+}
+
+.now-playing {
+    flex: 1;
+    min-width: 0;
+}
+
+.track-name {
+    font-size: 0.9rem;
     font-weight: bold;
-    letter-spacing: 0.25em;
-
-    /* ✅ Dunkleres Grün */
-    color: #00cc00;
-
-    /* ✅ 3D-RÖHREN-EFFEKT mit klaren Schatten */
-    text-shadow:
-        /* Kern: Inneres Glow (helles Grün) */
-        0 0 2px #00ff00,
-        0 0 4px #00cc00,
-        0 0 6px #00cc00,
-
-        /* Mittleres Glow */
-        0 0 8px rgba(0, 204, 0, 0.4),
-        0 0 12px rgba(0, 204, 0, 0.2),
-
-        /* Äußeres Glow */
-        0 0 16px rgba(0, 204, 0, 0.1),
-
-        /* ✅ 3D-TIEFE (Oben-Schatten - wirkt wie Röhre) */
-        -2px -3px 3px rgba(0, 0, 0, 0.6),
-        -1px -2px 2px rgba(0, 0, 0, 0.4),
-
-        /* ✅ 3D-TIEFE (Unten-Schatten) */
-        2px 3px 4px rgba(0, 0, 0, 0.7),
-        1px 2px 2px rgba(0, 0, 0, 0.5),
-
-        /* ✅ SEITLICHE KRATZER & VERSCHMUTZUNG */
-        -3px 0 3px rgba(0, 0, 0, 0.5),
-        3px 0 3px rgba(0, 0, 0, 0.5),
-
-        /* Highlight wie Glasreflex */
-        -1px -1px 1px rgba(255, 255, 255, 0.15),
-
-        /* Grünlicher Schmutz-Overlay */
-        0 0 10px rgba(0, 100, 50, 0.3);
-
-    /* ✅ Einfacher Drop Shadow (statt Filter) */
-    -webkit-text-stroke: 0.5px rgba(0, 80, 40, 0.4);
-
-    margin: 0;
+    color: var(--accent-green);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* ===== KAPUTTE BUCHSTABEN ===== */
-.broken-letter {
-    color: #003300;
-    text-shadow:
-        /* Schwaches Glow wenn "an" */
-        0 0 1px rgba(0, 204, 0, 0.2),
-        0 0 2px rgba(0, 100, 0, 0.1),
-
-        /* Dicker Schmutz wenn "aus" */
-        -2px -2px 3px rgba(0, 0, 0, 0.7),
-        2px 2px 3px rgba(0, 0, 0, 0.8),
-        -3px 0 4px rgba(0, 0, 0, 0.6),
-        3px 0 4px rgba(0, 0, 0, 0.6);
-
-    /* Flackern */
-    animation: tubeFlickerBroken 0.4s ease-in-out infinite;
-    font-weight: bold;
+.track-artist {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* ===== ANIMATIONS ===== */
-
-/* ✅ KAPUTTE RÖHRE FLACKERT STARK */
-@keyframes tubeFlickerBroken {
-
-    /* AUS - ganz dunkel */
-    0%,
-    100% {
-        opacity: 0.1;
-        text-shadow:
-            -2px -2px 3px rgba(0, 0, 0, 0.7),
-            2px 2px 3px rgba(0, 0, 0, 0.8);
-        color: #001100;
-    }
-
-    /* Kurz AN - leuchtet auf */
-    15% {
-        opacity: 0.7;
-        text-shadow:
-            0 0 3px rgba(0, 204, 0, 0.4),
-            0 0 5px rgba(0, 204, 0, 0.2),
-            -2px -2px 3px rgba(0, 0, 0, 0.6),
-            2px 2px 3px rgba(0, 0, 0, 0.7);
-        color: #00aa00;
-    }
-
-    /* Schnell wieder AUS */
-    30% {
-        opacity: 0.05;
-        text-shadow:
-            -2px -2px 3px rgba(0, 0, 0, 0.8);
-        color: #000800;
-    }
-
-    /* Kurz AN */
-    45% {
-        opacity: 0.5;
-        text-shadow:
-            0 0 2px rgba(0, 204, 0, 0.3),
-            0 0 4px rgba(0, 204, 0, 0.15),
-            -2px -2px 3px rgba(0, 0, 0, 0.65),
-            2px 2px 3px rgba(0, 0, 0, 0.75);
-        color: #009900;
-    }
-
-    /* AUS */
-    60% {
-        opacity: 0.08;
-        text-shadow:
-            -2px -2px 3px rgba(0, 0, 0, 0.75);
-        color: #001000;
-    }
-
-    /* Schwaches AN */
-    75% {
-        opacity: 0.4;
-        text-shadow:
-            0 0 2px rgba(0, 204, 0, 0.25),
-            -2px -2px 3px rgba(0, 0, 0, 0.68),
-            2px 2px 3px rgba(0, 0, 0, 0.72);
-        color: #008800;
-    }
+.player-controls-header {
+    display: flex;
+    gap: 8px;
+    margin-left: 12px;
 }
 
-/* Unterschiedliche Flacker-Geschwindigkeiten */
-.broken-letter:nth-child(2n) {
-    animation-duration: 0.52s;
-    animation-delay: 0.12s;
+/* ===== PLAYER CONTENT ===== */
+.player-content {
+    padding: 12px;
+    overflow-y: auto;
+    max-height: 500px;
 }
 
-.broken-letter:nth-child(2n+1) {
-    animation-duration: 0.38s;
-    animation-delay: 0.08s;
+/* ===== RESIZE HANDLE ===== */
+.player-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+    /* ← Diagonales Resize-Icon */
+    background: linear-gradient(135deg, transparent 50%, var(--accent-teal) 50%);
+    border-radius: 0 0 6px 0;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.player-resize-handle:hover {
+    opacity: 1;
+}
+
+/* ===== DRAGGING VISUAL FEEDBACK ===== */
+.sticky-player.dragging {
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(0, 204, 0, 0.4);
+}
+
+.sticky-player.resizing {
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(0, 204, 0, 0.4);
 }

@@ -1,41 +1,30 @@
 /**
- * 🎵 SONG-NEXUS v6.0 - App Module
+ * 🎵 SONG-NEXUS v6.2 - Main App Module
  * Handles track loading, playback, and history management
+ * 
+ * ✅ UPDATED: Nutzt APIClient statt hardcodiert localhost URLs
  */
 
 "use strict";
 
 const App = {
-  apiBase: 'https://localhost:3000/api',
-
   // ========================================================================
   // 🎵 LOAD & DISPLAY TRACKS
   // ========================================================================
 
   async loadTracks() {
     try {
-      const token = Auth.getToken();
-      if (!token) {
-        console.warn('⚠️ No token for loading tracks');
+      // ✅ NEW: Nutze APIClient statt hardcoded fetch
+      if (!APIClient.isAuthenticated()) {
+        console.warn('⚠️ No authentication token for loading tracks');
         return;
       }
 
       console.log('📊 Loading tracks...');
 
-      const response = await fetch(`${this.apiBase}/tracks`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
+      // ✅ APIClient kümmert sich um Token, URL, Error-Handling
+      const tracks = await APIClient.getTracks();
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const tracks = await response.json();
       console.log(`✅ Tracks loaded: ${tracks.length}`);
       this.displayTracks(tracks);
 
@@ -90,23 +79,31 @@ const App = {
 
   async playTrack(trackId, trackName, audioFilename) {
     try {
-      const token = Auth.getToken();
-      if (!token) {
+      // ✅ NEW: Nutze APIClient für Auth-Check
+      if (!APIClient.isAuthenticated()) {
         console.error('❌ No token for playback');
+        alert('❌ Please log in to play tracks');
         return;
       }
 
       console.log(`▶️ Playing: ${trackName} (${audioFilename})`);
 
+      // ✅ NEW: Nutze getServerBaseUrl statt hardcoded localhost
+      const serverBase = (typeof window !== 'undefined' && window.songNexusConfig)
+        ? window.songNexusConfig.getServerBaseUrl()
+        : 'https://localhost:3000';
+
+      const audioUrl = `${serverBase}/public/audio/${encodeURIComponent(audioFilename)}`;
+
       // 🔐 Fetch audio mit Authorization Header
-      const response = await fetch(
-        `${this.apiBase}/tracks/audio/${encodeURIComponent(audioFilename)}`,
-        {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` },
-          credentials: 'include'
-        }
-      );
+      const token = APIClient.getToken();
+      const response = await fetch(audioUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status} - ${response.statusText}`);
@@ -114,9 +111,9 @@ const App = {
 
       // 📦 Convert to Blob URL
       const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
+      const blobUrl = URL.createObjectURL(audioBlob);
 
-      console.log(`✅ Audio blob created: ${audioUrl}`);
+      console.log(`✅ Audio blob created: ${blobUrl}`);
 
       // Create or update audio element
       let audioPlayer = document.getElementById('globalAudioPlayer');
@@ -132,7 +129,7 @@ const App = {
       }
 
       // 🎵 Set source and play
-      audioPlayer.src = audioUrl;
+      audioPlayer.src = blobUrl;
       audioPlayer.play().catch(err => console.error('Play error:', err));
 
       // Log play when ended
@@ -153,28 +150,13 @@ const App = {
 
   async recordPlayback(trackId, trackName) {
     try {
-      const token = Auth.getToken();
-      if (!token) return;
+      // ✅ NEW: Nutze APIClient
+      if (!APIClient.isAuthenticated()) return;
 
       console.log(`📝 Recording play: track_id=${trackId}`);
 
-      const response = await fetch(`${this.apiBase}/play-history`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          track_id: trackId,
-          duration_played_seconds: null // Optional
-        })
-      });
-
-      if (!response.ok) {
-        console.warn(`⚠️ Failed to record play: HTTP ${response.status}`);
-        return;
-      }
+      // ✅ APIClient kümmert sich um alles
+      await APIClient.logPlayEvent(trackId, null);
 
       console.log(`✅ Play recorded successfully`);
       this.loadHistory();
@@ -190,30 +172,17 @@ const App = {
 
   async loadHistory() {
     try {
-      const token = Auth.getToken();
-      const user = Auth.getUser();
-
-      if (!token || !user) {
+      // ✅ NEW: Nutze APIClient
+      if (!APIClient.isAuthenticated()) {
         console.warn('⚠️ No auth for loading history');
         return;
       }
 
-      console.log(`📊 Loading play history for user ${user.id}...`);
+      console.log('📊 Loading play history...');
 
-      const response = await fetch(`${this.apiBase}/play-history/user/${user.id}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
+      // ✅ APIClient kümmert sich um URL und Token
+      const history = await APIClient.getPlayHistory();
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const history = await response.json();
       console.log(`✅ History loaded: ${history.length} entries`);
       this.displayHistory(history);
 
@@ -264,15 +233,14 @@ const App = {
   },
 
   // ========================================================================
-  // 🚪 LOGOUT - FIXED: clearToken/clearUser
+  // 🚪 LOGOUT
   // ========================================================================
 
   logout() {
     console.log('🔓 Logging out...');
 
-    // ✅ FIX: Nutze setToken/setUser statt clearToken/clearUser
-    Auth.setToken(null);
-    Auth.setUser(null);
+    // ✅ NEW: Nutze APIClient
+    APIClient.clearToken();
 
     // Stop audio playback
     const audioPlayer = document.getElementById('globalAudioPlayer');
@@ -281,7 +249,10 @@ const App = {
       audioPlayer.src = '';
     }
 
-    updateUI();
+    // Update UI (assumes updateUI() function exists)
+    if (typeof updateUI === 'function') {
+      updateUI();
+    }
   },
 
   // ========================================================================

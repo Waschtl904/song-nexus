@@ -1,16 +1,12 @@
 // ============================================================================
-// 🔐 WEBAUTHN ROUTES - server.js Integration
+// 🔐 WEBAUTHN ROUTES - FIXED & OPTIMIZED FOR ALL BROWSERS
 // ============================================================================
-// Speichern unter: routes/webauthn.js
-
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { pool } = require('../server');
 
-// NPM packages (bereits installiert):
 // npm install @simplewebauthn/server base64url
-
 const {
     generateRegistrationOptions,
     verifyRegistrationResponse,
@@ -18,437 +14,251 @@ const {
     verifyAuthenticationResponse
 } = require('@simplewebauthn/server');
 
-const base64url = require('base64url');
+const base64urlPkg = require('base64url');
 
-// ========================================================================
-// 🔒 HELPER: JWT Token generieren
-// ========================================================================
+// HELPER: Base64URL
+function base64url(buf) {
+    return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
+// HELPER: JWT
 const jwt = require('jsonwebtoken');
-
 function generateJWT(user) {
     return jwt.sign(
-        {
-            id: user.id,
-            username: user.username,
-            email: user.email
-        },
+        { id: user.id, username: user.username, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
     );
 }
 
 // ========================================================================
-// 📝 WEBAUTHN REGISTRATION - OPTIONS
+// 🔧 HELPER: rpID-Konfiguration (Browser-kompatibel)
 // ========================================================================
+function getRPID() {
+    // ✅ FIX: Für localhost rpID weglassen oder undefined zurück (browser wird automatisch current domain)
+    const rpid = process.env.WEBAUTHN_RP_ID || 'localhost';
 
+    // Firefox mag localhost.rpID nicht. Daher: undefined für localhost
+    if (rpid === 'localhost' || rpid === '127.0.0.1') {
+        return undefined;
+    }
+    return rpid;
+}
+
+// ========================================================================
+// 📝 REGISTER - OPTIONS
+// ========================================================================
 router.post('/webauthn-register-options', async (req, res) => {
     try {
         const { username, email } = req.body;
+        if (!username || !email) return res.status(400).json({ error: 'Missing fields' });
 
-        if (!username || !email) {
-            return res.status(400).json({ error: 'Username and email required' });
-        }
+        // Check user existence
+        const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (existing.rows.length > 0) return res.status(400).json({ error: 'User already exists' });
 
-        // Check ob User bereits existiert
-        const existing = await pool.query(
-            'SELECT id FROM users WHERE email = $1',
-            [email]
-        );
+        // 🆔 User ID generieren
+        const userID = crypto.randomBytes(16);
 
-        if (existing.rows.length > 0) {
-            return res.status(400).json({ error: 'User already exists' });
-        }
+        const rpID = getRPID();
 
-        // WebAuthn Challenge generieren
-        const options = generateRegistrationOptions({
-            rpID: process.env.WEBAUTHN_RP_ID || 'localhost',
+        // ⚙️ WebAuthn Options
+        const optionsConfig = {
+            rpID: rpID,  // ✅ undefined für localhost (Browser-fix)
             rpName: 'SONG-NEXUS',
-            userID: crypto.randomBytes(16),
+            userID: userID,
             userName: email,
             userDisplayName: username,
             attestationType: 'none',
             authenticatorSelection: {
-                authenticatorAttachment: 'platform', // 👆 Nur Gerät (Fingerprint/Face)
-                userVerification: 'preferred' // ✅ Barrierefrei
+                // ✅ IMPROVED: Nicht mehr 'platform' erzwingen
+                // Dadurch funktioniert WebAuthn auf mehr Systemen (auch Firefox)
+                authenticatorAttachment: undefined,  // Erlaubt sowohl platform als auch cross-platform
+                userVerification: 'preferred',
+                residentKey: 'preferred'
             }
+        };
+
+        console.log('🔧 Registration config:', {
+            rpID: optionsConfig.rpID,
+            authenticatorAttachment: optionsConfig.authenticatorSelection.authenticatorAttachment
         });
 
-        // Challenge im Session speichern
-        req.session = req.session || {};
+        const options = await generateRegistrationOptions(optionsConfig);
+
+        // 💾 Challenge in Session speichern
         req.session.webauthnChallenge = options.challenge;
         req.session.webauthnUsername = username;
         req.session.webauthnEmail = email;
-        req.session.webauthnUserId = options.user.id;
+        req.session.webauthnUserId = base64url(userID);
 
-        console.log('✅ WebAuthn registration options generated for:', email);
+        console.log('✅ Register Options generated for:', email);
+        console.log('   Challenge length:', options.challenge.length);
+        console.log('   Session ID:', req.sessionID);
 
         res.json(options);
     } catch (error) {
-        console.error('❌ Registration options error:', error);
+        console.error('❌ Register Options Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
 // ========================================================================
-// ✅ WEBAUTHN REGISTRATION - VERIFY
+// 📝 REGISTER - VERIFY
 // ========================================================================
-
 router.post('/webauthn-register-verify', async (req, res) => {
     try {
-        const { id, rawId, response } = req.body;
+        const { webauthnChallenge, webauthnEmail, webauthnUsername } = req.session;
 
-        if (!req.session || !req.session.webauthnChallenge) {
-            return res.status(400).json({ error: 'No challenge found in session' });
+        if (!webauthnChallenge) {
+            console.error('❌ No challenge in session! Session lost?');
+            return res.status(400).json({ error: 'Session expired or invalid' });
         }
 
-        // Verifizieren
-        let verification;
-        try {
-            verification = await verifyRegistrationResponse({
-                response: req.body,
-                expectedChallenge: req.session.webauthnChallenge,
-                expectedOrigin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:5500',
-                expectedRPID: process.env.WEBAUTHN_RP_ID || 'localhost'
-            });
-        } catch (verifyError) {
-            console.error('❌ Verification failed:', verifyError.message);
-            return res.status(400).json({ error: 'Verification failed: ' + verifyError.message });
-        }
+        const rpID = getRPID();
+        const expectedOrigin = process.env.WEBAUTHN_ORIGIN || 'https://localhost:5500';
 
-        if (!verification.verified) {
-            return res.status(400).json({ error: 'WebAuthn verification failed' });
-        }
+        console.log('🔍 Verifying with:', {
+            rpID: rpID,
+            origin: expectedOrigin
+        });
 
-        // User in DB speichern
-        const { webauthnUsername, webauthnEmail } = req.session;
-        const hashedPassword = await require('bcryptjs').hash('webauthn', 10);
+        const verification = await verifyRegistrationResponse({
+            response: req.body,
+            expectedChallenge: webauthnChallenge,
+            expectedOrigin: expectedOrigin,
+            expectedRPID: rpID  // ✅ undefined für localhost ist ok
+        });
 
-        try {
+        if (verification.verified) {
+            // Debug: Schauen, was verification zurückgibt
+            console.log('✅ Verification result:', verification);
+
+            const credentialData = {
+                credentialID: typeof verification.registrationInfo?.credentialID === 'string'
+                    ? verification.registrationInfo.credentialID
+                    : base64url(Buffer.from(verification.registrationInfo?.credentialID || '')),
+                credentialPublicKey: typeof verification.registrationInfo?.credentialPublicKey === 'string'
+                    ? verification.registrationInfo.credentialPublicKey
+                    : base64url(Buffer.from(verification.registrationInfo?.credentialPublicKey || '')),
+                counter: verification.registrationInfo?.counter || 0
+            };
+
+
+            // DB Insert
+            const bcrypt = require('bcryptjs');
+            const hashedPassword = await bcrypt.hash(crypto.randomBytes(20).toString('hex'), 10);
+
             const result = await pool.query(
                 'INSERT INTO users (username, email, password_hash, webauthn_credential) VALUES ($1, $2, $3, $4) RETURNING id, username, email',
-                [
-                    webauthnUsername,
-                    webauthnEmail,
-                    hashedPassword,
-                    JSON.stringify(verification.registrationInfo)
-                ]
+                [webauthnUsername, webauthnEmail, hashedPassword, JSON.stringify(credentialData)]
             );
 
-            const user = result.rows[0];
+            // Cleanup Session
+            req.session.webauthnChallenge = null;
 
-            // JWT Token generieren
-            const token = generateJWT(user);
-
-            // Session cleanup
-            delete req.session.webauthnChallenge;
-            delete req.session.webauthnUsername;
-            delete req.session.webauthnEmail;
-            delete req.session.webauthnUserId;
-
-            console.log('✅ WebAuthn registration successful for:', webauthnEmail);
-
-            res.json({
-                success: true,
-                token,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    email: user.email
-                }
-            });
-        } catch (dbError) {
-            console.error('❌ Database error during registration:', dbError.message);
-            res.status(500).json({ error: 'Database error: ' + dbError.message });
+            const token = generateJWT(result.rows[0]);
+            console.log('✅ Register Verify Success:', webauthnEmail);
+            res.json({ success: true, token, user: result.rows[0] });
+        } else {
+            console.error('❌ Verification failed:', verification);
+            res.status(400).json({ error: 'Verification failed' });
         }
     } catch (error) {
-        console.error('❌ Registration verify error:', error);
+        console.error('❌ Register Verify Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
 // ========================================================================
-// 🔓 WEBAUTHN AUTHENTICATION - OPTIONS
+// 🔓 LOGIN - OPTIONS
 // ========================================================================
-
 router.post('/webauthn-authenticate-options', async (req, res) => {
     try {
-        // WebAuthn Challenge für Login generieren
-        const options = generateAuthenticationOptions({
-            rpID: process.env.WEBAUTHN_RP_ID || 'localhost'
+        const rpID = getRPID();
+
+        console.log('🔧 Authentication config:', {
+            rpID: rpID
         });
 
-        // Challenge speichern
-        req.session = req.session || {};
-        req.session.webauthnChallenge = options.challenge;
+        const options = await generateAuthenticationOptions({
+            rpID: rpID,  // ✅ undefined für localhost
+            userVerification: 'preferred'
+        });
 
-        console.log('✅ WebAuthn auth options generated');
+        req.session.webauthnChallenge = options.challenge;
+        console.log('✅ Login Options generated. Challenge stored.');
+        console.log('   Challenge length:', options.challenge.length);
 
         res.json(options);
     } catch (error) {
-        console.error('❌ Auth options error:', error);
+        console.error('❌ Login Options Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
 // ========================================================================
-// ✅ WEBAUTHN AUTHENTICATION - VERIFY
+// 🔓 LOGIN - VERIFY
 // ========================================================================
-
 router.post('/webauthn-authenticate-verify', async (req, res) => {
     try {
-        if (!req.session || !req.session.webauthnChallenge) {
-            return res.status(400).json({ error: 'No challenge found' });
-        }
+        const { webauthnChallenge } = req.session;
+        if (!webauthnChallenge) return res.status(400).json({ error: 'No challenge found' });
 
-        const credentialId = req.body.id;
-
-        // User finden anhand der Credential
-        const result = await pool.query(
-            'SELECT id, username, email, webauthn_credential FROM users WHERE webauthn_credential IS NOT NULL',
-            []
-        );
-
+        // 1. User finden anhand Credential ID
+        const result = await pool.query('SELECT * FROM users WHERE webauthn_credential IS NOT NULL');
         let user = null;
-        let storedCredential = null;
+        let dbCred = null;
 
         for (const row of result.rows) {
             const cred = JSON.parse(row.webauthn_credential);
-            if (cred && cred.credentialID === credentialId) {
+            if (cred.credentialID === req.body.rawId || cred.credentialID === base64url(Buffer.from(req.body.rawId, 'base64'))) {
                 user = row;
-                storedCredential = cred;
+                dbCred = cred;
                 break;
             }
         }
 
-        if (!user || !storedCredential) {
-            return res.status(400).json({ error: 'Credential not found' });
-        }
+        if (!user) return res.status(400).json({ error: 'User not found' });
 
-        // Verifizieren
-        let verification;
-        try {
-            verification = await verifyAuthenticationResponse({
-                response: req.body,
-                expectedChallenge: req.session.webauthnChallenge,
-                expectedOrigin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:5500',
-                expectedRPID: process.env.WEBAUTHN_RP_ID || 'localhost',
-                credential: {
-                    credentialPublicKey: Buffer.from(storedCredential.credentialPublicKey, 'base64'),
-                    credentialID: Buffer.from(credentialId, 'utf8'),
-                    counter: storedCredential.counter || 0
-                }
-            });
-        } catch (verifyError) {
-            console.error('❌ Authentication verification failed:', verifyError.message);
-            return res.status(400).json({ error: 'Authentication failed: ' + verifyError.message });
-        }
+        const rpID = getRPID();
+        const expectedOrigin = process.env.WEBAUTHN_ORIGIN || 'https://localhost:5500';
 
-        if (!verification.verified) {
-            return res.status(400).json({ error: 'Authentication verification failed' });
-        }
-
-        // JWT Token generieren
-        const token = generateJWT({
-            id: user.id,
-            username: user.username,
-            email: user.email
+        console.log('🔍 Verifying authentication with:', {
+            rpID: rpID,
+            origin: expectedOrigin,
+            userEmail: user.email
         });
 
-        // Session cleanup
-        delete req.session.webauthnChallenge;
-
-        console.log('✅ WebAuthn authentication successful for:', user.email);
-
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email
+        // 2. Verify
+        const verification = await verifyAuthenticationResponse({
+            response: req.body,
+            expectedChallenge: webauthnChallenge,
+            expectedOrigin: expectedOrigin,
+            expectedRPID: rpID,  // ✅ undefined für localhost ist ok
+            credential: {
+                id: dbCred.credentialID,
+                publicKey: Buffer.from(dbCred.credentialPublicKey, 'base64'),
+                counter: dbCred.counter
             }
         });
-    } catch (error) {
-        console.error('❌ Auth verify error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
 
-// ========================================================================
-// 🔗 MAGIC LINK LOGIN
-// ========================================================================
+        if (verification.verified) {
+            // Counter updaten (Replay Attack Schutz)
+            dbCred.counter = verification.authenticationInfo.newCounter;
+            await pool.query('UPDATE users SET webauthn_credential = $1 WHERE id = $2', [JSON.stringify(dbCred), user.id]);
 
-router.post('/magic-link', async (req, res) => {
-    try {
-        const { email } = req.body;
-
-        if (!email) {
-            return res.status(400).json({ error: 'Email required' });
-        }
-
-        // User finden
-        const result = await pool.query(
-            'SELECT id, username FROM users WHERE email = $1',
-            [email]
-        );
-
-        // ✅ Aus Sicherheitsgründen: nicht verraten, ob Email existiert
-        if (result.rows.length === 0) {
-            return res.json({ message: 'Check your email for login link' });
-        }
-
-        const user = result.rows[0];
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
-
-        // Token speichern
-        await pool.query(
-            'INSERT INTO magic_links (user_id, token, expires_at) VALUES ($1, $2, $3)',
-            [user.id, token, expiresAt]
-        );
-
-        // Login Link konstruieren
-        const loginLink = `http://localhost:5500?token=${token}`;
-        console.log('📧 Magic link for testing:', loginLink);
-
-        // TODO: Echte Email versenden mit nodemailer
-        // Für jetzt: nur in Console loggen
-
-        res.json({
-            message: 'Check your email for login link',
-            // Nur für Development!
-            ...(process.env.NODE_ENV === 'development' && { testLink: loginLink })
-        });
-    } catch (error) {
-        console.error('❌ Magic link error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ========================================================================
-// 🔗 MAGIC LINK VERIFY
-// ========================================================================
-
-router.post('/magic-link-verify', async (req, res) => {
-    try {
-        const { token } = req.body;
-
-        if (!token) {
-            return res.status(400).json({ error: 'Token required' });
-        }
-
-        // Token finden
-        const result = await pool.query(
-            'SELECT user_id, expires_at FROM magic_links WHERE token = $1 AND used_at IS NULL',
-            [token]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(400).json({ error: 'Invalid or expired token' });
-        }
-
-        const link = result.rows[0];
-
-        // Check ob abgelaufen
-        if (new Date() > new Date(link.expires_at)) {
-            return res.status(400).json({ error: 'Token expired' });
-        }
-
-        // User laden
-        const userResult = await pool.query(
-            'SELECT id, username, email FROM users WHERE id = $1',
-            [link.user_id]
-        );
-
-        if (userResult.rows.length === 0) {
-            return res.status(400).json({ error: 'User not found' });
-        }
-
-        const user = userResult.rows[0];
-
-        // Token als verwendet markieren
-        await pool.query(
-            'UPDATE magic_links SET used_at = NOW() WHERE token = $1',
-            [token]
-        );
-
-        // JWT generieren
-        const jwtToken = generateJWT(user);
-
-        console.log('✅ Magic link verified for:', user.email);
-
-        res.json({
-            success: true,
-            token: jwtToken,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email
-            }
-        });
-    } catch (error) {
-        console.error('❌ Magic link verify error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ========================================================================
-// 🧪 DEV LOGIN - NUR LOKAL
-// ========================================================================
-
-router.post('/dev-login', async (req, res) => {
-    // ⚠️ NUR in Development!
-    if (process.env.NODE_ENV !== 'development') {
-        return res.status(403).json({ error: 'Dev login not allowed in production' });
-    }
-
-    const { email, password } = req.body;
-
-    // Hardcodierter Dev-User
-    if (email === 'dev@localhost' && password === 'dev12345') {
-        // Erstelle Dev-User wenn nicht existiert
-        const existing = await pool.query(
-            'SELECT id FROM users WHERE email = $1',
-            [email]
-        );
-
-        let userId;
-
-        if (existing.rows.length === 0) {
-            const bcrypt = require('bcryptjs');
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const result = await pool.query(
-                'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id',
-                ['devuser', email, hashedPassword]
-            );
-
-            userId = result.rows[0].id;
-            console.log('✅ Dev-User erstellt');
+            req.session.webauthnChallenge = null;
+            const token = generateJWT(user);
+            console.log('✅ Login Success:', user.email);
+            res.json({ success: true, token, user: { id: user.id, username: user.username, email: user.email } });
         } else {
-            userId = existing.rows[0].id;
+            console.error('❌ Authentication verification failed:', verification);
+            res.status(400).json({ error: 'Verification failed' });
         }
-
-        const token = generateJWT({
-            id: userId,
-            username: 'devuser',
-            email: 'dev@localhost'
-        });
-
-        console.log('🧪 Dev login successful');
-
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: userId,
-                username: 'devuser',
-                email: 'dev@localhost'
-            }
-        });
-    } else {
-        res.status(401).json({ error: 'Invalid dev credentials' });
+    } catch (error) {
+        console.error('❌ Login Verify Error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 

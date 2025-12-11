@@ -1,15 +1,26 @@
 "use strict";
 
-// ========================================================================
+// ============================================================================
 // 🎵 SONG-NEXUS MAIN APPLICATION
-// ========================================================================
+// ✅ UPDATED: Nutzt APIClient + config.js statt hardcoded URLs
+// ============================================================================
 
 const App = {
-    baseURL: 'https://localhost:3000/api',  // ← HTTPS ENABLED
     tracks: [],
     blogPosts: [],
     token: null,
     user: null,
+
+    /**
+     * Gibt die API Base URL zurück (dynamisch aus config.js)
+     */
+    getApiBase() {
+        if (typeof window !== 'undefined' && window.songNexusConfig) {
+            return window.songNexusConfig.getApiBaseUrl();
+        }
+        // Fallback
+        return 'https://localhost:3000/api';
+    },
 
     // ===== INITIALIZATION =====
     async init() {
@@ -18,9 +29,14 @@ const App = {
         // ✅ NEW: Dark Mode Init FIRST (vor allem anderen!)
         this.initDarkMode();
 
-        // Check Auth Status
-        this.token = localStorage.getItem('auth_token');
-        this.user = JSON.parse(localStorage.getItem('user') || 'null');
+        // ✅ NEW: Get token/user from Auth module (centralized)
+        if (typeof Auth !== 'undefined') {
+            this.token = Auth.getToken();
+            this.user = Auth.getUser();
+        } else {
+            this.token = localStorage.getItem('auth_token');
+            this.user = JSON.parse(localStorage.getItem('user') || 'null');
+        }
 
         // Init AudioPlayer
         if (window.AudioPlayer) {
@@ -47,12 +63,16 @@ const App = {
         // Theme Toggle
         this.initTheme();
 
+        // ✅ NEW: Verify Magic Link if in URL
+        if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
+            await Auth.verifyMagicLinkFromUrl();
+        }
+
         console.log('✅ App ready!');
     },
 
     // ✅ NEW: DARK MODE INITIALIZATION
     initDarkMode() {
-        // Force dark mode on load (before any rendering)
         document.documentElement.setAttribute('data-color-scheme', 'dark');
         document.documentElement.setAttribute('data-theme', 'dark');
         console.log('🌙 Dark mode initialized');
@@ -60,38 +80,31 @@ const App = {
 
     // ===== EVENT LISTENERS (CSP-SAFE) =====
     setupEventListeners() {
-        // Theme Toggle - CRITICAL: Must work immediately
+        // Theme Toggle
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
             themeToggle.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🌙 Theme toggle clicked');
                 const current = document.documentElement.getAttribute('data-theme') || 'dark';
                 const next = current === 'dark' ? 'light' : 'dark';
-                console.log(`Switching from ${current} to ${next}`);
                 document.documentElement.setAttribute('data-theme', next);
                 document.documentElement.setAttribute('data-color-scheme', next);
                 localStorage.setItem('theme', next);
                 this.updateThemeButton(next);
             });
-            console.log('✅ Theme toggle listener attached');
         }
 
         // Auth Modal Toggle
         const authToggle = document.getElementById('authToggle');
         if (authToggle) {
-            authToggle.addEventListener('click', () => {
-                this.toggleAuthModal();
-            });
+            authToggle.addEventListener('click', () => this.toggleAuthModal());
         }
 
         // Modal Close Button
         const modalClose = document.querySelector('.modal-close');
         if (modalClose) {
-            modalClose.addEventListener('click', () => {
-                this.toggleAuthModal();
-            });
+            modalClose.addEventListener('click', () => this.toggleAuthModal());
         }
 
         // Tab Buttons
@@ -106,7 +119,9 @@ const App = {
         const passwordForm = document.querySelector('form[data-form="password-login"]');
         if (passwordForm) {
             passwordForm.addEventListener('submit', (e) => {
-                this.passwordLogin(e);
+                if (typeof Auth !== 'undefined') {
+                    Auth.login(e);
+                }
             });
         }
 
@@ -114,15 +129,19 @@ const App = {
         const magicLinkBtn = document.getElementById('magicLinkBtn');
         if (magicLinkBtn) {
             magicLinkBtn.addEventListener('click', () => {
-                this.sendMagicLink();
+                if (typeof Auth !== 'undefined') {
+                    Auth.loginWithMagicLink();
+                }
             });
         }
 
-        // WebAuthn Button
+        // WebAuthn Button (LOGIN)
         const webauthnBtn = document.getElementById('webauthnBtn');
         if (webauthnBtn) {
             webauthnBtn.addEventListener('click', () => {
-                this.webauthnLogin();
+                if (typeof Auth !== 'undefined') {
+                    Auth.authenticateWithWebAuthn();
+                }
             });
         }
 
@@ -130,15 +149,19 @@ const App = {
         const registerBiometricBtn = document.getElementById('registerBiometricBtn');
         if (registerBiometricBtn) {
             registerBiometricBtn.addEventListener('click', () => {
-                this.registerBiometric();
+                if (typeof Auth !== 'undefined') {
+                    Auth.registerWithWebAuthn();
+                }
             });
         }
 
-        // Toggle Bio Register Modal
-        const toggleBioRegisterBtn = document.getElementById('toggleBioRegisterBtn');
-        if (toggleBioRegisterBtn) {
-            toggleBioRegisterBtn.addEventListener('click', () => {
-                this.toggleBioRegister(true);
+        // Dev Login Button
+        const devLoginBtn = document.getElementById('devLoginBtn');
+        if (devLoginBtn) {
+            devLoginBtn.addEventListener('click', () => {
+                if (typeof Auth !== 'undefined') {
+                    Auth.devLogin();
+                }
             });
         }
 
@@ -146,7 +169,11 @@ const App = {
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
-                this.logout();
+                if (typeof Auth !== 'undefined') {
+                    Auth.logout();
+                } else {
+                    this.logout();
+                }
             });
         }
 
@@ -180,46 +207,8 @@ const App = {
 
                     tabs[newIndex].focus();
                     tabs[newIndex].click();
-                    console.log(`📑 Tab navigation: switched to tab ${newIndex}`);
                 });
             });
-            console.log('✅ Tab keyboard navigation enabled');
-        }
-
-        // ===== SLIDER NAVIGATION (Seek Bar Arrow Keys) =====
-        const seekBar = document.getElementById('playerSeekBar');
-        if (seekBar) {
-            seekBar.addEventListener('keydown', (e) => {
-                const currentValue = parseInt(seekBar.getAttribute('aria-valuenow')) || 0;
-                const step = 5; // 5% per key
-                let newValue = currentValue;
-
-                if (e.key === 'ArrowRight') {
-                    e.preventDefault();
-                    newValue = Math.min(100, currentValue + step);
-                } else if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    newValue = Math.max(0, currentValue - step);
-                } else if (e.key === 'Home') {
-                    e.preventDefault();
-                    newValue = 0;
-                } else if (e.key === 'End') {
-                    e.preventDefault();
-                    newValue = 100;
-                } else {
-                    return;
-                }
-
-                seekBar.setAttribute('aria-valuenow', newValue);
-                console.log(`🎚️ Seek bar updated: ${newValue}%`);
-
-                // Dispatch custom event for audio-player.js to handle seek
-                if (window.AudioPlayer && window.AudioPlayer.seek) {
-                    const duration = window.AudioPlayer.audioElement?.duration || 0;
-                    window.AudioPlayer.seek(duration * (newValue / 100));
-                }
-            });
-            console.log('✅ Slider keyboard navigation enabled');
         }
 
         // ===== MODAL FOCUS MANAGEMENT =====
@@ -230,13 +219,11 @@ const App = {
                     this.toggleAuthModal();
                     const authToggle = document.getElementById('authToggle');
                     if (authToggle) authToggle.focus();
-                    console.log('🚪 Modal closed via Escape key');
                 }
             });
-            console.log('✅ Modal keyboard handling enabled');
         }
 
-        console.log('✅ All keyboard navigation setup complete');
+        console.log('✅ Keyboard navigation setup complete');
     },
 
     // ===== THEME MANAGEMENT =====
@@ -253,20 +240,24 @@ const App = {
         if (btn) {
             btn.textContent = theme === 'dark' ? '☀️' : '🌙';
             btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
-            console.log(`🎯 Theme button updated to: ${btn.textContent}`);
         }
     },
 
     // ===== LOAD TRACKS =====
     async loadTracks() {
         try {
-            const response = await fetch(`${this.baseURL}/tracks`);
-            if (!response.ok) throw new Error('Failed to load tracks');
+            // ✅ NEW: Nutze APIClient statt direktes fetch
+            if (typeof APIClient !== 'undefined') {
+                this.tracks = await APIClient.getTracks();
+            } else {
+                const apiBase = this.getApiBase();
+                const response = await fetch(`${apiBase}/tracks`);
+                if (!response.ok) throw new Error('Failed to load tracks');
+                this.tracks = await response.json();
+            }
 
-            this.tracks = await response.json();
             this.renderTracks();
 
-            // ✅ NEW: Update ARIA busy state
             const tracksList = document.getElementById('tracksList');
             if (tracksList) {
                 tracksList.setAttribute('aria-busy', 'false');
@@ -277,7 +268,6 @@ const App = {
             console.error('❌ Load tracks error:', err);
             this.showError('Failed to load tracks');
 
-            // ✅ NEW: Update ARIA busy state on error
             const tracksList = document.getElementById('tracksList');
             if (tracksList) {
                 tracksList.setAttribute('aria-busy', 'false');
@@ -290,7 +280,6 @@ const App = {
         const tracksList = document.getElementById('tracksList');
         if (!tracksList) return;
 
-        // Take top 3 for featured
         const featured = this.tracks.slice(0, 3);
 
         if (featured.length === 0) {
@@ -298,17 +287,17 @@ const App = {
             return;
         }
 
-        tracksList.innerHTML = featured.map((track, idx) => `
+        tracksList.innerHTML = featured.map((track) => `
             <div class="card track-card">
                 <div class="track-title">♪ ${this.escapeHtml(track.name)}</div>
                 <div class="track-meta">🎤 ${this.escapeHtml(track.artist || 'Unknown')}</div>
                 <div class="track-meta">⏱️ ${track.duration || '3:00'}</div>
                 
                 ${track.is_free ? '' : '<div class="track-badge">🔒 Premium</div>'}
-                ${track.is_premium ? '<div class="track-badge">💰 Paid</div>' : '<div class="track-badge" style="background: rgba(0, 204, 119, 0.1); color: var(--accent-teal); border-color: var(--accent-teal);">🆓 Free</div>'}
+                ${track.is_premium ? '<div class="track-badge">💰 Paid</div>' : '<div class="track-badge" style="background: rgba(0, 204, 119, 0.15); color: var(--accent-teal); border-color: var(--accent-teal);">🆓 Free</div>'}
                 
-                <button class="button play-track-btn" data-filename="${this.escapeHtml(track.audio_filename)}" data-premium="${track.is_premium}" data-name="${this.escapeHtml(track.name)}" style="width: 100%; margin-top: 12px;" aria-label="Play ${this.escapeHtml(track.name)}">
-                    ▶️ ${track.is_premium && !App.token ? '🔊 Preview 40s' : 'Play'}
+                <button class="button play-track-btn" data-track-id="${track.id}" data-filename="${this.escapeHtml(track.audio_filename)}" data-premium="${track.is_premium}" data-name="${this.escapeHtml(track.name)}" style="width: 100%; margin-top: 12px;" aria-label="Play ${this.escapeHtml(track.name)}">
+                    ▶️ ${track.is_premium && !this.token ? '🔊 Preview 40s' : 'Play'}
                 </button>
             </div>
         `).join('');
@@ -317,6 +306,7 @@ const App = {
         document.querySelectorAll('.play-track-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.playTrack(
+                    parseInt(btn.getAttribute('data-track-id')),
                     btn.getAttribute('data-filename'),
                     btn.getAttribute('data-premium') === 'true',
                     btn.getAttribute('data-name')
@@ -326,36 +316,25 @@ const App = {
     },
 
     // ===== PLAY TRACK =====
-    async playTrack(filename, isPremium, trackName) {
+    async playTrack(trackId, filename, isPremium, trackName) {
         try {
-            // Create track object for AudioPlayer
             const track = {
-                id: this.tracks.find(t => t.audio_filename === filename)?.id || 0,
+                id: trackId,
                 name: trackName,
                 audio_filename: filename,
                 is_premium: isPremium
             };
 
-            // Determine if preview or full
             const isPreview = isPremium && !this.token;
 
-            // Load in AudioPlayer
             window.AudioPlayer.loadTrack(track, isPreview);
             window.AudioPlayer.play();
 
-            // Update sticky player display
             this.updatePlayerDisplay(trackName);
 
-            // Log play (if authenticated)
-            if (this.token) {
-                await fetch(`${this.baseURL}/users/track-play`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.token}`
-                    },
-                    body: JSON.stringify({ track_id: track.id })
-                }).catch(e => console.warn('Play log failed:', e));
+            // ✅ NEW: Log play via APIClient
+            if (this.token && typeof APIClient !== 'undefined') {
+                APIClient.logPlayEvent(trackId, null).catch(e => console.warn('Play log failed:', e));
             }
 
             console.log(`▶️ Playing: ${trackName} ${isPreview ? '(PREVIEW)' : '(FULL)'}`);
@@ -382,7 +361,6 @@ const App = {
             this.blogPosts = await response.json();
             this.renderBlogPosts();
 
-            // ✅ NEW: Update ARIA busy state
             const blogList = document.getElementById('blogList');
             if (blogList) {
                 blogList.setAttribute('aria-busy', 'false');
@@ -391,9 +369,8 @@ const App = {
             console.log(`✅ Loaded ${this.blogPosts.length} blog posts`);
         } catch (err) {
             console.warn('⚠️ Blog load failed:', err);
-            this.renderBlogPosts(true); // Show fallback
+            this.renderBlogPosts(true);
 
-            // ✅ NEW: Update ARIA busy state on error
             const blogList = document.getElementById('blogList');
             if (blogList) {
                 blogList.setAttribute('aria-busy', 'false');
@@ -416,7 +393,6 @@ const App = {
             return;
         }
 
-        // Show 4 latest posts
         const latest = this.blogPosts.slice(0, 4);
 
         blogList.innerHTML = latest.map(post => `
@@ -428,7 +404,6 @@ const App = {
             </div>
         `).join('');
 
-        // Add click listeners to blog cards
         document.querySelectorAll('.blog-card').forEach(card => {
             const handleCardClick = () => {
                 const slug = card.getAttribute('data-slug');
@@ -436,8 +411,6 @@ const App = {
             };
 
             card.addEventListener('click', handleCardClick);
-
-            // ✅ NEW: Keyboard support for blog cards (Enter + Space)
             card.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -456,7 +429,6 @@ const App = {
             modal.setAttribute('aria-hidden', !isHidden);
 
             if (isHidden) {
-                // Focus first focusable element in modal
                 const firstFocusable = modal.querySelector('button, input, a');
                 if (firstFocusable) firstFocusable.focus();
             }
@@ -466,14 +438,12 @@ const App = {
     switchTab(tabName, event) {
         if (event) event.preventDefault();
 
-        // Update all tab buttons
         document.querySelectorAll('.tab-btn').forEach(b => {
             const isActive = b.getAttribute('data-tab') === tabName;
             b.classList.toggle('active', isActive);
             b.setAttribute('aria-selected', isActive);
         });
 
-        // Update all tab content
         document.querySelectorAll('.tab-content').forEach(t => {
             const isActive = t.id === tabName + '-tab';
             t.classList.toggle('active', isActive);
@@ -483,94 +453,17 @@ const App = {
         console.log(`📑 Switched to tab: ${tabName}`);
     },
 
-    async passwordLogin(event) {
-        event.preventDefault();
-
-        const email = document.getElementById('loginEmail')?.value.trim();
-        const password = document.getElementById('loginPassword')?.value;
-
-        if (!email || !password) {
-            this.showStatus('passwordStatus', '❌ Email and password required', 'error');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${this.baseURL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-
-            if (!response.ok) throw new Error('Invalid credentials');
-
-            const data = await response.json();
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-
-            this.token = data.token;
-            this.user = data.user;
-
-            this.showStatus('passwordStatus', '✅ Login successful!', 'success');
-            setTimeout(() => {
-                this.toggleAuthModal();
-                this.updateUI();
-            }, 500);
-        } catch (err) {
-            this.showStatus('passwordStatus', `❌ ${err.message}`, 'error');
-        }
-    },
-
-    async sendMagicLink() {
-        const email = document.getElementById('magicEmail')?.value.trim();
-
-        if (!email) {
-            this.showStatus('magicStatus', '❌ Email required', 'error');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${this.baseURL}/auth/magic-link`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-
-            if (!response.ok) throw new Error('Failed to send');
-
-            this.showStatus('magicStatus', '✅ Check your email!', 'success');
-        } catch (err) {
-            this.showStatus('magicStatus', `❌ ${err.message}`, 'error');
-        }
-    },
-
-    async webauthnLogin() {
-        this.showStatus('bioStatus', '👆 Scanning...', 'loading');
-        // WebAuthn implementation here
-        setTimeout(() => {
-            this.showStatus('bioStatus', '⚠️ WebAuthn coming soon', 'error');
-        }, 1000);
-    },
-
-    async registerBiometric() {
-        // Biometric registration here
-        this.showStatus('bioStatus', '⚠️ Registration coming soon', 'error');
-    },
-
-    toggleBioRegister(show) {
-        const modal = document.getElementById('bioRegisterModal');
-        if (modal) {
-            modal.style.display = show ? 'block' : 'none';
-        }
-    },
-
     // ===== LOGOUT =====
     logout() {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        this.token = null;
-        this.user = null;
-        this.updateUI();
-        this.showStatus('authToggle', '👋 Logged out', 'success');
+        if (typeof Auth !== 'undefined') {
+            Auth.logout();
+        } else {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            this.token = null;
+            this.user = null;
+            this.updateUI();
+        }
     },
 
     // ===== UI UPDATES =====
@@ -579,12 +472,17 @@ const App = {
         const userInfo = document.getElementById('userInfo');
 
         if (this.token && this.user) {
-            authToggle.style.display = 'none';
-            userInfo.style.display = 'flex';
-            document.getElementById('userDisplay').textContent = `👤 ${this.user.username}`;
+            if (authToggle) authToggle.style.display = 'none';
+            if (userInfo) {
+                userInfo.style.display = 'flex';
+                const userDisplay = document.getElementById('userDisplay');
+                if (userDisplay) {
+                    userDisplay.textContent = `👤 ${this.user.username || this.user.email}`;
+                }
+            }
         } else {
-            authToggle.style.display = 'inline-block';
-            userInfo.style.display = 'none';
+            if (authToggle) authToggle.style.display = 'inline-block';
+            if (userInfo) userInfo.style.display = 'none';
         }
     },
 
@@ -612,7 +510,6 @@ const App = {
 
     showError(message) {
         console.error(message);
-        // Optional: Show toast notification
     }
 };
 
@@ -629,74 +526,59 @@ window.addEventListener('load', () => {
 function setupPlayerControls() {
     console.log('🎮 Setting up player controls...');
 
-    // Play Button
     const playBtn = document.getElementById('playerPlayBtn');
     if (playBtn) {
         playBtn.addEventListener('click', () => {
-            console.log('▶️ Play clicked');
-            window.AudioPlayer.play();
+            window.AudioPlayer?.play();
         });
     }
 
-    // Pause Button
     const pauseBtn = document.getElementById('playerPauseBtn');
     if (pauseBtn) {
         pauseBtn.addEventListener('click', () => {
-            console.log('⏸️ Pause clicked');
-            window.AudioPlayer.pause();
+            window.AudioPlayer?.pause();
         });
     }
 
-    // Stop Button
     const stopBtn = document.getElementById('playerStopBtn');
     if (stopBtn) {
         stopBtn.addEventListener('click', () => {
-            console.log('⏹️ Stop clicked');
-            window.AudioPlayer.stop();
+            window.AudioPlayer?.stop();
         });
     }
 
-    // Loop Button
     const loopBtn = document.getElementById('playerLoopBtn');
     if (loopBtn) {
         loopBtn.addEventListener('click', () => {
-            console.log('🔄 Loop toggled');
-            window.AudioPlayer.toggleLoop();
+            window.AudioPlayer?.toggleLoop();
         });
     }
 
-    // Mute Button
     const muteBtn = document.getElementById('playerMuteBtn');
     if (muteBtn) {
         muteBtn.addEventListener('click', () => {
-            console.log('🔊 Mute toggled');
-            window.AudioPlayer.toggleMute();
+            window.AudioPlayer?.toggleMute();
         });
     }
 
-    // Volume Slider
     const volumeSlider = document.getElementById('playerVolumeSlider');
     if (volumeSlider) {
         volumeSlider.addEventListener('input', (e) => {
             const volume = parseInt(e.target.value);
-            console.log(`🔊 Volume set to ${volume}%`);
-            window.AudioPlayer.setVolume(volume);
+            window.AudioPlayer?.setVolume(volume);
         });
     }
 
-    // Seek Bar
     const seekBar = document.getElementById('playerSeekBar');
     if (seekBar) {
         seekBar.addEventListener('input', (e) => {
             const percent = parseInt(e.target.value);
-            const duration = window.AudioPlayer.state.duration;
+            const duration = window.AudioPlayer?.state.duration || 0;
             const seconds = (percent / 100) * duration;
-            console.log(`⏱️ Seek to ${seconds.toFixed(1)}s`);
-            window.AudioPlayer.setTime(seconds);
+            window.AudioPlayer?.setTime(seconds);
         });
     }
 
-    // Player Minimize Button
     const minimizeBtn = document.getElementById('playerMinimize');
     const playerContent = document.getElementById('playerContent');
     if (minimizeBtn && playerContent) {
@@ -704,55 +586,17 @@ function setupPlayerControls() {
             const isHidden = playerContent.style.display === 'none';
             playerContent.style.display = isHidden ? 'block' : 'none';
             minimizeBtn.textContent = isHidden ? '−' : '+';
-            console.log('📦 Player minimized/maximized');
         });
     }
 
     console.log('✅ Player controls setup complete');
 }
 
-// Initialize controls when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupPlayerControls);
 } else {
     setupPlayerControls();
 }
-
-// In main.js hinzufügen:
-
-function initNeonSign() {
-    const h1 = document.querySelector('.logo-section h1');
-    if (!h1) return;
-
-    const text = h1.textContent;
-
-    // Zufällig 1-2 Buchstaben auswählen, die dunkel sein sollen
-    const brokenIndices = [];
-    const numBroken = Math.floor(Math.random() * 2) + 1; // 1-2 Buchstaben
-
-    while (brokenIndices.length < numBroken) {
-        const idx = Math.floor(Math.random() * text.length);
-        if (!brokenIndices.includes(idx) && text[idx] !== ' ' && text[idx] !== '♪' && text[idx] !== '-') {
-            brokenIndices.push(idx);
-        }
-    }
-
-    // HTML mit broken letters generieren
-    let html = '';
-    for (let i = 0; i < text.length; i++) {
-        if (brokenIndices.includes(i)) {
-            html += `<span class="broken-letter">${text[i]}</span>`;
-        } else {
-            html += text[i];
-        }
-    }
-
-    h1.innerHTML = html;
-    console.log(`💡 Neon sign initialized - ${numBroken} broken letters`);
-}
-
-// In App.init() aufrufen, nach initDarkMode():
-initNeonSign();
 
 // Make global
 window.App = App;
