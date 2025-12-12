@@ -1,7 +1,6 @@
 const express = require('express');
 const { pool } = require('../server');
-const { verifyToken } = require('./auth');
-
+const { verifyToken } = require('../middleware/auth-middleware');
 const router = express.Router();
 
 // ============================================================================
@@ -11,9 +10,9 @@ const router = express.Router();
 router.get('/profile', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         id, email, username, role, created_at, last_login, is_active
-       FROM users 
+       FROM users
        WHERE id = $1`,
       [req.user.id]
     );
@@ -36,16 +35,16 @@ router.get('/profile', verifyToken, async (req, res) => {
 router.get('/stats', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         u.id,
         u.username,
         COUNT(DISTINCT p.id) as total_purchases,
-        COUNT(DISTINCT ps.id) as total_plays,
+        COUNT(DISTINCT ph.id) as total_plays,
         SUM(o.amount) as total_spent,
         MAX(o.completed_at) as last_purchase_date
        FROM users u
        LEFT JOIN purchases p ON u.id = p.user_id
-       LEFT JOIN play_stats ps ON u.id = ps.user_id
+       LEFT JOIN play_history ph ON u.id = ph.user_id
        LEFT JOIN orders o ON p.order_id = o.id AND o.status = 'COMPLETED'
        WHERE u.id = $1
        GROUP BY u.id, u.username`,
@@ -76,16 +75,9 @@ router.get('/stats', verifyToken, async (req, res) => {
 router.get('/purchases', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
-        p.id,
-        t.id as track_id,
-        t.name,
-        t.artist,
-        t.genre,
-        t.price_eur,
-        t.audio_filename,
-        p.purchased_at,
-        p.license_type
+      `SELECT
+        p.id, p.track_id, t.name, t.artist, t.genre, t.price_eur, t.audio_filename,
+        p.purchased_at, p.license_type
        FROM purchases p
        JOIN tracks t ON p.track_id = t.id
        WHERE p.user_id = $1
@@ -108,19 +100,19 @@ router.get('/play-history', verifyToken, async (req, res) => {
   try {
     const limit = req.query.limit || 50;
     const result = await pool.query(
-      `SELECT 
-        ps.id,
+      `SELECT
+        ph.id,
         t.id as track_id,
         t.name,
         t.artist,
         t.genre,
-        ps.played_at,
-        ps.duration_played_seconds,
-        (ps.duration_played_seconds > 0) as completed
-       FROM play_stats ps
-       JOIN tracks t ON ps.track_id = t.id
-       WHERE ps.user_id = $1
-       ORDER BY ps.played_at DESC
+        ph.played_at,
+        ph.duration_played_seconds,
+        (ph.duration_played_seconds > 0) as completed
+       FROM play_history ph
+       JOIN tracks t ON ph.track_id = t.id
+       WHERE ph.user_id = $1
+       ORDER BY ph.played_at DESC
        LIMIT $2`,
       [req.user.id, limit]
     );
@@ -133,69 +125,23 @@ router.get('/play-history', verifyToken, async (req, res) => {
 });
 
 // ============================================================================
-// 📊 POST /api/users/track-play - Log a Track Play
-// ============================================================================
-
-router.post('/track-play', verifyToken, async (req, res) => {
-  try {
-    const { track_id, duration_played_seconds, session_id, device_type } = req.body;
-
-    if (!track_id) {
-      return res.status(400).json({ error: 'track_id required' });
-    }
-
-    // Check ob Track existiert
-    const trackCheck = await pool.query('SELECT id FROM tracks WHERE id = $1', [track_id]);
-    if (trackCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Track not found' });
-    }
-
-    // Check ob User diesen Track gekauft hat
-    const isPaidUser = await pool.query(
-      'SELECT id FROM purchases WHERE user_id = $1 AND track_id = $2 LIMIT 1',
-      [req.user.id, track_id]
-    );
-
-    // Log play
-    await pool.query(
-      `INSERT INTO play_stats 
-       (user_id, track_id, duration_played_seconds, session_id, device_type, is_paid_user)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        req.user.id,
-        track_id,
-        duration_played_seconds || 0,
-        session_id || null,
-        device_type || 'web',
-        isPaidUser.rows.length > 0,
-      ]
-    );
-
-    res.json({ success: true, message: 'Play logged' });
-  } catch (err) {
-    console.error('❌ Track play error:', err);
-    res.status(500).json({ error: 'Failed to log play' });
-  }
-});
-
-// ============================================================================
 // 👥 GET /api/users/leaderboard - Top Users (Public)
 // ============================================================================
 
 router.get('/leaderboard', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         u.username,
         COUNT(DISTINCT p.id) as total_purchases,
-        COUNT(DISTINCT ps.id) as total_plays
+        COUNT(DISTINCT ph.id) as total_plays
        FROM users u
        LEFT JOIN purchases p ON u.id = p.user_id
-       LEFT JOIN play_stats ps ON u.id = ps.user_id
+       LEFT JOIN play_history ph ON u.id = ph.user_id
        GROUP BY u.id, u.username
-       HAVING COUNT(DISTINCT p.id) > 0 OR COUNT(DISTINCT ps.id) > 0
+       HAVING COUNT(DISTINCT p.id) > 0 OR COUNT(DISTINCT ph.id) > 0
        ORDER BY total_purchases DESC, total_plays DESC
-       LIMIT 10`,
+       LIMIT 10`
     );
 
     res.json(result.rows);
@@ -206,3 +152,50 @@ router.get('/leaderboard', async (req, res) => {
 });
 
 module.exports = router;
+
+// ============================================================================
+// 📖 DATABASE SCHEMA REFERENCE
+// ============================================================================
+/*
+USERS TABLE:
+- id: integer (PRIMARY KEY)
+- email: varchar (UNIQUE, REQUIRED)
+- username: varchar (REQUIRED)
+- password_hash: varchar (REQUIRED)
+- role: varchar - Default: 'user' (user | admin)
+- is_active: boolean - Default: true
+- created_at: timestamp - Default: CURRENT_TIMESTAMP
+- last_login: timestamp
+- updated_at: timestamp - Default: CURRENT_TIMESTAMP
+- webauthn_credential: jsonb
+
+PURCHASES TABLE:
+- id: integer (PRIMARY KEY)
+- user_id: integer (FK → users, REQUIRED)
+- track_id: integer (FK → tracks, REQUIRED)
+- order_id: integer (FK → orders) - NOW LINKED!
+- license_type: varchar - Default: 'personal'
+- purchased_at: timestamp - Default: CURRENT_TIMESTAMP
+- expires_at: timestamp
+
+PLAY_HISTORY TABLE:
+- id: integer (PRIMARY KEY)
+- user_id: integer (FK → users, REQUIRED)
+- track_id: integer (FK → tracks, REQUIRED)
+- played_at: timestamp - Default: CURRENT_TIMESTAMP
+- duration_played_seconds: integer
+
+TRACKS TABLE:
+- id: integer (PRIMARY KEY)
+- name: varchar
+- artist: varchar
+- price_eur: numeric(10,2)
+- audio_filename: varchar
+- is_published: boolean
+- genre: varchar
+
+IMPORTANT:
+✅ Uses play_history table (NOT play_stats)
+✅ Purchases linked to orders via order_id
+✅ All timestamps in UTC
+*/

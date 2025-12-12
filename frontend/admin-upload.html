@@ -1,25 +1,21 @@
 <!DOCTYPE html>
 <html lang="de">
 
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Song-Nexus Admin Upload - Sichere Musik-Verwaltung mit Accessibility">
     <meta name="theme-color" content="#0a0e27">
-    <title>🎵 Admin Upload - Song-Nexus v6.2</title>
-
+    <title>🎵 Admin Upload - Song-Nexus v6.3</title>
 
     <!-- ========== PRECONNECT (Performance) ========== -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-
     <!-- ========== FONTS ========== -->
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap"
         rel="stylesheet">
-
 
     <!-- ========== STYLES (CSP-Safe, no inline) ========== -->
     <style>
@@ -38,7 +34,6 @@
             --color-success: #00ff88;
             --color-warning: #ffaa00;
 
-
             /* Sizing */
             --size-xs: 0.75rem;
             --size-sm: 0.875rem;
@@ -47,7 +42,6 @@
             --size-xl: 1.25rem;
             --size-2xl: 1.5rem;
             --size-3xl: 2rem;
-
 
             /* Spacing */
             --space-1: 4px;
@@ -58,17 +52,14 @@
             --space-6: 24px;
             --space-8: 32px;
 
-
             /* Border Radius */
             --radius-sm: 4px;
             --radius-md: 8px;
             --radius-lg: 12px;
 
-
             /* Transitions */
             --transition-fast: 150ms ease-in-out;
             --transition-normal: 250ms ease-in-out;
-
 
             /* Font */
             --font-mono: 'JetBrains Mono', monospace;
@@ -76,14 +67,12 @@
             --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-
         /* ========== RESET ========== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
 
         html,
         body {
@@ -94,12 +83,10 @@
             min-height: 100vh;
         }
 
-
         /* ========== ACCESSIBILITY: Dark Mode, Screen Reader Text ========== */
         body {
             background: linear-gradient(135deg, var(--color-bg-primary) 0%, #0f1535 100%);
         }
-
 
         .sr-only {
             position: absolute;
@@ -112,7 +99,6 @@
             border: 0;
         }
 
-
         /* ========== LAYOUT ========== */
         .container {
             max-width: 1000px;
@@ -120,13 +106,11 @@
             padding: var(--space-8);
         }
 
-
         main {
             display: flex;
             flex-direction: column;
             gap: var(--space-8);
         }
-
 
         /* ========== HEADER ========== */
         .header {
@@ -138,7 +122,6 @@
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
         }
 
-
         .header h1 {
             font-family: var(--font-display);
             font-size: var(--size-3xl);
@@ -148,12 +131,10 @@
             letter-spacing: 2px;
         }
 
-
         .header p {
             color: var(--color-text-secondary);
             font-size: var(--size-base);
         }
-
 
         /* ========== CARD ========== */
         .card {
@@ -165,7 +146,6 @@
             backdrop-filter: blur(10px);
         }
 
-
         .card h2 {
             font-family: var(--font-display);
             font-size: var(--size-2xl);
@@ -175,12 +155,10 @@
             border-bottom: 2px solid rgba(0, 255, 255, 0.3);
         }
 
-
         /* ========== FORM ========== */
         .form-group {
             margin-bottom: var(--space-5);
         }
-
 
         label {
             display: block;
@@ -192,11 +170,11 @@
             letter-spacing: 1px;
         }
 
-
         input[type="text"],
         input[type="password"],
         input[type="number"],
         input[type="file"],
+        input[type="range"],
         select,
         textarea {
             width: 100%;
@@ -210,11 +188,11 @@
             transition: all var(--transition-normal);
         }
 
-
         input[type="text"]:focus,
         input[type="password"]:focus,
         input[type="number"]:focus,
         input[type="file"]:focus,
+        input[type="range"]:focus,
         select:focus,
         textarea:focus {
             outline: none;
@@ -223,12 +201,61 @@
             background: rgba(10, 14, 39, 0.95);
         }
 
-
         input[type="file"] {
             padding: var(--space-3);
             cursor: pointer;
         }
 
+        /* ========== RANGE SLIDER ========== */
+        input[type="range"] {
+            width: 100%;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-track {
+            background: rgba(0, 255, 136, 0.2);
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--color-accent-primary);
+            border: 2px solid var(--color-accent-secondary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        input[type="range"]::-moz-range-track {
+            background: rgba(0, 255, 136, 0.2);
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--color-accent-primary);
+            border: 2px solid var(--color-accent-secondary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .slider-value {
+            display: inline-block;
+            margin-left: var(--space-2);
+            color: var(--color-accent-primary);
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
 
         /* ========== CHECKBOX ========== */
         input[type="checkbox"] {
@@ -239,14 +266,12 @@
             margin-right: var(--space-2);
         }
 
-
         .checkbox-group {
             display: flex;
             align-items: center;
             gap: var(--space-2);
             margin-bottom: var(--space-3);
         }
-
 
         .checkbox-group label {
             margin-bottom: 0;
@@ -255,7 +280,6 @@
             font-weight: normal;
         }
 
-
         /* ========== FORM ROW (2-Column Grid) ========== */
         .form-row {
             display: grid;
@@ -263,13 +287,11 @@
             gap: var(--space-4);
         }
 
-
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
             }
         }
-
 
         /* ========== FILE UPLOAD AREA (Drag & Drop) ========== */
         .file-upload-area {
@@ -282,14 +304,12 @@
             text-align: center;
         }
 
-
         .file-upload-area:hover,
         .file-upload-area.dragover {
             background: rgba(0, 255, 136, 0.1);
             border-color: var(--color-accent-secondary);
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
         }
-
 
         .file-upload-area p {
             color: var(--color-accent-primary);
@@ -298,7 +318,6 @@
             font-size: var(--size-base);
         }
 
-
         .file-name {
             color: var(--color-accent-secondary);
             font-size: var(--size-sm);
@@ -306,14 +325,12 @@
             font-family: var(--font-mono);
         }
 
-
         /* ========== BUTTONS ========== */
         .button-group {
             display: flex;
             gap: var(--space-3);
             margin-top: var(--space-5);
         }
-
 
         button,
         .btn {
@@ -332,25 +349,21 @@
             min-height: 48px;
         }
 
-
         .btn-primary {
             background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
             color: var(--color-bg-primary);
             border-color: var(--color-accent-primary);
         }
 
-
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(0, 255, 136, 0.4);
         }
 
-
         .btn-primary:focus {
             outline: 2px solid var(--color-accent-secondary);
             outline-offset: 2px;
         }
-
 
         .btn-secondary {
             background: rgba(0, 255, 136, 0.1);
@@ -358,11 +371,9 @@
             border-color: var(--color-accent-primary);
         }
 
-
         .btn-secondary:hover {
             background: rgba(0, 255, 136, 0.2);
         }
-
 
         .btn-delete {
             background: rgba(255, 51, 102, 0.1);
@@ -374,17 +385,14 @@
             min-width: 100px;
         }
 
-
         .btn-delete:hover {
             background: rgba(255, 51, 102, 0.2);
         }
-
 
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-
 
         /* ========== MESSAGES (Alert/Success/Error) ========== */
         .message {
@@ -397,11 +405,9 @@
             animation: slideIn 300ms ease-in-out;
         }
 
-
         .message.show {
             display: block;
         }
-
 
         .message.success {
             background: rgba(0, 255, 136, 0.1);
@@ -409,13 +415,11 @@
             border-color: var(--color-success);
         }
 
-
         .message.error {
             background: rgba(255, 51, 102, 0.1);
             color: var(--color-error);
             border-color: var(--color-error);
         }
-
 
         .message.warning {
             background: rgba(255, 170, 0, 0.1);
@@ -423,13 +427,11 @@
             border-color: var(--color-warning);
         }
 
-
         @keyframes slideIn {
             from {
                 transform: translateX(-20px);
                 opacity: 0;
             }
-
 
             to {
                 transform: translateX(0);
@@ -437,14 +439,12 @@
             }
         }
 
-
         /* ========== TRACKS LIST ========== */
         .tracks-container {
             display: grid;
             gap: var(--space-3);
             margin-top: var(--space-5);
         }
-
 
         .track-item {
             background: rgba(0, 255, 136, 0.05);
@@ -458,18 +458,15 @@
             transition: all var(--transition-normal);
         }
 
-
         .track-item:hover {
             background: rgba(0, 255, 136, 0.1);
             border-color: rgba(0, 255, 255, 0.3);
             box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
         }
 
-
         .track-info {
             min-width: 0;
         }
-
 
         .track-name {
             font-weight: 700;
@@ -478,7 +475,6 @@
             margin-bottom: var(--space-2);
             word-break: break-word;
         }
-
 
         .track-meta {
             display: grid;
@@ -489,13 +485,11 @@
             font-family: var(--font-mono);
         }
 
-
         .track-meta-item {
             display: flex;
             align-items: center;
             gap: var(--space-1);
         }
-
 
         .track-badge {
             display: inline-block;
@@ -506,24 +500,30 @@
             margin-right: var(--space-1);
         }
 
-
         .badge-published {
             background: rgba(0, 255, 136, 0.2);
             color: var(--color-accent-primary);
         }
-
 
         .badge-unpublished {
             background: rgba(255, 170, 0, 0.2);
             color: var(--color-warning);
         }
 
+        .badge-free {
+            background: rgba(0, 255, 255, 0.2);
+            color: var(--color-accent-secondary);
+        }
+
+        .badge-premium {
+            background: rgba(255, 0, 255, 0.2);
+            color: var(--color-accent-tertiary);
+        }
 
         .track-actions {
             display: flex;
             gap: var(--space-2);
         }
-
 
         /* ========== LOADING STATE ========== */
         .loading {
@@ -536,13 +536,11 @@
             animation: spin 1s linear infinite;
         }
 
-
         @keyframes spin {
             to {
                 transform: rotate(360deg);
             }
         }
-
 
         /* ========== RESPONSIVE ========== */
         @media (max-width: 768px) {
@@ -550,11 +548,9 @@
                 padding: var(--space-4);
             }
 
-
             .header h1 {
                 font-size: var(--size-2xl);
             }
-
 
             button,
             .btn {
@@ -563,16 +559,13 @@
                 min-height: 44px;
             }
 
-
             .track-item {
                 grid-template-columns: 1fr;
             }
 
-
             .track-actions {
                 width: 100%;
             }
-
 
             .btn-delete {
                 width: 100%;
@@ -580,13 +573,11 @@
             }
         }
 
-
         /* ========== FOCUS VISIBLE (Accessibility) ========== */
         *:focus-visible {
             outline: 2px solid var(--color-accent-secondary);
             outline-offset: 2px;
         }
-
 
         /* ========== SKIP TO MAIN CONTENT (A11y) ========== */
         .skip-link {
@@ -600,31 +591,34 @@
             z-index: 100;
         }
 
-
         .skip-link:focus {
             top: 0;
         }
+
+        /* ========== HELPER TEXT ========== */
+        .helper-text {
+            font-size: var(--size-sm);
+            color: var(--color-text-secondary);
+            margin-top: var(--space-2);
+            font-style: italic;
+        }
     </style>
 </head>
-
 
 <body>
     <!-- ========== A11y: Skip Link ========== -->
     <a href="#main-content" class="skip-link">Zum Hauptinhalt springen</a>
 
-
     <div class="container">
         <!-- ========== HEADER ========== -->
         <div class="header">
             <h1>🎵 ADMIN UPLOAD</h1>
-            <p>Sichere Musik-Verwaltung • Barrier-Free • v6.2</p>
+            <p>Sichere Musik-Verwaltung • Barrier-Free • v6.3</p>
         </div>
-
 
         <main id="main-content">
             <!-- ========== MESSAGE AREA ========== -->
             <div id="message" class="message" role="alert" aria-live="polite" aria-atomic="true"></div>
-
 
             <!-- ========== LOGIN AREA ========== -->
             <section class="card" id="loginSection">
@@ -644,26 +638,22 @@
                 </button>
             </section>
 
-
             <!-- ========== UPLOAD SECTION (Hidden until logged in) ========== -->
             <section class="card" id="uploadSection" style="display: none;">
                 <h2>📤 Neuen Track hochladen</h2>
-
 
                 <form id="uploadForm">
                     <!-- Track Name -->
                     <div class="form-group">
                         <label for="trackName">Track-Name *</label>
-                        <input type="text" id="trackName" placeholder="z.B. P VS NP" required aria-required="true">
+                        <input type="text" id="trackName" placeholder="z.B. The Spell" required aria-required="true">
                     </div>
-
 
                     <!-- Artist & Genre (2-Column) -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="artist">Artist/Band *</label>
-                            <input type="text" id="artist" placeholder="z.B. Computational" required
-                                aria-required="true">
+                            <input type="text" id="artist" placeholder="z.B. Comp" required aria-required="true">
                         </div>
                         <div class="form-group">
                             <label for="genre">Genre</label>
@@ -671,13 +661,13 @@
                         </div>
                     </div>
 
-
                     <!-- Duration & Price (2-Column) -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="duration">Dauer (Sekunden) *</label>
                             <input type="number" id="duration" placeholder="z.B. 180" required aria-required="true"
                                 min="1">
+                            <div class="helper-text">💡 Wird automatisch ermittelt, wenn unrealistisch (z.B. 4000)</div>
                         </div>
                         <div class="form-group">
                             <label for="price">Preis (€) *</label>
@@ -685,7 +675,6 @@
                                 aria-required="true" min="0">
                         </div>
                     </div>
-
 
                     <!-- Audio File Upload -->
                     <div class="form-group">
@@ -699,15 +688,35 @@
                         </div>
                     </div>
 
+                    <!-- FREE TRACK Toggle ✨ NEW -->
+                    <div class="form-group">
+                        <label>Track-Typ:</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="isFree">
+                            <label for="isFree">🎁 KOSTENLOS (Vollständiger Download für alle)</label>
+                        </div>
+                        <div class="helper-text">Wenn aktiviert: Benutzer können den ganzen Track kostenlos
+                            herunterladen</div>
+                    </div>
 
-                    <!-- Publish Checkbox ✅ NEW -->
+                    <!-- Preview Duration (nur für Premium) ✨ NEW -->
+                    <div class="form-group" id="previewGroup" style="display: none;">
+                        <label for="previewDuration">
+                            ⏱️ Preview-Länge (Sekunden): <span class="slider-value" id="previewValue">45</span>s
+                        </label>
+                        <input type="range" id="previewDuration" min="0" max="120" value="45" step="1">
+                        <div class="helper-text">
+                            0 = Standard 45s | 45 = 45 Sekunden Preview | Wenn länger als Track-Länge = ganzer Track
+                        </div>
+                    </div>
+
+                    <!-- Publish Checkbox ✅ -->
                     <div class="form-group">
                         <div class="checkbox-group">
                             <input type="checkbox" id="isPublished" checked>
                             <label for="isPublished">✅ Sofort veröffentlichen (im Frontend sichtbar)</label>
                         </div>
                     </div>
-
 
                     <!-- Buttons -->
                     <div class="button-group">
@@ -724,7 +733,6 @@
                 </form>
             </section>
 
-
             <!-- ========== TRACKS LIST SECTION ========== -->
             <section class="card" id="tracksSection" style="display: none;">
                 <h2>📋 Aktuelle Tracks</h2>
@@ -737,11 +745,10 @@
         </main>
     </div>
 
-
     <!-- ========== JAVASCRIPT (CSP-Safe, all events in script) ========== -->
     <script>
         /**
-         * 🎵 SONG-NEXUS v6.2 - Admin Upload Script
+         * 🎵 SONG-NEXUS v6.3 - Admin Upload Script
          * 
          * Features:
          * - JWT Token Management (localStorage)
@@ -750,9 +757,9 @@
          * - Accessible Keyboard Navigation
          * - Real-time Track List
          * - Soft-Delete Support
-         * - ✅ NEW: Publish Status Control
+         * - ✅ FREE Track Support
+         * - ✅ Custom Preview Duration
          */
-
 
         // ============================================================================
         // CONFIG
@@ -764,17 +771,14 @@
             delete: (id) => `${API_BASE}/admin/tracks/${id}`
         };
 
-
         console.log('🎵 SONG-NEXUS Admin Upload Started');
         console.log('API_BASE:', API_BASE);
-
 
         // ============================================================================
         // STATE MANAGEMENT
         // ============================================================================
         let authToken = localStorage.getItem('authToken') || null;
         let currentUser = localStorage.getItem('currentUser') ? JSON.parse(localStorage.getItem('currentUser')) : null;
-
 
         // ============================================================================
         // INIT
@@ -788,7 +792,6 @@
             }
         });
 
-
         // ============================================================================
         // EVENT LISTENERS
         // ============================================================================
@@ -796,19 +799,15 @@
             // Login Button
             document.getElementById('loginBtn').addEventListener('click', handleLogin);
 
-
             // Logout Button
             document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-
 
             // File Upload
             const fileUploadArea = document.getElementById('fileUploadArea');
             const audioFile = document.getElementById('audioFile');
 
-
             // Click to select file
             fileUploadArea.addEventListener('click', () => audioFile.click());
-
 
             // Keyboard support (Enter/Space)
             fileUploadArea.addEventListener('keypress', (e) => {
@@ -817,7 +816,6 @@
                     audioFile.click();
                 }
             });
-
 
             // File selection
             audioFile.addEventListener('change', (e) => {
@@ -829,23 +827,19 @@
                 }
             });
 
-
             // Drag & Drop
             fileUploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 fileUploadArea.classList.add('dragover');
             });
 
-
             fileUploadArea.addEventListener('dragleave', () => {
                 fileUploadArea.classList.remove('dragover');
             });
 
-
             fileUploadArea.addEventListener('drop', (e) => {
                 e.preventDefault();
                 fileUploadArea.classList.remove('dragover');
-
 
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
@@ -856,11 +850,31 @@
                 }
             });
 
+            // FREE Track Toggle ✨ NEW
+            const isFreeCheckbox = document.getElementById('isFree');
+            const previewGroup = document.getElementById('previewGroup');
+
+            isFreeCheckbox.addEventListener('change', () => {
+                if (isFreeCheckbox.checked) {
+                    previewGroup.style.display = 'none';
+                    console.log('🎁 FREE Track mode enabled');
+                } else {
+                    previewGroup.style.display = 'block';
+                    console.log('💰 PREMIUM Track mode enabled');
+                }
+            });
+
+            // Preview Duration Slider ✨ NEW
+            const previewSlider = document.getElementById('previewDuration');
+            const previewValue = document.getElementById('previewValue');
+
+            previewSlider.addEventListener('input', () => {
+                previewValue.textContent = previewSlider.value;
+            });
 
             // Form Submit
             document.getElementById('uploadForm').addEventListener('submit', handleUpload);
         }
-
 
         // ============================================================================
         // LOGIN
@@ -869,12 +883,10 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-
             if (!username || !password) {
                 showMessage('❌ Benutzername & Passwort erforderlich!', 'error');
                 return;
             }
-
 
             try {
                 console.log('🔐 Logging in as:', username);
@@ -884,9 +896,7 @@
                     body: JSON.stringify({ username, password })
                 });
 
-
                 const data = await response.json();
-
 
                 if (!response.ok) {
                     showMessage(`❌ Login fehlgeschlagen: ${data.error}`, 'error');
@@ -894,26 +904,22 @@
                     return;
                 }
 
-
                 // Save token & user
                 authToken = data.token;
                 currentUser = data.user;
                 localStorage.setItem('authToken', authToken);
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
-
                 console.log('✅ Login successful:', currentUser);
                 showMessage(`✅ Willkommen, ${currentUser.username}!`, 'success');
                 showUploadUI();
                 loadTracks();
-
 
             } catch (err) {
                 console.error('Login Exception:', err);
                 showMessage(`❌ Fehler: ${err.message}`, 'error');
             }
         }
-
 
         // ============================================================================
         // LOGOUT
@@ -924,46 +930,41 @@
             authToken = null;
             currentUser = null;
 
-
             document.getElementById('loginSection').style.display = 'block';
             document.getElementById('uploadSection').style.display = 'none';
             document.getElementById('tracksSection').style.display = 'none';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
 
-
             showMessage('👋 Abgemeldet!', 'warning');
         }
 
-
         // ============================================================================
-        // UPLOAD - ✅ FIXED: Add is_published
+        // UPLOAD - ✅ FIXED: Add is_free + free_preview_duration
         // ============================================================================
         async function handleUpload(e) {
             e.preventDefault();
-
 
             if (!authToken) {
                 showMessage('❌ Bitte einloggen!', 'error');
                 return;
             }
 
-
             const formData = new FormData();
             formData.append('name', document.getElementById('trackName').value);
             formData.append('artist', document.getElementById('artist').value);
-            formData.append('duration', document.getElementById('duration').value);
+            formData.append('duration_seconds', document.getElementById('duration').value);
             formData.append('genre', document.getElementById('genre').value || 'Other');
-            formData.append('price', document.getElementById('price').value);
-            formData.append('is_published', document.getElementById('isPublished').checked);  // ✅ NEW!
+            formData.append('price_eur', document.getElementById('price').value);
+            formData.append('is_published', document.getElementById('isPublished').checked);
+            formData.append('is_free', document.getElementById('isFree').checked);  // ✨ NEW
+            formData.append('free_preview_duration', document.getElementById('previewDuration').value);  // ✨ NEW
             formData.append('audio', document.getElementById('audioFile').files[0]);
-
 
             try {
                 const button = document.querySelector('button[type="submit"]');
                 button.disabled = true;
                 button.innerHTML = '<span class="loading"></span> Wird hochgeladen...';
-
 
                 const response = await fetch(ADMIN_ROUTES.upload, {
                     method: 'POST',
@@ -973,9 +974,7 @@
                     body: formData
                 });
 
-
                 const data = await response.json();
-
 
                 if (!response.ok) {
                     showMessage(`❌ Upload fehlgeschlagen: ${data.error}`, 'error');
@@ -984,19 +983,20 @@
                     return;
                 }
 
-
                 showMessage(`✅ ${data.message}`, 'success');
                 document.getElementById('uploadForm').reset();
-                document.getElementById('isPublished').checked = true;  // Reset checkbox
+                document.getElementById('isPublished').checked = true;
+                document.getElementById('isFree').checked = false;  // ✨ Reset
+                document.getElementById('previewDuration').value = 45;  // ✨ Reset
+                document.getElementById('previewValue').textContent = '45';  // ✨ Reset
+                document.getElementById('previewGroup').style.display = 'block';  // ✨ Show again
                 document.getElementById('fileName').textContent = 'Keine Datei ausgewählt';
                 document.getElementById('fileName').style.color = 'var(--color-accent-secondary)';
                 button.disabled = false;
                 button.innerHTML = '⬆️ Track hochladen';
 
-
                 // Reload tracks
                 setTimeout(loadTracks, 500);
-
 
             } catch (err) {
                 showMessage(`❌ Fehler: ${err.message}`, 'error');
@@ -1005,28 +1005,23 @@
             }
         }
 
-
         // ============================================================================
         // LOAD TRACKS
         // ============================================================================
         async function loadTracks() {
             if (!authToken) return;
 
-
             try {
                 const response = await fetch(ADMIN_ROUTES.list, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
-
                 if (!response.ok) {
                     throw new Error('Fehler beim Laden der Tracks');
                 }
 
-
                 const tracks = await response.json();
                 displayTracks(tracks);
-
 
             } catch (err) {
                 console.error('Load Tracks Error:', err);
@@ -1034,19 +1029,16 @@
             }
         }
 
-
         // ============================================================================
-        // DISPLAY TRACKS - ✅ FIXED: Show publish status
+        // DISPLAY TRACKS - ✅ FIXED: Show FREE/PREMIUM badges
         // ============================================================================
         function displayTracks(tracks) {
             const tracksList = document.getElementById('tracksList');
-
 
             if (!tracks || tracks.length === 0) {
                 tracksList.innerHTML = '<p style="text-align: center; color: var(--color-text-secondary);">Noch keine Tracks hochgeladen.</p>';
                 return;
             }
-
 
             tracksList.innerHTML = tracks.map(track => `
                 <div class="track-item" role="listitem">
@@ -1056,12 +1048,16 @@
                             <span class="track-badge ${track.is_published ? 'badge-published' : 'badge-unpublished'}">
                                 ${track.is_published ? '✅ Published' : '⏳ Draft'}
                             </span>
+                            <span class="track-badge ${track.is_free ? 'badge-free' : 'badge-premium'}">
+                                ${track.is_free ? '🎁 FREE' : '💰 PREMIUM'}
+                            </span>
                         </div>
                         <div class="track-meta">
                             <div class="track-meta-item">👤 ${escapeHtml(track.artist)}</div>
-                            <div class="track-meta-item">⏱️ ${formatDuration(track.duration)}</div>
+                            <div class="track-meta-item">⏱️ ${formatDuration(track.duration_seconds)}</div>
                             <div class="track-meta-item">💿 ${track.genre || 'N/A'}</div>
                             <div class="track-meta-item">💰 €${parseFloat(track.price_eur).toFixed(2)}</div>
+                            ${!track.is_free ? `<div class="track-meta-item">🎧 Preview: ${track.free_preview_duration || 45}s</div>` : ''}
                         </div>
                     </div>
                     <div class="track-actions">
@@ -1073,7 +1069,6 @@
                 </div>
             `).join('');
 
-
             // Add click listeners to delete buttons
             document.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -1084,7 +1079,6 @@
             });
         }
 
-
         // ============================================================================
         // DELETE TRACK (Soft Delete)
         // ============================================================================
@@ -1093,32 +1087,26 @@
                 return;
             }
 
-
             try {
                 const response = await fetch(ADMIN_ROUTES.delete(id), {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
-
                 const data = await response.json();
-
 
                 if (!response.ok) {
                     showMessage(`❌ Fehler: ${data.error}`, 'error');
                     return;
                 }
 
-
                 showMessage(`✅ ${data.message}`, 'success');
                 loadTracks();
-
 
             } catch (err) {
                 showMessage(`❌ Fehler: ${err.message}`, 'error');
             }
         }
-
 
         // ============================================================================
         // UI HELPERS
@@ -1129,14 +1117,12 @@
             document.getElementById('tracksSection').style.display = 'block';
         }
 
-
         function showMessage(text, type = 'info') {
             const messageEl = document.getElementById('message');
             messageEl.textContent = text;
             messageEl.className = `message show ${type}`;
             setTimeout(() => messageEl.classList.remove('show'), 4000);
         }
-
 
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -1146,13 +1132,11 @@
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
-
         function formatDuration(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return `${mins}m ${secs}s`;
         }
-
 
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -1161,6 +1145,5 @@
         }
     </script>
 </body>
-
 
 </html>

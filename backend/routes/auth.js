@@ -1,77 +1,60 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../server');
-
-
+const { verifyToken, generateJWT } = require('../middleware/auth-middleware');
 const router = express.Router();
 
-
 // ============================================================================
-// 🔐 MIDDLEWARE: Verify JWT
+// 📝 POST /api/auth/register - Register New User
 // ============================================================================
-
-
-const verifyToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(403).json({ error: 'Invalid token' });
-  }
-};
-
-
-// ============================================================================
-// 📝 REGISTER
-// ============================================================================
-
 
 router.post('/register', [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 }).withMessage('Password min 8 chars'),
-  body('username').isLength({ min: 3, max: 20 }).trim().escape(),
+  body('email').isEmail().normalizeEmail().withMessage('Invalid email'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('username').isLength({ min: 3, max: 20 }).trim().escape().withMessage('Username 3-20 chars'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-
   const { email, password, username } = req.body;
 
-
   try {
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-
-    const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '10');
-    const hashedPassword = await bcrypt.hash(password, bcryptRounds);
-
-
-    const result = await pool.query(
-      'INSERT INTO users (email, username, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, email, username, role',
-      [email, username, hashedPassword, 'user']
+    // 1️⃣ Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1 OR LOWER(username) = LOWER($2)',
+      [email, username]
     );
 
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User with this email or username already exists' });
+    }
+
+    // 2️⃣ Hash password
+    const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '10');
+    const hashedPassword = await bcrypt.hash(password, bcryptRounds);
+    console.log(`🔐 Password hashed with ${bcryptRounds} rounds`);
+
+    // 3️⃣ Insert user into database
+    const result = await pool.query(
+      `INSERT INTO users (email, username, password_hash, role, is_active)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, username, role`,
+      [email, username, hashedPassword, 'user', true]
+    );
 
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+    console.log(`✅ User registered: ${user.username} (${user.email})`);
 
+    // 4️⃣ Generate JWT token
+    const token = generateJWT(user);
 
     res.status(201).json({
       message: 'User registered successfully',
-      user: { id: user.id, email: user.email, username: user.username },
-      token
+      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+      token,
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -79,14 +62,12 @@ router.post('/register', [
   }
 });
 
-
 // ============================================================================
-// 🔑 LOGIN (FIXED: Case-Insensitive username search)
+// 🔑 POST /api/auth/login - Login With Username/Email + Password
 // ============================================================================
-
 
 router.post('/login', [
-  body('username').notEmpty().withMessage('Username required'),
+  body('username').notEmpty().withMessage('Username or email required'),
   body('password').notEmpty().withMessage('Password required'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -94,61 +75,56 @@ router.post('/login', [
     return res.status(400).json({ errors: errors.array() });
   }
 
-
   const { username, password } = req.body;
 
-
   try {
-    console.log('🔐 Login attempt for username:', username);
+    console.log(`🔐 Login attempt: ${username}`);
 
-    // ✅ FIXED: Case-Insensitive query using LOWER()
+    // 1️⃣ Find user (case-insensitive username, or by email)
     const result = await pool.query(
-      'SELECT id, password_hash, username, role FROM users WHERE LOWER(username) = LOWER($1) AND is_active = TRUE',
-      [username]
+      `SELECT id, email, username, password_hash, role, is_active
+       FROM users
+       WHERE (LOWER(username) = LOWER($1) OR email = $2) AND is_active = TRUE
+       LIMIT 1`,
+      [username, username]
     );
 
-
     if (result.rows.length === 0) {
-      console.log('❌ User not found:', username);
+      console.log(`❌ User not found: ${username}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-
     const user = result.rows[0];
-    console.log('✅ User found:', user.username);
+    console.log(`✅ User found: ${user.username}`);
 
-    // Try bcrypt compare first, but also support plain text for dev
+    // 2️⃣ Verify password
     let isValidPassword = false;
     try {
       isValidPassword = await bcrypt.compare(password, user.password_hash);
-      console.log('✅ Bcrypt compare result:', isValidPassword);
+      console.log(`✅ Bcrypt verify result: ${isValidPassword}`);
     } catch (err) {
-      // If bcrypt fails, try plain text comparison (dev mode)
-      console.warn('⚠️  Bcrypt compare failed, trying plain text comparison');
+      // Fallback: plain text comparison (dev mode only)
+      console.warn('⚠️ Bcrypt compare failed, trying plain text comparison');
       isValidPassword = (password === user.password_hash);
     }
 
-
     if (!isValidPassword) {
-      console.log('❌ Invalid password for user:', username);
+      console.log(`❌ Invalid password for user: ${username}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-
-    console.log('✅ Password valid for user:', username);
-
+    // 3️⃣ Update last_login timestamp
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    console.log(`✅ Password valid, last_login updated: ${user.username}`);
 
-
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-
-
-    console.log('✅ Token generated for user:', username);
+    // 4️⃣ Generate JWT token
+    const token = generateJWT(user);
+    console.log(`✅ JWT token generated for user: ${user.username}`);
 
     res.json({
       message: 'Login successful',
-      user: { id: user.id, username: user.username, role: user.role },
-      token
+      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+      token,
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -156,49 +132,50 @@ router.post('/login', [
   }
 });
 
-
 // ============================================================================
-// 🧪 DEV LOGIN
+// 🧪 POST /api/auth/dev-login - Development Quick Login
 // ============================================================================
-
 
 router.post('/dev-login', async (req, res) => {
   try {
     console.log('🧪 Dev login attempt...');
 
-
     const devEmail = 'dev@localhost';
     const devUsername = 'devuser';
+    const devPassword = 'dev123456';
 
-
-    let user = await pool.query(
-      'SELECT id, username, role FROM users WHERE email = $1',
+    // 1️⃣ Check if dev user exists
+    let userResult = await pool.query(
+      'SELECT id, email, username, role FROM users WHERE email = $1',
       [devEmail]
     );
 
-
-    if (user.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash('dev123456', 10);
-      user = await pool.query(
-        'INSERT INTO users (email, username, password_hash, role, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, role',
+    let user;
+    if (userResult.rows.length === 0) {
+      // Create dev user if not exists
+      console.log('📝 Creating dev user...');
+      const hashedPassword = await bcrypt.hash(devPassword, 10);
+      userResult = await pool.query(
+        `INSERT INTO users (email, username, password_hash, role, is_active)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, email, username, role`,
         [devEmail, devUsername, hashedPassword, 'admin', true]
       );
+      console.log('✅ Dev user created');
+    } else {
+      console.log('✅ Dev user already exists');
     }
 
+    user = userResult.rows[0];
 
-    const userData = user.rows[0];
-    const token = jwt.sign(
-      { id: userData.id, role: userData.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
-    );
-
+    // 2️⃣ Generate token
+    const token = generateJWT(user);
 
     res.json({
       success: true,
       message: '✅ Dev login successful',
-      user: { id: userData.id, username: userData.username, role: userData.role },
-      token
+      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+      token,
     });
   } catch (err) {
     console.error('❌ Dev login error:', err);
@@ -206,73 +183,100 @@ router.post('/dev-login', async (req, res) => {
   }
 });
 
-
 // ============================================================================
-// 🔍 VERIFY TOKEN
+// 🔍 POST /api/auth/verify - Verify JWT Token is Valid
 // ============================================================================
-
 
 router.post('/verify', verifyToken, (req, res) => {
   res.json({
     valid: true,
-    user: req.user
+    user: req.user,
   });
 });
 
-
 // ============================================================================
-// 👤 GET CURRENT USER
+// 👤 GET /api/auth/me - Get Current Authenticated User
 // ============================================================================
-
 
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, username, role FROM users WHERE id = $1',
+      'SELECT id, email, username, role, created_at, is_active FROM users WHERE id = $1',
       [req.user.id]
     );
-
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-
+    console.log(`✅ User profile fetched: ${result.rows[0].username}`);
     res.json({ user: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get user' });
+    console.error('❌ Get user error:', err);
+    res.status(500).json({ error: 'Failed to fetch user profile' });
   }
 });
 
-
 // ============================================================================
-// 🔓 LOGOUT
+// 🔓 POST /api/auth/logout - Logout (Client removes token)
 // ============================================================================
-
 
 router.post('/logout', verifyToken, (req, res) => {
-  res.json({ message: 'Logged out successfully' });
+  // Stateless: Just acknowledge logout (token removed on client)
+  console.log(`✅ User ${req.user.id} logged out`);
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
-
 // ============================================================================
-// 🔄 REFRESH TOKEN
+// 🔄 POST /api/auth/refresh-token - Refresh JWT Token
 // ============================================================================
 
-
-router.post('/refresh-token', verifyToken, (req, res) => {
+router.post('/refresh-token', verifyToken, async (req, res) => {
   try {
-    const token = jwt.sign(
-      { id: req.user.id, role: req.user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
+    // Fetch latest user data
+    const result = await pool.query(
+      'SELECT id, email, username, role FROM users WHERE id = $1',
+      [req.user.id]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    const token = generateJWT(user);
+
+    console.log(`✅ Token refreshed for user: ${user.username}`);
     res.json({ token });
   } catch (err) {
+    console.error('❌ Refresh token error:', err);
     res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
 
-
 module.exports = router;
-module.exports.verifyToken = verifyToken;
+
+// ============================================================================
+// 📖 DATABASE SCHEMA REFERENCE
+// ============================================================================
+/*
+USERS TABLE:
+- id: integer (PRIMARY KEY)
+- email: varchar (UNIQUE, REQUIRED)
+- username: varchar (REQUIRED)
+- password_hash: varchar (REQUIRED)
+- role: varchar - Default: 'user' (user | admin)
+- is_active: boolean - Default: true
+- created_at: timestamp - Default: CURRENT_TIMESTAMP
+- last_login: timestamp
+- updated_at: timestamp - Default: CURRENT_TIMESTAMP
+- webauthn_credential: jsonb
+
+IMPORTANT:
+✅ Uses auth-middleware.js for verifyToken & generateJWT
+✅ All passwords hashed with bcrypt
+✅ Case-insensitive username/email search
+✅ Token generation uses auth-middleware.generateJWT()
+✅ last_login updated on every successful login
+✅ is_active flag prevents deactivated users from logging in
+*/

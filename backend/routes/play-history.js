@@ -1,11 +1,10 @@
 // ============================================================================
-// 🎵 PLAY HISTORY ROUTES
+// 🎵 PLAY HISTORY ROUTES - sing-Nexus v7.0 (FINAL)
 // ============================================================================
 
 const express = require('express');
 const { pool } = require('../server');
-const { verifyToken } = require('./auth');
-
+const { verifyToken } = require('../middleware/auth-middleware');
 const router = express.Router();
 
 // ============================================================================
@@ -34,9 +33,17 @@ router.post('/', verifyToken, async (req, res) => {
         // Insert play history
         const result = await pool.query(
             `INSERT INTO play_history (user_id, track_id, duration_played_seconds, played_at)
-            VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-            RETURNING id, user_id, track_id, played_at, duration_played_seconds`,
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       RETURNING id, user_id, track_id, played_at, duration_played_seconds`,
             [user_id, track_id, duration_played_seconds || null]
+        );
+
+        // Update track play count
+        await pool.query(
+            `UPDATE tracks
+       SET play_count = COALESCE(play_count, 0) + 1
+       WHERE id = $1`,
+            [track_id]
         );
 
         console.log(`✅ Play history logged: User ${user_id} played Track ${track_id}`);
@@ -46,6 +53,7 @@ router.post('/', verifyToken, async (req, res) => {
         if (err.code === '23505') {
             return res.status(200).json({ message: 'Already logged' });
         }
+
         console.error('❌ Play history POST error:', err);
         res.status(500).json({ error: 'Failed to log play history' });
     }
@@ -66,19 +74,19 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT 
-                ph.id, 
-                ph.track_id, 
-                ph.played_at, 
-                ph.duration_played_seconds,
-                t.name, 
-                t.artist, 
-                t.audio_filename
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-            WHERE ph.user_id = $1
-            ORDER BY ph.played_at DESC
-            LIMIT $2 OFFSET $3`,
+            `SELECT
+        ph.id,
+        ph.track_id,
+        ph.played_at,
+        ph.duration_played_seconds,
+        t.name,
+        t.artist,
+        t.audio_filename
+       FROM play_history ph
+       JOIN tracks t ON ph.track_id = t.id
+       WHERE ph.user_id = $1
+       ORDER BY ph.played_at DESC
+       LIMIT $2 OFFSET $3`,
             [userId, parseInt(limit), parseInt(offset)]
         );
 
@@ -111,7 +119,7 @@ router.delete('/user/:userId', verifyToken, async (req, res) => {
         res.json({
             success: true,
             message: 'Play history cleared successfully',
-            deleted_count: result.rowCount
+            deleted_count: result.rowCount,
         });
     } catch (err) {
         console.error('❌ Play history DELETE error:', err);
@@ -134,14 +142,14 @@ router.get('/stats/user/:userId', verifyToken, async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT 
-                COUNT(*) as total_plays,
-                COUNT(DISTINCT track_id) as unique_tracks,
-                SUM(duration_played_seconds) as total_seconds_played,
-                MAX(played_at) as last_played,
-                MIN(played_at) as first_played
-            FROM play_history
-            WHERE user_id = $1`,
+            `SELECT
+        COUNT(*) as total_plays,
+        COUNT(DISTINCT track_id) as unique_tracks,
+        SUM(duration_played_seconds) as total_seconds_played,
+        MAX(played_at) as last_played,
+        MIN(played_at) as first_played
+       FROM play_history
+       WHERE user_id = $1`,
             [userId]
         );
 
@@ -154,3 +162,22 @@ router.get('/stats/user/:userId', verifyToken, async (req, res) => {
 
 module.exports = router;
 
+// ============================================================================
+// 📖 DATABASE SCHEMA REFERENCE
+// ============================================================================
+/*
+PLAY_HISTORY TABLE (PostgreSQL 18):
+- id: integer (PRIMARY KEY)
+- user_id: integer (FK → users, REQUIRED)
+- track_id: integer (FK → tracks, REQUIRED)
+- played_at: timestamp - Default: CURRENT_TIMESTAMP
+- duration_played_seconds: integer
+- created_at: timestamp - Default: CURRENT_TIMESTAMP
+
+IMPORTANT:
+✅ Table name is "play_history" (NOT "play_stats")
+✅ Uses CURRENT_TIMESTAMP for played_at
+✅ All queries use "play_history" table
+✅ Security: Users can only access their own data (unless admin)
+✅ Stats route must be LAST to avoid route conflicts
+*/

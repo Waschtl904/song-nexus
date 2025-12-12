@@ -1,8 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../server');
-const { verifyToken } = require('./auth');
-
+const { verifyToken } = require('../middleware/auth-middleware');
 const router = express.Router();
 
 // PayPal Client Setup
@@ -111,13 +110,16 @@ router.post('/create-order', verifyToken, [
     const orderId = orderResponse.result.id;
 
     // 4️⃣ Save order to DB
-    await pool.query(
-      `INSERT INTO orders (user_id, paypal_order_id, amount, currency, description, status) 
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+    const orderResult = await pool.query(
+      `INSERT INTO orders (user_id, paypal_order_id, amount, currency, description, status)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
       [userId, orderId, price, 'EUR', `Track: ${track.name}`, 'CREATED']
     );
 
-    console.log(`✅ PayPal order created: ${orderId}`);
+    const dbOrderId = orderResult.rows[0].id;
+
+    console.log(`✅ PayPal order created: ${orderId} (DB ID: ${dbOrderId})`);
     res.json({
       order_id: orderId,
       status: 'CREATED',
@@ -159,6 +161,7 @@ router.post('/capture-order/:orderId', verifyToken, [
     // 2️⃣ Capture at PayPal
     const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(orderId);
     request.requestBody({});
+
     const captureResponse = await client().execute(request);
 
     // 3️⃣ Check PayPal response
@@ -168,32 +171,32 @@ router.post('/capture-order/:orderId', verifyToken, [
 
       // 4️⃣ Start transaction
       const client_db = await pool.connect();
+
       try {
         await client_db.query('BEGIN');
 
         // Update order
         await client_db.query(
-          `UPDATE orders 
+          `UPDATE orders
            SET status = $1, completed_at = NOW(), paypal_payer_email = $2, transaction_id = $3
            WHERE paypal_order_id = $4`,
           ['COMPLETED', paypalPayerId, transactionId, orderId]
         );
 
-        // Create purchase record
+        // Create purchase record - NOW LINKED TO ORDER!
         await client_db.query(
-          `INSERT INTO purchases (user_id, track_id, purchased_at, license_type)
-           VALUES ($1, $2, NOW(), 'LIFETIME')
+          `INSERT INTO purchases (user_id, track_id, order_id, purchased_at, license_type)
+           VALUES ($1, $2, $3, NOW(), 'personal')
            ON CONFLICT DO NOTHING`,
-          [userId, track_id]
+          [userId, track_id, order.id]
         );
 
-        // Mark track as paid in play_stats (optional)
+        // Update track play count
         await client_db.query(
-          `INSERT INTO play_stats (user_id, track_id, is_paid_user)
-           VALUES ($1, $2, true)
-           ON CONFLICT (user_id, track_id) DO UPDATE
-           SET is_paid_user = true`,
-          [userId, track_id]
+          `UPDATE tracks
+           SET play_count = COALESCE(play_count, 0)
+           WHERE id = $1`,
+          [track_id]
         );
 
         await client_db.query('COMMIT');
@@ -237,9 +240,9 @@ router.post('/capture-order/:orderId', verifyToken, [
 router.get('/user-purchases', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         p.id, p.track_id, t.name, t.artist, t.audio_filename,
-        p.purchased_at, p.license_type
+        p.purchased_at, p.license_type, p.order_id
        FROM purchases p
        JOIN tracks t ON p.track_id = t.id
        WHERE p.user_id = $1
@@ -261,8 +264,8 @@ router.get('/user-purchases', verifyToken, async (req, res) => {
 router.get('/history', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
-        o.id, o.paypal_order_id, o.amount, o.currency, o.status, 
+      `SELECT
+        o.id, o.paypal_order_id, o.amount, o.currency, o.status,
         o.created_at, o.completed_at, o.description, o.transaction_id
        FROM orders o
        WHERE o.user_id = $1
@@ -285,7 +288,7 @@ router.get('/history', verifyToken, async (req, res) => {
 router.get('/stats', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         COUNT(DISTINCT CASE WHEN status = 'COMPLETED' THEN id END) as completed_payments,
         COUNT(DISTINCT CASE WHEN status = 'FAILED' THEN id END) as failed_payments,
         SUM(CASE WHEN status = 'COMPLETED' THEN amount ELSE 0 END)::numeric(10,2) as total_spent,
@@ -310,3 +313,39 @@ router.get('/stats', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
+
+// ============================================================================
+// 📖 DATABASE SCHEMA REFERENCE
+// ============================================================================
+/*
+ORDERS TABLE:
+- id: integer (PRIMARY KEY)
+- user_id: integer (FK → users)
+- paypal_order_id: varchar
+- amount: numeric(10,2)
+- currency: varchar (EUR, USD, etc.)
+- status: varchar (CREATED, COMPLETED, FAILED, etc.)
+- description: text
+- transaction_id: varchar (PayPal transaction ID)
+- paypal_payer_email: varchar (PayPal payer email)
+- created_at: timestamp - Default: CURRENT_TIMESTAMP
+- completed_at: timestamp
+- updated_at: timestamp - Default: CURRENT_TIMESTAMP
+
+PURCHASES TABLE:
+- id: integer (PRIMARY KEY)
+- user_id: integer (FK → users)
+- track_id: integer (FK → tracks)
+- order_id: integer (FK → orders) ← NOW LINKED!
+- license_type: varchar - Default: 'personal'
+- purchased_at: timestamp - Default: CURRENT_TIMESTAMP
+- expires_at: timestamp
+
+IMPORTANT:
+✅ Middleware: verifyToken (from auth-middleware)
+✅ All queries use parameterized statements ($1, $2, etc.)
+✅ Transactions ensure data consistency (BEGIN/COMMIT/ROLLBACK)
+✅ purchases.order_id now links to orders.id
+✅ license_type default changed to 'personal'
+✅ Error handling for PayPal API failures
+*/

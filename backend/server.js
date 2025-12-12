@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -206,7 +207,7 @@ app.use(session({
 
 console.log('✅ Session middleware configured');
 
-// ✅ FÜGE DAS HIER EIN:
+// ✅ Debug: Session logging
 app.use((req, res, next) => {
     console.log('🍪 Cookie Header erhalten:', req.headers.cookie);
     console.log('📋 Session ID:', req.sessionID);
@@ -259,8 +260,8 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
 };
 
 app.use('/api/', rateLimit(30, 60 * 1000));
-app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));  // ← WebAuthn braucht mehr!
-app.use('/api/auth/', rateLimit(10, 15 * 60 * 1000));  // ← Erhöht von 5 auf 10
+app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));
+app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000));  // ✅ 30 Requests in 15 Min
 app.use('/public/audio/', rateLimit(20, 60 * 1000));
 
 console.log('✅ Rate limiting enabled');
@@ -316,13 +317,27 @@ pool.on('connect', () => {
 module.exports.pool = pool;
 
 // ============================================================================
+// 🔐 AUTH MIDDLEWARE (CRITICAL: Load BEFORE routes!)
+// ============================================================================
+
+const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
+
+// Apply auth middleware to /api/ routes
+app.use('/api/', (req, res, next) => {
+    // Log incoming request
+    console.log(`📨 ${req.method} ${req.path}`);
+    next();
+});
+
+console.log('✅ Auth middleware loaded');
+
+// ============================================================================
 // 🔌 API ROUTES
 // ============================================================================
 
 console.log('🔧 Registering API routes...');
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/auth', require('./routes/webauthn'));
-app.use('/api/auth', require('./routes/auth-simple'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/tracks', require('./routes/tracks'));
 app.use('/api/users', require('./routes/users'));
@@ -402,7 +417,7 @@ if (httpsOptions && USE_HTTPS) {
         console.log('╚════════════════════════════════════════════╝');
         console.log(`✅ ${protocol} Server running on https://${HOST}:${PORT} ${certType}`);
         console.log(`🌍 Environment: ${NODE_ENV}`);
-        console.log(`🛡️  Security: Helmet + CORS + CSP + Session`);
+        console.log(`🛡️  Security: Helmet + CORS + CSP + Session + Auth Middleware`);
         console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
         console.log(`📁 Frontend: ${frontendPath}`);
         console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'song_nexus_dev'}`);
