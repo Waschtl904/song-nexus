@@ -1,16 +1,20 @@
 "use strict";
 
+
 // ============================================================================
-// 🎵 SONG-NEXUS MAIN APPLICATION
+// 🎵 SONG-NEXUS MAIN APPLICATION (v7.2 FIXED)
 // ✅ UPDATED: Nutzt APIClient + config.js statt hardcoded URLs
 // ✅ FIXED: WebAuthn Listener entfernt (sind in auth.js)
+// ✅ FIXED: Magic Link Verification MOVED TO START OF INIT
 // ============================================================================
+
 
 const App = {
     tracks: [],
     blogPosts: [],
     token: null,
     user: null,
+
 
     /**
      * Gibt die API Base URL zurück (dynamisch aus config.js)
@@ -23,12 +27,27 @@ const App = {
         return 'https://localhost:3000/api';
     },
 
+
     // ===== INITIALIZATION =====
     async init() {
         console.log('🚀 SONG-NEXUS Initializing...');
 
-        // ✅ NEW: Dark Mode Init FIRST (vor allem anderen!)
+
+        // ✅ CRITICAL: Verify Magic Link FIRST (before everything else!)
+        // This must happen before any other initialization
+        if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
+            console.log('🔐 Checking for magic link token in URL...');
+            const verified = await Auth.verifyMagicLinkFromUrl();
+            if (verified) {
+                console.log('✅ Magic link verified - page will reload');
+                return;  // ← STOP! Seite wird gerade reloaded
+            }
+        }
+
+
+        // ✅ NEW: Dark Mode Init (after magic link check)
         this.initDarkMode();
+
 
         // ✅ NEW: Get token/user from Auth module (centralized)
         if (typeof Auth !== 'undefined') {
@@ -39,6 +58,7 @@ const App = {
             this.user = JSON.parse(localStorage.getItem('user') || 'null');
         }
 
+
         // Init AudioPlayer
         if (window.AudioPlayer) {
             window.AudioPlayer.init();
@@ -46,11 +66,14 @@ const App = {
             console.log('✅ AudioPlayer initialized');
         }
 
+
         // Setup Event Listeners FIRST (before DOM operations)
         this.setupEventListeners();
 
+
         // ✅ NEW: Setup Keyboard Navigation for A11y
         this.setupKeyboardNavigation();
+
 
         // Load Content
         await Promise.all([
@@ -58,19 +81,18 @@ const App = {
             this.loadBlogPosts()
         ]);
 
+
         // Update UI
         this.updateUI();
+
 
         // Theme Toggle
         this.initTheme();
 
-        // ✅ NEW: Verify Magic Link if in URL
-        if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
-            await Auth.verifyMagicLinkFromUrl();
-        }
 
         console.log('✅ App ready!');
     },
+
 
     // ✅ NEW: DARK MODE INITIALIZATION
     initDarkMode() {
@@ -79,9 +101,11 @@ const App = {
         console.log('🌙 Dark mode initialized');
     },
 
+
     // ===== EVENT LISTENERS (CSP-SAFE) =====
     setupEventListeners() {
         console.log('🔌 Setting up event listeners...');
+
 
         // ========================================================================
         // 🎨 THEME TOGGLE
@@ -102,6 +126,7 @@ const App = {
             console.log('✅ Theme toggle listener attached');
         }
 
+
         // ========================================================================
         // 🔐 AUTH MODAL TOGGLE
         // ========================================================================
@@ -113,6 +138,7 @@ const App = {
             });
             console.log('✅ Auth toggle listener attached');
         }
+
 
         // ========================================================================
         // 🔴 MODAL CLOSE BUTTON
@@ -126,6 +152,7 @@ const App = {
             console.log('✅ Modal close listener attached');
         }
 
+
         // ========================================================================
         // 📑 TAB SWITCHING
         // ========================================================================
@@ -137,6 +164,7 @@ const App = {
             });
         });
         console.log('✅ Tab buttons listeners attached');
+
 
         // ========================================================================
         // 📝 PASSWORD LOGIN FORM (kept from auth.js backup)
@@ -152,6 +180,7 @@ const App = {
             console.log('✅ Password login form listener attached');
         }
 
+
         // ========================================================================
         // 📧 MAGIC LINK BUTTON (kept - not in auth.js)
         // ========================================================================
@@ -165,6 +194,7 @@ const App = {
             });
             console.log('✅ Magic link button listener attached');
         }
+
 
         // ========================================================================
         // 🚪 LOGOUT BUTTON
@@ -182,12 +212,15 @@ const App = {
             console.log('✅ Logout button listener attached');
         }
 
+
         console.log('✅ All main event listeners attached');
     },
+
 
     // ✅ NEW: KEYBOARD NAVIGATION FOR ACCESSIBILITY
     setupKeyboardNavigation() {
         console.log('⌨️ Setting up keyboard navigation...');
+
 
         // ===== TAB NAVIGATION (Arrow Keys) =====
         const tabs = document.querySelectorAll('[role="tab"]');
@@ -195,6 +228,7 @@ const App = {
             tabs.forEach((tab, index) => {
                 tab.addEventListener('keydown', (e) => {
                     let newIndex = index;
+
 
                     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
                         e.preventDefault();
@@ -212,6 +246,7 @@ const App = {
                         return;
                     }
 
+
                     tabs[newIndex].focus();
                     tabs[newIndex].click();
                     console.log(`⌨️ Tab navigation: ${newIndex}`);
@@ -219,6 +254,7 @@ const App = {
             });
             console.log('✅ Tab keyboard navigation setup');
         }
+
 
         // ===== MODAL FOCUS MANAGEMENT =====
         const authModal = document.getElementById('authModal');
@@ -234,8 +270,10 @@ const App = {
             console.log('✅ Modal keyboard management setup');
         }
 
+
         console.log('✅ Keyboard navigation setup complete');
     },
+
 
     // ===== THEME MANAGEMENT =====
     initTheme() {
@@ -246,6 +284,7 @@ const App = {
         console.log(`🎨 Theme initialized: ${savedTheme}`);
     },
 
+
     updateThemeButton(theme) {
         const btn = document.getElementById('themeToggle');
         if (btn) {
@@ -254,10 +293,12 @@ const App = {
         }
     },
 
+
     // ===== LOAD TRACKS =====
     async loadTracks() {
         try {
             console.log('🎵 Loading tracks...');
+
 
             // ✅ NEW: Nutze APIClient statt direktes fetch
             if (typeof APIClient !== 'undefined') {
@@ -269,17 +310,21 @@ const App = {
                 this.tracks = await response.json();
             }
 
+
             this.renderTracks();
+
 
             const tracksList = document.getElementById('tracksList');
             if (tracksList) {
                 tracksList.setAttribute('aria-busy', 'false');
             }
 
+
             console.log(`✅ Loaded ${this.tracks.length} tracks`);
         } catch (err) {
             console.error('❌ Load tracks error:', err);
             this.showError('Failed to load tracks');
+
 
             const tracksList = document.getElementById('tracksList');
             if (tracksList) {
@@ -288,17 +333,21 @@ const App = {
         }
     },
 
+
     // ===== RENDER TRACKS =====
     renderTracks() {
         const tracksList = document.getElementById('tracksList');
         if (!tracksList) return;
 
+
         const featured = this.tracks.slice(0, 3);
+
 
         if (featured.length === 0) {
             tracksList.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;"><p style="color: var(--text-secondary);">🎵 No tracks available</p></div>';
             return;
         }
+
 
         tracksList.innerHTML = featured.map((track) => `
             <div class="card track-card">
@@ -315,6 +364,7 @@ const App = {
             </div>
         `).join('');
 
+
         // Add listeners to play buttons
         document.querySelectorAll('.play-track-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -327,13 +377,16 @@ const App = {
             });
         });
 
+
         console.log('✅ Tracks rendered');
     },
+
 
     // ===== PLAY TRACK =====
     async playTrack(trackId, filename, isPremium, trackName) {
         try {
             console.log(`▶️ Playing track: ${trackName}`);
+
 
             const track = {
                 id: trackId,
@@ -342,17 +395,22 @@ const App = {
                 is_premium: isPremium
             };
 
+
             const isPreview = isPremium && !this.token;
+
 
             window.AudioPlayer.loadTrack(track, isPreview);
             window.AudioPlayer.play();
 
+
             this.updatePlayerDisplay(trackName);
+
 
             // ✅ NEW: Log play via APIClient
             if (this.token && typeof APIClient !== 'undefined') {
                 APIClient.logPlayEvent(trackId, null).catch(e => console.warn('Play log failed:', e));
             }
+
 
             console.log(`▶️ Playing: ${trackName} ${isPreview ? '(PREVIEW)' : '(FULL)'}`);
         } catch (err) {
@@ -360,6 +418,7 @@ const App = {
             this.showError('Failed to play track');
         }
     },
+
 
     // ===== UPDATE PLAYER DISPLAY =====
     updatePlayerDisplay(trackName) {
@@ -369,26 +428,32 @@ const App = {
         }
     },
 
+
     // ===== LOAD BLOG POSTS =====
     async loadBlogPosts() {
         try {
             console.log('📝 Loading blog posts...');
 
+
             const response = await fetch('blog/posts.json');
             if (!response.ok) throw new Error('Failed to load blog');
 
+
             this.blogPosts = await response.json();
             this.renderBlogPosts();
+
 
             const blogList = document.getElementById('blogList');
             if (blogList) {
                 blogList.setAttribute('aria-busy', 'false');
             }
 
+
             console.log(`✅ Loaded ${this.blogPosts.length} blog posts`);
         } catch (err) {
             console.warn('⚠️ Blog load failed:', err);
             this.renderBlogPosts(true);
+
 
             const blogList = document.getElementById('blogList');
             if (blogList) {
@@ -397,10 +462,12 @@ const App = {
         }
     },
 
+
     // ===== RENDER BLOG POSTS =====
     renderBlogPosts(error = false) {
         const blogList = document.getElementById('blogList');
         if (!blogList) return;
+
 
         if (error || this.blogPosts.length === 0) {
             blogList.innerHTML = `
@@ -412,7 +479,9 @@ const App = {
             return;
         }
 
+
         const latest = this.blogPosts.slice(0, 4);
+
 
         blogList.innerHTML = latest.map(post => `
             <div class="card blog-card" data-slug="${post.slug}" role="button" tabindex="0" aria-label="Read ${this.escapeHtml(post.title)}">
@@ -423,11 +492,13 @@ const App = {
             </div>
         `).join('');
 
+
         document.querySelectorAll('.blog-card').forEach(card => {
             const handleCardClick = () => {
                 const slug = card.getAttribute('data-slug');
                 window.location.href = `blog/${slug}/`;
             };
+
 
             card.addEventListener('click', handleCardClick);
             card.addEventListener('keydown', (e) => {
@@ -438,8 +509,10 @@ const App = {
             });
         });
 
+
         console.log('✅ Blog posts rendered');
     },
+
 
     // ===== AUTHENTICATION =====
     toggleAuthModal() {
@@ -449,17 +522,21 @@ const App = {
             modal.style.display = isHidden ? 'flex' : 'none';
             modal.setAttribute('aria-hidden', !isHidden);
 
+
             if (isHidden) {
                 const firstFocusable = modal.querySelector('button, input, a');
                 if (firstFocusable) firstFocusable.focus();
             }
 
+
             console.log(`${isHidden ? '📖 Auth modal opened' : '🔐 Auth modal closed'}`);
         }
     },
 
+
     switchTab(tabName, event) {
         if (event) event.preventDefault();
+
 
         document.querySelectorAll('.tab-btn').forEach(b => {
             const isActive = b.getAttribute('data-tab') === tabName;
@@ -467,18 +544,22 @@ const App = {
             b.setAttribute('aria-selected', isActive);
         });
 
+
         document.querySelectorAll('.tab-content').forEach(t => {
             const isActive = t.id === tabName + '-tab';
             t.classList.toggle('active', isActive);
             t.setAttribute('aria-hidden', !isActive);
         });
 
+
         console.log(`📑 Switched to tab: ${tabName}`);
     },
+
 
     // ===== LOGOUT =====
     logout() {
         console.log('🚪 Logging out...');
+
 
         if (typeof Auth !== 'undefined') {
             Auth.logout();
@@ -491,10 +572,12 @@ const App = {
         }
     },
 
+
     // ===== UI UPDATES =====
     updateUI() {
         const authToggle = document.getElementById('authToggle');
         const userInfo = document.getElementById('userInfo');
+
 
         if (this.token && this.user) {
             if (authToggle) authToggle.style.display = 'none';
@@ -513,6 +596,7 @@ const App = {
         }
     },
 
+
     // ===== UTILITIES =====
     escapeHtml(text) {
         const div = document.createElement('div');
@@ -520,9 +604,11 @@ const App = {
         return div.innerHTML;
     },
 
+
     showStatus(elementId, message, type) {
         const el = document.getElementById(elementId);
         if (!el) return;
+
 
         el.textContent = message;
         el.className = `status-message ${type}`;
@@ -530,15 +616,18 @@ const App = {
         el.setAttribute('role', 'alert');
         el.setAttribute('aria-live', 'polite');
 
+
         if (type !== 'loading') {
             setTimeout(() => el.style.display = 'none', 4000);
         }
     },
 
+
     showError(message) {
         console.error('❌ ' + message);
     }
 };
+
 
 // ===== INITIALIZE ON LOAD =====
 window.addEventListener('load', () => {
@@ -546,12 +635,15 @@ window.addEventListener('load', () => {
     App.init();
 });
 
+
 // ========================================================================
 // 🎮 PLAYER CONTROLS - Button Event Listeners
 // ========================================================================
 
+
 function setupPlayerControls() {
     console.log('🎮 Setting up player controls...');
+
 
     const playBtn = document.getElementById('playerPlayBtn');
     if (playBtn) {
@@ -561,6 +653,7 @@ function setupPlayerControls() {
         });
     }
 
+
     const pauseBtn = document.getElementById('playerPauseBtn');
     if (pauseBtn) {
         pauseBtn.addEventListener('click', () => {
@@ -568,6 +661,7 @@ function setupPlayerControls() {
             window.AudioPlayer?.pause();
         });
     }
+
 
     const stopBtn = document.getElementById('playerStopBtn');
     if (stopBtn) {
@@ -577,6 +671,7 @@ function setupPlayerControls() {
         });
     }
 
+
     const loopBtn = document.getElementById('playerLoopBtn');
     if (loopBtn) {
         loopBtn.addEventListener('click', () => {
@@ -584,6 +679,7 @@ function setupPlayerControls() {
             window.AudioPlayer?.toggleLoop();
         });
     }
+
 
     const muteBtn = document.getElementById('playerMuteBtn');
     if (muteBtn) {
@@ -593,6 +689,7 @@ function setupPlayerControls() {
         });
     }
 
+
     const volumeSlider = document.getElementById('playerVolumeSlider');
     if (volumeSlider) {
         volumeSlider.addEventListener('input', (e) => {
@@ -600,6 +697,7 @@ function setupPlayerControls() {
             window.AudioPlayer?.setVolume(volume);
         });
     }
+
 
     const seekBar = document.getElementById('playerSeekBar');
     if (seekBar) {
@@ -610,6 +708,7 @@ function setupPlayerControls() {
             window.AudioPlayer?.setTime(seconds);
         });
     }
+
 
     const minimizeBtn = document.getElementById('playerMinimize');
     const playerContent = document.getElementById('playerContent');
@@ -622,8 +721,10 @@ function setupPlayerControls() {
         });
     }
 
+
     console.log('✅ Player controls setup complete');
 }
+
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupPlayerControls);
@@ -631,7 +732,9 @@ if (document.readyState === 'loading') {
     setupPlayerControls();
 }
 
+
 // Make global
 window.App = App;
 
-console.log('✅ main.js loaded and ready!');
+
+console.log('✅ main.js v7.2 loaded - Magic Link verification moved to START of init!');

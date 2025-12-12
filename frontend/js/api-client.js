@@ -1,11 +1,14 @@
 "use strict";
 
+
 // ============================================================================
-// 🔌 API CLIENT - Integriert mit universeller config.js
+// 🔌 API CLIENT - Integriert mit universeller config.js (v7.2 UPDATED)
 // ============================================================================
 // Diese Klasse nutzt die zentrale URL-Konfiguration aus config.js
 // Keine hardcodierten URLs mehr!
+// ✅ UPDATED: v7.2 Endpoints für Magic Link + Password Login
 // ============================================================================
+
 
 /**
  * APIClient Klasse für standardisierte API-Calls
@@ -22,6 +25,7 @@ class APIClient {
             return window.songNexusConfig.getApiBaseUrl();
         }
 
+
         // Fallback: Auto-detect wie in config.js
         if (typeof window !== 'undefined') {
             if (window.location.hostname.includes('ngrok')) {
@@ -29,14 +33,16 @@ class APIClient {
             }
         }
 
+
         // Default für Development
         return 'https://localhost:3000/api';
     }
 
+
     /**
      * Haupt-Request-Methode
      * @param {string} method - HTTP-Methode (GET, POST, PUT, DELETE)
-     * @param {string} endpoint - API-Endpoint (z.B. '/auth/login')
+     * @param {string} endpoint - API-Endpoint (z.B. '/auth/webauthn/authenticate-password')
      * @param {object} data - Request Body
      * @param {string} token - JWT-Token (optional)
      * @returns {Promise} Response JSON
@@ -44,6 +50,7 @@ class APIClient {
     static async request(method, endpoint, data = null, token = null) {
         const apiBase = this.getApiBase();
         const url = `${apiBase}${endpoint}`;
+
 
         const options = {
             method,
@@ -53,20 +60,25 @@ class APIClient {
             credentials: 'include', // wichtig für Cookies/Sessions!
         };
 
+
         // Token hinzufügen (oder aus localStorage wenn nicht übergeben)
         const authToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null);
         if (authToken) {
             options.headers.Authorization = `Bearer ${authToken}`;
         }
 
+
         if (data) {
             options.body = JSON.stringify(data);
         }
 
+
         console.log(`📡 API Request: ${method} ${url}`);
+
 
         try {
             const response = await fetch(url, options);
+
 
             // Error Handling
             if (!response.ok) {
@@ -82,10 +94,12 @@ class APIClient {
                 throw error;
             }
 
+
             // Leere Responses (z.B. 204 No Content)
             if (response.status === 204) {
                 return null;
             }
+
 
             return await response.json();
         } catch (err) {
@@ -94,9 +108,11 @@ class APIClient {
         }
     }
 
+
     // ====================================================================
     // 🎯 CONVENIENCE METHODS
     // ====================================================================
+
 
     /**
      * GET request
@@ -105,12 +121,14 @@ class APIClient {
         return this.request('GET', endpoint, null, token);
     }
 
+
     /**
      * POST request
      */
     static post(endpoint, data, token = null) {
         return this.request('POST', endpoint, data, token);
     }
+
 
     /**
      * PUT request
@@ -119,12 +137,14 @@ class APIClient {
         return this.request('PUT', endpoint, data, token);
     }
 
+
     /**
      * PATCH request
      */
     static patch(endpoint, data, token = null) {
         return this.request('PATCH', endpoint, data, token);
     }
+
 
     /**
      * DELETE request
@@ -133,31 +153,35 @@ class APIClient {
         return this.request('DELETE', endpoint, null, token);
     }
 
+
     // ====================================================================
-    // 🔐 AUTHENTICATION METHODS
+    // 🔐 AUTHENTICATION METHODS (v7.2 UPDATED)
     // ====================================================================
 
+
     /**
-     * User-Registrierung
+     * User-Registrierung (Password)
      */
-    static async register(email, password) {
-        const response = await this.post('/auth/register', { email, password });
+    static async register(email, username, password) {
+        const response = await this.post('/auth/webauthn/register-password', { email, username, password });
         if (response.token) {
             this.setToken(response.token);
         }
         return response;
     }
 
+
     /**
-     * User-Login
+     * User-Login (Password) - v7.2 UPDATED ENDPOINT
      */
-    static async login(email, password) {
-        const response = await this.post('/auth/login', { email, password });
+    static async login(username, password) {
+        const response = await this.post('/auth/webauthn/authenticate-password', { username, password });
         if (response.token) {
             this.setToken(response.token);
         }
         return response;
     }
+
 
     /**
      * User-Logout
@@ -170,23 +194,26 @@ class APIClient {
         }
     }
 
-    /**
-     * Magic Link versenden
-     */
-    static async sendMagicLink(email) {
-        return this.post('/auth/send-magic-link', { email });
-    }
 
     /**
-     * Magic Link verifyieren
+     * Magic Link versenden - v7.2 UPDATED ENDPOINT
+     */
+    static async sendMagicLink(email) {
+        return this.post('/auth/webauthn/magic-link-request', { email });
+    }
+
+
+    /**
+     * Magic Link verifizieren - v7.2 UPDATED ENDPOINT
      */
     static async verifyMagicLink(token) {
-        const response = await this.post('/auth/verify-magic-link', { token });
+        const response = await this.post('/auth/webauthn/magic-link-verify', { token });
         if (response.token) {
             this.setToken(response.token);
         }
         return response;
     }
+
 
     /**
      * WebAuthn: Registrierungs-Optionen abrufen
@@ -194,6 +221,7 @@ class APIClient {
     static async getWebAuthnRegisterOptions() {
         return this.get('/auth/webauthn/register-options');
     }
+
 
     /**
      * WebAuthn: Registrierung verifyieren
@@ -206,12 +234,14 @@ class APIClient {
         return response;
     }
 
+
     /**
      * WebAuthn: Authentifizierungs-Optionen abrufen
      */
     static async getWebAuthnAuthenticateOptions(email) {
         return this.post('/auth/webauthn/authenticate-options', { email });
     }
+
 
     /**
      * WebAuthn: Authentifizierung verifyieren
@@ -224,6 +254,7 @@ class APIClient {
         return response;
     }
 
+
     /**
      * Aktuelle User-Info abrufen
      */
@@ -231,9 +262,11 @@ class APIClient {
         return this.get('/auth/me');
     }
 
+
     // ====================================================================
     // 🎵 TRACKS METHODS
     // ====================================================================
+
 
     /**
      * Alle Tracks abrufen
@@ -242,12 +275,14 @@ class APIClient {
         return this.get('/tracks');
     }
 
+
     /**
      * Einen Track abrufen
      */
     static async getTrack(id) {
         return this.get(`/tracks/${id}`);
     }
+
 
     /**
      * Track erstellen (Admin)
@@ -256,12 +291,14 @@ class APIClient {
         return this.post('/admin/tracks', trackData);
     }
 
+
     /**
      * Track aktualisieren (Admin)
      */
     static async updateTrack(id, trackData) {
         return this.put(`/admin/tracks/${id}`, trackData);
     }
+
 
     /**
      * Track löschen (Admin)
@@ -270,6 +307,7 @@ class APIClient {
         return this.delete(`/admin/tracks/${id}`);
     }
 
+
     /**
      * Tracks durchsuchen
      */
@@ -277,9 +315,11 @@ class APIClient {
         return this.get(`/tracks/search?q=${encodeURIComponent(query)}`);
     }
 
+
     // ====================================================================
     // 👤 USERS METHODS
     // ====================================================================
+
 
     /**
      * User-Profil abrufen
@@ -288,12 +328,14 @@ class APIClient {
         return this.get('/users/profile');
     }
 
+
     /**
      * User-Profil aktualisieren
      */
     static async updateUserProfile(data) {
         return this.put('/users/profile', data);
     }
+
 
     /**
      * User abrufen (by ID)
@@ -302,9 +344,11 @@ class APIClient {
         return this.get(`/users/${id}`);
     }
 
+
     // ====================================================================
     // 💳 PAYMENTS METHODS
     // ====================================================================
+
 
     /**
      * PayPal Order erstellen
@@ -313,12 +357,14 @@ class APIClient {
         return this.post('/payments/create-order', { items });
     }
 
+
     /**
      * PayPal Order erfassen (capture)
      */
     static async capturePayPalOrder(orderId) {
         return this.post('/payments/capture-order', { orderId });
     }
+
 
     /**
      * PayPal Order Status abrufen
@@ -327,9 +373,11 @@ class APIClient {
         return this.get(`/payments/order/${orderId}`);
     }
 
+
     // ====================================================================
     // 📊 PLAY HISTORY METHODS
     // ====================================================================
+
 
     /**
      * Play-Event loggen
@@ -338,12 +386,14 @@ class APIClient {
         return this.post('/play-history/log', { trackId, duration });
     }
 
+
     /**
      * Play-History abrufen
      */
     static async getPlayHistory() {
         return this.get('/play-history');
     }
+
 
     /**
      * Play-Statistiken abrufen
@@ -352,9 +402,11 @@ class APIClient {
         return this.get('/play-history/stats');
     }
 
+
     // ====================================================================
     // 🔑 TOKEN MANAGEMENT
     // ====================================================================
+
 
     /**
      * Token speichern
@@ -366,6 +418,7 @@ class APIClient {
         }
     }
 
+
     /**
      * Token abrufen
      */
@@ -375,6 +428,7 @@ class APIClient {
         }
         return null;
     }
+
 
     /**
      * Token löschen
@@ -386,6 +440,7 @@ class APIClient {
         }
     }
 
+
     /**
      * Prüft ob User angemeldet ist
      */
@@ -394,14 +449,20 @@ class APIClient {
     }
 }
 
+
 // ============================================================================
 // 📤 EXPORTS
 // ============================================================================
+
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = APIClient;
 }
 
+
 if (typeof window !== 'undefined') {
     window.APIClient = APIClient;
 }
+
+
+console.log('✅ APIClient v7.2 loaded - Updated endpoints for Magic Link + Password Login');

@@ -341,6 +341,47 @@
     <!-- 🔟 MAIN – Main app controller -->
     <script src="js/main.js"></script>
 
+    <script>
+        // ✅ CRITICAL: Magic Link Handler - MUST RUN FIRST
+        console.log('🔐 Checking current URL:', window.location.pathname);
+
+        if (window.location.pathname === '/auth/magic-link' ||
+            window.location.pathname.includes('auth/magic-link')) {
+
+            console.log('🔐🔐🔐 MAGIC LINK PAGE DETECTED! 🔐🔐🔐');
+
+            // Wait for scripts to load
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', async () => {
+                    console.log('🔐 DOM loaded, calling Auth.verifyMagicLinkFromUrl()...');
+                    if (typeof Auth !== 'undefined') {
+                        try {
+                            const result = await Auth.verifyMagicLinkFromUrl();
+                            console.log('✅ Magic link result:', result);
+                        } catch (err) {
+                            console.error('❌ Magic link verification failed:', err);
+                        }
+                    } else {
+                        console.error('❌ Auth module not loaded yet!');
+                    }
+                });
+            } else {
+                // DOM already loaded
+                setTimeout(async () => {
+                    console.log('🔐 DOM already loaded, calling Auth.verifyMagicLinkFromUrl()...');
+                    if (typeof Auth !== 'undefined') {
+                        try {
+                            const result = await Auth.verifyMagicLinkFromUrl();
+                            console.log('✅ Magic link result:', result);
+                        } catch (err) {
+                            console.error('❌ Magic link verification failed:', err);
+                        }
+                    }
+                }, 500);
+            }
+        }
+    </script>
+
 </body>
 
 </html>

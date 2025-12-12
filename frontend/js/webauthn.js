@@ -1,8 +1,9 @@
 // ============================================================================
-// 🔐 WEBAUTHN - FIREFOX & EDGE FIX
+// 🔐 WEBAUTHN - FIREFOX & EDGE FIX (v7.2 Updated Magic Link Endpoints)
 // ============================================================================
 
 const WebAuthn = {
+
     /**
      * Gibt die WebAuthn API Base URL zurück (dynamisch aus config.js)
      */
@@ -16,6 +17,7 @@ const WebAuthn = {
     // ========================================================================
     // 🔧 HELPER: Base64URL zu ArrayBuffer konvertieren
     // ========================================================================
+
     base64urlToBuffer(base64url) {
         const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
         const padLen = (4 - (base64.length % 4)) % 4;
@@ -31,39 +33,34 @@ const WebAuthn = {
     // ========================================================================
     // 🔧 HELPER: Options konvertieren (Base64URL → ArrayBuffer)
     // ========================================================================
+
     convertRegistrationOptions(options) {
         console.log('🔄 Converting registration options...');
-
         if (options.challenge && typeof options.challenge === 'string') {
-            console.log('   ✅ Converting challenge to ArrayBuffer');
+            console.log('  ✅ Converting challenge to ArrayBuffer');
             options.challenge = this.base64urlToBuffer(options.challenge);
         }
-
         if (options.user && options.user.id && typeof options.user.id === 'string') {
-            console.log('   ✅ Converting user.id to ArrayBuffer');
+            console.log('  ✅ Converting user.id to ArrayBuffer');
             options.user.id = this.base64urlToBuffer(options.user.id);
         }
-
         console.log('✅ Registration options converted successfully');
         return options;
     },
 
     convertAuthenticationOptions(options) {
         console.log('🔄 Converting authentication options...');
-
         if (options.challenge && typeof options.challenge === 'string') {
-            console.log('   ✅ Converting challenge to ArrayBuffer');
+            console.log('  ✅ Converting challenge to ArrayBuffer');
             options.challenge = this.base64urlToBuffer(options.challenge);
         }
-
         if (options.allowCredentials && Array.isArray(options.allowCredentials)) {
-            console.log('   ✅ Converting allowCredentials to ArrayBuffer');
+            console.log('  ✅ Converting allowCredentials to ArrayBuffer');
             options.allowCredentials = options.allowCredentials.map(cred => ({
                 ...cred,
                 id: this.base64urlToBuffer(cred.id)
             }));
         }
-
         console.log('✅ Authentication options converted successfully');
         return options;
     },
@@ -71,6 +68,7 @@ const WebAuthn = {
     // ========================================================================
     // 📝 REGISTER WITH BIOMETRIC (FIREFOX & EDGE FIXED!)
     // ========================================================================
+
     async registerWithBiometric(username, email) {
         const maxRetries = 3;
         let lastError;
@@ -79,18 +77,16 @@ const WebAuthn = {
             try {
                 console.log(`📝 Registration attempt ${attempt}/${maxRetries}...`);
                 console.log('Registering:', email);
-
                 const apiBase = this.getApiBase();
 
                 // 1️⃣ Get options from server
                 console.log('1️⃣ Fetching registration options from server...');
-                console.log(`   URL: ${apiBase}/auth/webauthn/register-options`);
-
+                console.log(`  URL: ${apiBase}/auth/webauthn/register-options`);
                 const optionsRes = await fetch(`${apiBase}/auth/webauthn/register-options`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email }),
-                    credentials: 'include'  // ← FÜGE DAS EIN!
+                    credentials: 'include'  // ← WICHTIG!
                 });
 
                 if (!optionsRes.ok) {
@@ -138,13 +134,11 @@ const WebAuthn = {
                 if (!navigator.credentials) {
                     throw new Error('navigator.credentials not available');
                 }
-
                 if (!window.PublicKeyCredential) {
                     throw new Error('PublicKeyCredential not available');
                 }
 
                 console.log('✅ WebAuthn API available, calling create()...');
-
                 const credential = await navigator.credentials.create({
                     publicKey: cleanOptions
                 });
@@ -152,6 +146,7 @@ const WebAuthn = {
                 if (!credential) {
                     throw new Error('Registration cancelled by user or no authenticator available');
                 }
+
                 console.log('✅ Credential created:', credential);
 
                 // 4️⃣ Send credential to server for verification
@@ -201,26 +196,25 @@ const WebAuthn = {
     // ========================================================================
     // 🔓 AUTHENTICATE WITH BIOMETRIC (FIREFOX & EDGE FIXED!)
     // ========================================================================
+
     async authenticateWithBiometric() {
         const maxRetries = 3;
         let lastError;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                console.log(`🔐 Authentication attempt ${attempt}/${maxRetries}...`);
-                console.log('Starting authentication (NO email needed)...');
-
+                console.log(`🔓 Authentication attempt ${attempt}/${maxRetries}...`);
+                console.log('Starting authentication - NO email needed...');
                 const apiBase = this.getApiBase();
 
                 // 1️⃣ Get authentication options from server
                 console.log('1️⃣ Fetching authentication options from server...');
-                console.log(`   URL: ${apiBase}/auth/webauthn/authenticate-options`);
-
+                console.log(`  URL: ${apiBase}/auth/webauthn/authenticate-options`);
                 const optionsRes = await fetch(`${apiBase}/auth/webauthn/authenticate-options`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({}),
-                    credentials: 'include'  // ← FÜGE DAS EIN!
+                    credentials: 'include'  // ← WICHTIG!
                 });
 
                 if (!optionsRes.ok) {
@@ -244,7 +238,7 @@ const WebAuthn = {
                     timeout: options.timeout,
                     rpId: options.rpId,
                     userVerification: options.userVerification || 'preferred',
-                    allowCredentials: options.allowCredentials || []
+                    allowCredentials: options.allowCredentials || []  // ← DEFAULT EMPTY ARRAY!
                 };
 
                 console.log('✅ Final cleaned options for navigator.credentials.get():', {
@@ -262,7 +256,6 @@ const WebAuthn = {
                 }
 
                 console.log('✅ WebAuthn API available, calling get()...');
-
                 const assertion = await navigator.credentials.get({
                     publicKey: cleanOptions
                 });
@@ -270,6 +263,7 @@ const WebAuthn = {
                 if (!assertion) {
                     throw new Error('Authentication cancelled by user');
                 }
+
                 console.log('✅ Assertion received:', assertion);
 
                 // 4️⃣ Send assertion to server for verification
@@ -317,8 +311,9 @@ const WebAuthn = {
     },
 
     // ========================================================================
-    // 📧 MAGIC LINK LOGIN
+    // 📧 MAGIC LINK LOGIN (v7.2 UPDATED ENDPOINT)
     // ========================================================================
+
     async loginWithMagicLink(email) {
         try {
             console.log('📧 Sending magic link to:', email);
@@ -328,7 +323,8 @@ const WebAuthn = {
             }
 
             const apiBase = this.getApiBase();
-            const res = await fetch(`${apiBase}/auth/send-magic-link`, {
+            // ✅ UPDATED: v7.2 endpoint
+            const res = await fetch(`${apiBase}/auth/webauthn/magic-link-request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
@@ -337,7 +333,7 @@ const WebAuthn = {
 
             if (!res.ok) {
                 const error = await res.json().catch(() => ({}));
-                throw new Error(`Failed to send magic link: ${error.error || 'Unknown error'}`);
+                throw new Error(error.error || 'Failed to send magic link');
             }
 
             const result = await res.json();
@@ -351,8 +347,9 @@ const WebAuthn = {
     },
 
     // ========================================================================
-    // 🔗 VERIFY MAGIC LINK
+    // 🔗 VERIFY MAGIC LINK (v7.2 UPDATED ENDPOINT)
     // ========================================================================
+
     async verifyMagicLink(token) {
         try {
             console.log('🔐 Verifying magic link...');
@@ -362,7 +359,8 @@ const WebAuthn = {
             }
 
             const apiBase = this.getApiBase();
-            const res = await fetch(`${apiBase}/auth/verify-magic-link`, {
+            // ✅ UPDATED: v7.2 endpoint
+            const res = await fetch(`${apiBase}/auth/webauthn/magic-link-verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token }),
@@ -393,12 +391,12 @@ const WebAuthn = {
     // ========================================================================
     // 🧪 DEV LOGIN
     // ========================================================================
+
     async devLogin() {
         try {
             console.log('🧪 Dev login...');
-
             const apiBase = this.getApiBase();
-            console.log(`   URL: ${apiBase}/auth/dev-login`);
+            console.log(`  URL: ${apiBase}/auth/dev-login`);
 
             const response = await fetch(`${apiBase}/auth/dev-login`, {
                 method: 'POST',
@@ -414,7 +412,7 @@ const WebAuthn = {
             const result = await response.json();
             console.log('✅ Dev login result:', result);
 
-            if (result.success || result.token) {
+            if (result.success && result.token) {
                 if (typeof APIClient !== 'undefined') {
                     APIClient.setToken(result.token);
                     console.log('✅ Token stored via APIClient');
@@ -425,8 +423,10 @@ const WebAuthn = {
                 if (typeof updateUI === 'function') {
                     window.updateUI();
                 }
-                return result;
             }
+
+            return result;
+
         } catch (err) {
             console.error('❌ Dev login error:', err);
             throw err;
@@ -436,6 +436,7 @@ const WebAuthn = {
     // ========================================================================
     // 🔧 HELPER: Credential zu JSON
     // ========================================================================
+
     credentialToJSON(credential) {
         return {
             id: credential.id,
@@ -443,7 +444,7 @@ const WebAuthn = {
             type: credential.type,
             response: {
                 clientDataJSON: this.base64url(credential.response.clientDataJSON),
-                attestationObject: this.base64url(credential.response.attestationObject),
+                attestationObject: this.base64url(credential.response.attestationObject)
             }
         };
     },
@@ -451,6 +452,7 @@ const WebAuthn = {
     // ========================================================================
     // 🔧 HELPER: Assertion zu JSON
     // ========================================================================
+
     assertionToJSON(assertion) {
         return {
             id: assertion.id,
@@ -460,7 +462,7 @@ const WebAuthn = {
                 clientDataJSON: this.base64url(assertion.response.clientDataJSON),
                 authenticatorData: this.base64url(assertion.response.authenticatorData),
                 signature: this.base64url(assertion.response.signature),
-                userHandle: assertion.response.userHandle ? this.base64url(assertion.response.userHandle) : null,
+                userHandle: assertion.response.userHandle ? this.base64url(assertion.response.userHandle) : null
             }
         };
     },
@@ -468,16 +470,18 @@ const WebAuthn = {
     // ========================================================================
     // 🔧 HELPER: ArrayBuffer zu Base64URL
     // ========================================================================
+
     base64url(buffer) {
         const bytes = new Uint8Array(buffer);
         let binary = '';
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
-        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     }
 };
 
-console.log('✅ WebAuthn loaded with FIREFOX & EDGE FIX - publicKey wrapper added');
+console.log('✅ WebAuthn loaded with FIREFOX + EDGE FIX - v7.2 Magic Link endpoints');
 
+// Global reference
 window.WebAuthn = WebAuthn;
