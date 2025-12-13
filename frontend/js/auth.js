@@ -2,12 +2,15 @@
 // 🔐 AUTH MODULE - Authentication UI & Management (v7.2 FIXED)
 // ✅ UPDATED: Mit Doppel-Klick Schutz + WebAuthn Debug + v7.2 Endpoints
 // ✅ FIXED: Magic Link Verification mit besserer Timeout-Handling
+// ✅ NEW: Manual Magic Link Token Verification (v7.3)
 // ============================================================================
+
 
 
 
 const Auth = {
     isProcessing: false,  // ✅ NEW: Prevent double-clicks
+
 
 
 
@@ -23,9 +26,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 🔑 TOKEN & USER MANAGEMENT
     // ========================================================================
+
 
 
 
@@ -41,9 +46,11 @@ const Auth = {
 
 
 
+
     getToken() {
         return localStorage.getItem('auth_token');
     },
+
 
 
 
@@ -51,6 +58,7 @@ const Auth = {
         localStorage.removeItem('auth_token');
         console.log('✅ Auth token cleared');
     },
+
 
 
 
@@ -66,6 +74,7 @@ const Auth = {
 
 
 
+
     getUser() {
         const user = localStorage.getItem('user');
         return user ? JSON.parse(user) : null;
@@ -73,9 +82,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 📝 REGISTRATION (PASSWORD)
     // ========================================================================
+
 
 
 
@@ -87,10 +98,12 @@ const Auth = {
 
 
 
+
         if (!email || !username || !password) {
             console.warn('⚠️ Missing registration fields');
             return;
         }
+
 
 
 
@@ -99,9 +112,11 @@ const Auth = {
 
 
 
+
             if (typeof APIClient !== 'undefined') {
                 const result = await APIClient.register(email, username, password);
                 console.log('✅ Registration successful!', result);
+
 
 
 
@@ -113,9 +128,11 @@ const Auth = {
                 }
 
 
+
                 setTimeout(() => location.reload(), 1500);
                 return;
             }
+
 
 
 
@@ -130,10 +147,12 @@ const Auth = {
 
 
 
+
             if (!res.ok) {
                 const error = await res.json();
                 throw new Error(error.error || 'Registration failed');
             }
+
 
 
 
@@ -144,7 +163,9 @@ const Auth = {
 
 
 
+
             setTimeout(() => location.reload(), 1500);
+
 
 
 
@@ -156,9 +177,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 🔓 LOGIN (PASSWORD)
     // ========================================================================
+
 
 
 
@@ -169,10 +192,12 @@ const Auth = {
 
 
 
+
         if (!username || !password) {
             console.warn('⚠️ Missing login fields');
             return;
         }
+
 
 
 
@@ -181,9 +206,11 @@ const Auth = {
 
 
 
+
             if (typeof APIClient !== 'undefined') {
                 const result = await APIClient.login(username, password);
                 console.log('✅ Login successful!', result);
+
 
 
 
@@ -195,9 +222,11 @@ const Auth = {
                 }
 
 
+
                 setTimeout(() => location.reload(), 1500);
                 return;
             }
+
 
 
 
@@ -212,10 +241,12 @@ const Auth = {
 
 
 
+
             if (!res.ok) {
                 const error = await res.json();
                 throw new Error(error.error || 'Login failed');
             }
+
 
 
 
@@ -226,7 +257,9 @@ const Auth = {
 
 
 
+
             setTimeout(() => location.reload(), 1500);
+
 
 
 
@@ -238,14 +271,17 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 📧 MAGIC LINK LOGIN
     // ========================================================================
 
 
 
+
     async loginWithMagicLink(event) {
         if (event) event.preventDefault();
+
 
 
 
@@ -257,8 +293,10 @@ const Auth = {
 
 
 
+
         try {
             console.log('📧 Sending magic link to:', email);
+
 
 
 
@@ -274,6 +312,7 @@ const Auth = {
 
 
 
+
             if (typeof APIClient !== 'undefined') {
                 const result = await APIClient.sendMagicLink(email);
                 console.log('✅ Magic link sent!');
@@ -283,6 +322,7 @@ const Auth = {
                 }
                 return;
             }
+
 
 
 
@@ -297,7 +337,9 @@ const Auth = {
 
 
 
+
             if (!res.ok) throw new Error('Failed to send magic link');
+
 
 
 
@@ -306,6 +348,7 @@ const Auth = {
             if (magicStatus) {
                 magicStatus.textContent = '✅ Check your email for the magic link!';
             }
+
 
 
 
@@ -320,9 +363,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 🔗 VERIFY MAGIC LINK (from URL) - ✅ FIXED VERSION
     // ========================================================================
+
 
 
 
@@ -333,6 +378,7 @@ const Auth = {
 
 
 
+
             if (!token) {
                 console.log('ℹ️ No magic link token in URL');
                 return null;
@@ -340,7 +386,9 @@ const Auth = {
 
 
 
+
             console.log('🔐 Verifying magic link token...');
+
 
 
 
@@ -350,6 +398,7 @@ const Auth = {
 
 
 
+
                 if (result.token) {
                     this.setToken(result.token);
                     console.log('✅ Token saved to localStorage');
@@ -361,14 +410,17 @@ const Auth = {
 
 
 
+
                 // ✅ Clean URL BEFORE reload
                 window.history.replaceState({}, document.title, url.pathname);
+
 
                 // ✅ Give storage time to sync + wait 1.5s before reload
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 location.reload();
                 return result;
             }
+
 
 
 
@@ -378,6 +430,7 @@ const Auth = {
 
 
 
+
                 if (result.user) {
                     this.setUser(result.user);
                     console.log('✅ User saved to localStorage');
@@ -388,14 +441,17 @@ const Auth = {
                 }
 
 
+
                 // ✅ Clean URL BEFORE reload
                 window.history.replaceState({}, document.title, url.pathname);
+
 
                 // ✅ Give storage time to sync + wait 1.5s before reload
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 location.reload();
                 return result;
             }
+
 
 
 
@@ -410,6 +466,7 @@ const Auth = {
 
 
 
+
             if (!res.ok) {
                 const error = await res.json();
                 throw new Error(error.error || 'Magic link verification failed');
@@ -417,8 +474,10 @@ const Auth = {
 
 
 
+
             const result = await res.json();
             console.log('✅ Magic link verified!', result);
+
 
 
 
@@ -433,13 +492,16 @@ const Auth = {
 
 
 
+
             // ✅ Clean URL BEFORE reload
             window.history.replaceState({}, document.title, url.pathname);
+
 
             // ✅ Give storage time to sync + wait 1.5s before reload
             await new Promise(resolve => setTimeout(resolve, 1500));
             location.reload();
             return result;
+
 
 
 
@@ -449,8 +511,126 @@ const Auth = {
 
 
 
+
         return null;
     },
+
+
+
+
+    // ========================================================================
+    // 🔐 VERIFY MAGIC LINK (MANUAL TOKEN) - ✅ NEW v7.3
+    // ========================================================================
+
+
+
+
+    async verifyMagicLink(token) {
+        try {
+            console.log('🔐 Verifying magic link with token:', token.substring(0, 10) + '...');
+
+
+
+
+            if (typeof WebAuthn !== 'undefined') {
+                const result = await WebAuthn.verifyMagicLink(token);
+                console.log('✅ Magic link verified!', result);
+
+
+
+
+                if (result.token) {
+                    this.setToken(result.token);
+                    console.log('✅ Token saved to localStorage');
+                }
+                if (result.user) {
+                    this.setUser(result.user);
+                    console.log('✅ User saved to localStorage');
+                }
+
+
+
+
+                return result;
+            }
+
+
+
+
+            if (typeof APIClient !== 'undefined') {
+                const result = await APIClient.verifyMagicLink(token);
+                console.log('✅ Magic link verified!', result);
+
+
+
+
+                if (result.token) {
+                    this.setToken(result.token);
+                    console.log('✅ Token saved to localStorage');
+                }
+                if (result.user) {
+                    this.setUser(result.user);
+                    console.log('✅ User saved to localStorage');
+                }
+
+
+
+
+                return result;
+            }
+
+
+
+
+            // ✅ UPDATED: v7.2 endpoint
+            const apiBase = this.getApiBase();
+            const res = await fetch(`${apiBase}/auth/webauthn/magic-link-verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token }),
+                credentials: 'include'
+            });
+
+
+
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || 'Magic link verification failed');
+            }
+
+
+
+
+            const result = await res.json();
+            console.log('✅ Magic link verified!', result);
+
+
+
+
+            if (result.token) {
+                this.setToken(result.token);
+                console.log('✅ Token saved to localStorage');
+            }
+            if (result.user) {
+                this.setUser(result.user);
+                console.log('✅ User saved to localStorage');
+            }
+
+
+
+
+            return result;
+
+
+
+
+        } catch (error) {
+            console.error('❌ Magic link verification error:', error.message);
+            throw error;
+        }
+    },
+
 
 
 
@@ -460,8 +640,10 @@ const Auth = {
 
 
 
+
     async registerWithWebAuthn(event) {
         if (event) event.preventDefault();
+
 
 
 
@@ -473,8 +655,10 @@ const Auth = {
 
 
 
+
         const username = document.getElementById('bioRegUsername')?.value;
         const email = document.getElementById('bioRegEmail')?.value;
+
 
 
 
@@ -486,6 +670,7 @@ const Auth = {
             }
             return;
         }
+
 
 
 
@@ -501,9 +686,11 @@ const Auth = {
 
 
 
+
             if (typeof WebAuthn === 'undefined') {
                 throw new Error('WebAuthn module not loaded');
             }
+
 
 
 
@@ -516,8 +703,10 @@ const Auth = {
 
 
 
+
             const result = await WebAuthn.registerWithBiometric(username, email);
             console.log('✅ WebAuthn registration successful!', result);
+
 
 
 
@@ -530,10 +719,12 @@ const Auth = {
 
 
 
+
             if (bioStatus) {
                 bioStatus.textContent = '✅ Registrierung erfolgreich!';
             }
             setTimeout(() => location.reload(), 1500);
+
 
 
 
@@ -550,9 +741,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 🔐 WEBAUTHN AUTHENTICATION (FIXED WITH GUARD)
     // ========================================================================
+
 
 
 
@@ -561,11 +754,13 @@ const Auth = {
 
 
 
+
         // ✅ NEW: Double-click protection
         if (this.isProcessing) {
             console.warn('⚠️ WebAuthn already processing...');
             return;
         }
+
 
 
 
@@ -581,9 +776,11 @@ const Auth = {
 
 
 
+
             if (typeof WebAuthn === 'undefined') {
                 throw new Error('WebAuthn module not loaded');
             }
+
 
 
 
@@ -596,8 +793,10 @@ const Auth = {
 
 
 
+
             const result = await WebAuthn.authenticateWithBiometric();
             console.log('✅ WebAuthn authentication successful!', result);
+
 
 
 
@@ -610,10 +809,12 @@ const Auth = {
 
 
 
+
             if (bioStatus) {
                 bioStatus.textContent = '✅ Authentifizierung erfolgreich!';
             }
             setTimeout(() => location.reload(), 1500);
+
 
 
 
@@ -630,9 +831,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 🧪 DEV LOGIN
     // ========================================================================
+
 
 
 
@@ -641,8 +844,10 @@ const Auth = {
 
 
 
+
         try {
             console.log('🧪 Dev login...');
+
 
 
 
@@ -660,6 +865,7 @@ const Auth = {
 
 
 
+
             const apiBase = this.getApiBase();
             const res = await fetch(`${apiBase}/auth/dev-login`, {
                 method: 'POST',
@@ -669,7 +875,9 @@ const Auth = {
 
 
 
+
             if (!res.ok) throw new Error('Dev login failed');
+
 
 
 
@@ -683,8 +891,10 @@ const Auth = {
 
 
 
+
             console.log('✅ Dev login successful!');
             setTimeout(() => location.reload(), 1500);
+
 
 
 
@@ -696,9 +906,11 @@ const Auth = {
 
 
 
+
     // ========================================================================
     // 🚪 LOGOUT
     // ========================================================================
+
 
 
 
@@ -707,8 +919,10 @@ const Auth = {
 
 
 
+
         this.clearToken();
         this.setUser(null);
+
 
 
 
@@ -718,15 +932,18 @@ const Auth = {
 
 
 
+
         console.log('✅ Logged out');
         location.href = '/';
     },
 
 
 
+
     // ========================================================================
     // 👤 GET CURRENT USER
     // ========================================================================
+
 
 
 
@@ -740,9 +957,11 @@ const Auth = {
 
 
 
+
             const apiBase = this.getApiBase();
             const token = this.getToken();
             if (!token) return null;
+
 
 
 
@@ -753,6 +972,7 @@ const Auth = {
 
 
 
+
             if (!res.ok) {
                 this.clearToken();
                 return null;
@@ -760,9 +980,11 @@ const Auth = {
 
 
 
+
             const user = await res.json();
             this.setUser(user);
             return user;
+
 
 
 
@@ -775,14 +997,17 @@ const Auth = {
 
 
 
+
 // ============================================================================
 // 🔌 EVENT LISTENERS - SETUP UI HANDLERS
 // ============================================================================
 
 
 
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🔌 Setting up Auth event listeners...');
+
 
 
 
@@ -794,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
         passwordForm.addEventListener('submit', (e) => Auth.login(e));
         console.log('✅ Password login form listener attached');
     }
+
 
 
 
@@ -809,6 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         console.log('✅ WebAuthn login button listener attached');
     }
+
 
 
 
@@ -830,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
     // ========================================================================
     // 👆 WEBAUTHN - REGISTRATION BUTTON
     // ========================================================================
@@ -842,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         console.log('✅ WebAuthn register button listener attached');
     }
+
 
 
 
@@ -860,6 +1089,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+    // ========================================================================
+    // 🔐 MAGIC LINK VERIFY BUTTON (Manual Token Input) - ✅ NEW v7.3
+    // ========================================================================
+    const magicVerifyBtn = document.getElementById('magicVerifyBtn');
+    if (magicVerifyBtn) {
+        magicVerifyBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log('🔐 Manual magic link verify button clicked');
+
+            const token = document.getElementById('magicToken')?.value;
+            if (!token) {
+                console.warn('⚠️ No token provided');
+                const magicVerifyStatus = document.getElementById('magicVerifyStatus');
+                if (magicVerifyStatus) {
+                    magicVerifyStatus.textContent = '❌ Bitte gib einen Token ein';
+                }
+                return;
+            }
+
+            try {
+                const magicVerifyStatus = document.getElementById('magicVerifyStatus');
+                if (magicVerifyStatus) {
+                    magicVerifyStatus.textContent = '⏳ Token wird verifiziert...';
+                }
+
+                const result = await Auth.verifyMagicLink(token);
+                console.log('✅ Magic link verified!', result);
+
+                if (result.token) {
+                    Auth.setToken(result.token);
+                    console.log('✅ Token saved');
+                }
+                if (result.user) {
+                    Auth.setUser(result.user);
+                    console.log('✅ User saved');
+                }
+
+                if (magicVerifyStatus) {
+                    magicVerifyStatus.textContent = '✅ Erfolgreich angemeldet! Seite wird neu geladen...';
+                }
+
+                // Clean URL + reload
+                window.history.replaceState({}, document.title, '/');
+                setTimeout(() => location.reload(), 1500);
+
+            } catch (error) {
+                console.error('❌ Magic link verification error:', error.message);
+                const magicVerifyStatus = document.getElementById('magicVerifyStatus');
+                if (magicVerifyStatus) {
+                    magicVerifyStatus.textContent = `❌ ${error.message}`;
+                }
+            }
+        });
+        console.log('✅ Magic link verify button listener attached');
+    }
+
+
+
+
     // ========================================================================
     // 🧪 DEV LOGIN (if element exists)
     // ========================================================================
@@ -869,14 +1158,139 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('✅ Dev login button listener attached');
     }
 
+    // ========================================================================
+    // 🔑 PASSWORD REGISTRATION - TOGGLE FORM
+    // ========================================================================
+    const togglePasswordRegisterBtn = document.getElementById('togglePasswordRegisterBtn');
+    if (togglePasswordRegisterBtn) {
+        togglePasswordRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('📝 Toggle password registration form');
+            const loginForm = document.getElementById('passwordLoginForm');
+            const registerForm = document.getElementById('passwordRegisterForm');
+            if (loginForm && registerForm) {
+                loginForm.style.display = loginForm.style.display === 'none' ? 'block' : 'none';
+                registerForm.style.display = registerForm.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+        console.log('✅ Password registration toggle listener attached');
+    }
 
+    // ========================================================================
+    // 🔑 PASSWORD REGISTRATION - CANCEL BUTTON
+    // ========================================================================
+    const cancelPasswordRegisterBtn = document.getElementById('cancelPasswordRegisterBtn');
+    if (cancelPasswordRegisterBtn) {
+        cancelPasswordRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('❌ Cancel password registration');
+            const loginForm = document.getElementById('passwordLoginForm');
+            const registerForm = document.getElementById('passwordRegisterForm');
+            if (loginForm && registerForm) {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+            }
+        });
+        console.log('✅ Password registration cancel listener attached');
+    }
+
+    // ========================================================================
+    // 🔑 PASSWORD REGISTRATION - FORM SUBMIT
+    // ========================================================================
+    const passwordRegisterForm = document.getElementById('passwordRegisterFormElement');
+    if (passwordRegisterForm) {
+        passwordRegisterForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('📝 Password registration form submitted');
+
+            const username = document.getElementById('regUsername')?.value;
+            const email = document.getElementById('regEmail')?.value;
+            const password = document.getElementById('regPassword')?.value;
+            const passwordConfirm = document.getElementById('regPasswordConfirm')?.value;
+
+            if (!username || !email || !password || !passwordConfirm) {
+                console.warn('⚠️ Missing registration fields');
+                const registerStatus = document.getElementById('registerStatus');
+                if (registerStatus) {
+                    registerStatus.textContent = '❌ Bitte alle Felder ausfüllen';
+                }
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                console.warn('⚠️ Passwords do not match');
+                const registerStatus = document.getElementById('registerStatus');
+                if (registerStatus) {
+                    registerStatus.textContent = '❌ Passwörter stimmen nicht überein';
+                }
+                return;
+            }
+
+            if (password.length < 8) {
+                console.warn('⚠️ Password too short');
+                const registerStatus = document.getElementById('registerStatus');
+                if (registerStatus) {
+                    registerStatus.textContent = '❌ Passwort muss mindestens 8 Zeichen lang sein';
+                }
+                return;
+            }
+
+            try {
+                console.log('📝 Registering with password:', email);
+                const registerStatus = document.getElementById('registerStatus');
+                if (registerStatus) {
+                    registerStatus.textContent = '⏳ Registrierung wird durchgeführt...';
+                }
+
+                const apiBase = Auth.getApiBase();
+                const res = await fetch(`${apiBase}/auth/webauthn/register-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password }),
+                    credentials: 'include'
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Registrierung fehlgeschlagen');
+                }
+
+                const result = await res.json();
+                console.log('✅ Registration successful!', result);
+
+                if (result.token) {
+                    Auth.setToken(result.token);
+                }
+                if (result.user) {
+                    Auth.setUser(result.user);
+                }
+
+                if (registerStatus) {
+                    registerStatus.textContent = '✅ Registrierung erfolgreich! Seite wird neu geladen...';
+                }
+
+                passwordRegisterForm.reset();
+                setTimeout(() => location.reload(), 1500);
+
+            } catch (error) {
+                console.error('❌ Registration error:', error.message);
+                const registerStatus = document.getElementById('registerStatus');
+                if (registerStatus) {
+                    registerStatus.textContent = `❌ ${error.message}`;
+                }
+            }
+        });
+        console.log('✅ Password registration form listener attached');
+    }
 
     console.log('✅ All Auth event listeners attached!');
 });
 
 
 
-console.log('✅ Auth v7.2 loaded - Updated endpoints + APIClient support + WebAuthn Guards + Fixed Magic Link');
+
+console.log('✅ Auth v7.3 loaded - Updated endpoints + APIClient support + WebAuthn Guards + Fixed Magic Link + Manual Verify');
+
 
 
 
