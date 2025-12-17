@@ -1,523 +1,240 @@
-"use strict";
-
 // ============================================================================
-// 🎨 UI UTILITIES – Central UI Management
-// ✅ UPDATED: Full integration with Auth + Tracks + Theme + A11y
+// 🎨 UI.JS v8.0 - ES6 MODULE
+// UI Helpers + DOM Management + Theme Toggle + Accessibility
 // ============================================================================
 
-const UI = {
-    /**
-     * Initialize UI module
-     */
+import { Auth } from './auth.js';
+
+export const UI = {
     init() {
         console.log('🎨 UI module initializing...');
-        this.initTheme();
-        this.setupThemeToggle();
+        this.setupTheme();
+        this.setupAccessibility();
         console.log('✅ UI module initialized');
     },
 
-    // ========================================================================
-    // 🌙 THEME MANAGEMENT
-    // ========================================================================
+    setupTheme() {
+        const themeToggle = document.getElementById('themeToggle');
+        if (!themeToggle) return;
 
-    /**
-     * Initialize theme from localStorage or system preference
-     */
-    initTheme() {
-        const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
+        themeToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+
+            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-color-scheme', next);
+            localStorage.setItem('theme', next);
+
+            this.updateThemeButton(next);
+            console.log(`🎨 Theme switched to: ${next}`);
+        });
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
         document.documentElement.setAttribute('data-color-scheme', savedTheme);
         this.updateThemeButton(savedTheme);
-        console.log(`🎨 Theme initialized: ${savedTheme}`);
     },
 
-    /**
-     * Setup theme toggle button
-     */
-    setupThemeToggle() {
-        const themeToggle = document.querySelector('.theme-toggle') || document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => this.toggleTheme());
-            themeToggle.setAttribute('title', 'Toggle dark/light mode');
-        }
-    },
-
-    /**
-     * Toggle between dark and light theme
-     */
-    toggleTheme() {
-        const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme') || 'dark';
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-
-        html.setAttribute('data-theme', newTheme);
-        html.setAttribute('data-color-scheme', newTheme);
-        localStorage.setItem('nexus-theme', newTheme);
-
-        this.updateThemeButton(newTheme);
-        console.log(`🎨 Theme switched to: ${newTheme}`);
-    },
-
-    /**
-     * Update theme toggle button appearance
-     */
     updateThemeButton(theme) {
-        const btn = document.querySelector('.theme-toggle') || document.getElementById('themeToggle');
+        const btn = document.getElementById('themeToggle');
         if (btn) {
-            btn.textContent = theme === 'light' ? '🌙' : '☀️';
+            btn.textContent = theme === 'dark' ? '☀️' : '🌙';
             btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     },
 
-    // ========================================================================
-    // 📊 STATUS MESSAGES
-    // ========================================================================
+    setupAccessibility() {
+        // Tab navigation
+        const tabs = document.querySelectorAll('[role="tab"]');
+        if (tabs.length > 0) {
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('keydown', (e) => {
+                    let newIndex = index;
 
-    /**
-     * Show status message
-     * @param {string} elementId - ID of status element
-     * @param {string} message - Message text
-     * @param {string} type - 'success', 'error', 'info', 'loading'
-     */
-    showStatus(elementId, message, type = 'info') {
-        try {
-            const el = document.getElementById(elementId);
-            if (el) {
-                el.textContent = message;
-                el.className = `status-message ${type}`;
-                el.style.display = 'block';
-                el.setAttribute('role', 'alert');
-                el.setAttribute('aria-live', 'polite');
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        newIndex = (index + 1) % tabs.length;
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        newIndex = (index - 1 + tabs.length) % tabs.length;
+                    } else if (e.key === 'Home') {
+                        e.preventDefault();
+                        newIndex = 0;
+                    } else if (e.key === 'End') {
+                        e.preventDefault();
+                        newIndex = tabs.length - 1;
+                    } else {
+                        return;
+                    }
 
-                if (type !== 'loading') {
-                    setTimeout(() => {
-                        el.style.display = 'none';
-                    }, 4000);
+                    tabs[newIndex].focus();
+                    tabs[newIndex].click();
+                    console.log(`⌨️ Tab navigation: ${newIndex}`);
+                });
+            });
+        }
+
+        // Modal escape key
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && authModal.style.display !== 'none') {
+                    console.log('⌨️ ESC pressed - closing modal');
+                    this.toggleModal(authModal);
+                    const authToggle = document.getElementById('authToggle');
+                    if (authToggle) authToggle.focus();
                 }
-            } else {
-                console.log(`[${type.toUpperCase()}] ${message}`);
+            });
+        }
+
+        console.log('✅ Accessibility features enabled');
+    },
+
+    toggleModal(modal) {
+        if (!modal) return;
+
+        const isHidden = modal.style.display === 'none';
+        modal.style.display = isHidden ? 'flex' : 'none';
+        modal.setAttribute('aria-hidden', !isHidden);
+
+        if (isHidden) {
+            const firstFocusable = modal.querySelector('button, input, a');
+            if (firstFocusable) firstFocusable.focus();
+        }
+
+        console.log(`${isHidden ? '📖 Modal opened' : '🔐 Modal closed'}`);
+    },
+
+    updateAuthUI() {
+        const token = Auth.getToken();
+        const user = Auth.getUser();
+
+        const authToggle = document.getElementById('authToggle');
+        const userInfo = document.getElementById('userInfo');
+
+        if (token && user) {
+            if (authToggle) authToggle.style.display = 'none';
+            if (userInfo) {
+                userInfo.style.display = 'flex';
+                const userDisplay = document.getElementById('userDisplay');
+                if (userDisplay) {
+                    userDisplay.textContent = `👤 ${user.username || user.email}`;
+                }
             }
-        } catch (err) {
-            console.warn('⚠️ Status display error:', err);
+            console.log(`👤 User logged in: ${user.email}`);
+        } else {
+            if (authToggle) authToggle.style.display = 'inline-block';
+            if (userInfo) userInfo.style.display = 'none';
+            console.log('👤 User logged out');
         }
     },
 
-    /**
-     * Show toast notification
-     */
-    showToast(message, type = 'info', duration = 3000) {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        toast.setAttribute('role', 'status');
-        toast.setAttribute('aria-live', 'polite');
+    showNotification(message, type = 'info', duration = 3000) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification--${type}`;
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'polite');
+        notification.textContent = message;
+        notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 16px 20px;
+      border-radius: 8px;
+      background: ${type === 'error' ? '#c01530' : '#00cc77'};
+      color: white;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s ease;
+    `;
 
-        document.body.appendChild(toast);
+        document.body.appendChild(notification);
 
         setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 300);
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
         }, duration);
     },
 
-    // ========================================================================
-    // 🗂️ TAB MANAGEMENT
-    // ========================================================================
-
-    /**
-     * Switch between tabs
-     * @param {string} tabName - Tab ID to activate
-     */
-    switchTab(tabName) {
-        try {
-            // Deactivate all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-                tab.setAttribute('aria-hidden', 'true');
-            });
-
-            // Deactivate all buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-                btn.setAttribute('aria-selected', 'false');
-            });
-
-            // Activate selected tab
-            const tabEl = document.getElementById(tabName + '-tab') || document.getElementById(tabName);
-            if (tabEl) {
-                tabEl.classList.add('active');
-                tabEl.setAttribute('aria-hidden', 'false');
-            }
-
-            // Activate selected button
-            const btnEl = document.querySelector(`[data-tab="${tabName}"]`);
-            if (btnEl) {
-                btnEl.classList.add('active');
-                btnEl.setAttribute('aria-selected', 'true');
-                btnEl.focus();
-            }
-
-            console.log(`📑 Switched to tab: ${tabName}`);
-
-        } catch (err) {
-            console.warn('⚠️ Tab switch error:', err);
-        }
+    showError(message, duration = 3000) {
+        this.showNotification(`❌ ${message}`, 'error', duration);
     },
 
-    // ========================================================================
-    // 🔐 AUTH SECTION MANAGEMENT
-    // ========================================================================
-
-    /**
-     * Show/hide auth section
-     */
-    toggleAuthSection(show) {
-        const el = document.getElementById('authSection');
-        if (el) {
-            el.classList.toggle('active', show !== undefined ? show : !el.classList.contains('active'));
-        }
+    showSuccess(message, duration = 3000) {
+        this.showNotification(`✅ ${message}`, 'success', duration);
     },
 
-    /**
-     * Show/hide user section
-     */
-    toggleUserSection(show) {
-        const el = document.getElementById('userSection');
-        if (el) {
-            el.classList.toggle('active', show !== undefined ? show : !el.classList.contains('active'));
-        }
+    showLoading(message = 'Loading...') {
+        this.showNotification(`⏳ ${message}`, 'info', 10000);
     },
 
-    /**
-     * Update user card display
-     */
-    updateUserCard(username, email, totalPlays = 0, totalSpent = 0) {
-        try {
-            const usernameEl = document.getElementById('displayUsername');
-            const emailEl = document.getElementById('displayEmail');
-            const playsEl = document.getElementById('totalPlays');
-            const spentEl = document.getElementById('totalSpent');
+    switchTab(tabName, event) {
+        if (event) event.preventDefault();
 
-            if (usernameEl) usernameEl.textContent = username || '-';
-            if (emailEl) emailEl.textContent = email || '-';
-            if (playsEl) playsEl.textContent = totalPlays || '0';
-            if (spentEl) spentEl.textContent = '€' + (parseFloat(totalSpent) || 0).toFixed(2);
-
-            console.log('👤 User card updated:', { username, email, totalPlays, totalSpent });
-
-        } catch (err) {
-            console.warn('⚠️ Update user card error:', err);
-        }
-    },
-
-    // ========================================================================
-    // 📍 TRACK BROWSER SECTION
-    // ========================================================================
-
-    /**
-     * Show/hide track browser
-     */
-    toggleTrackBrowser(show) {
-        const el = document.getElementById('trackBrowserSection');
-        if (el) {
-            el.style.display = (show !== undefined ? show : !el.style.display) ? 'block' : 'none';
-        }
-    },
-
-    // ========================================================================
-    // 🔲 MODAL MANAGEMENT
-    // ========================================================================
-
-    /**
-     * Open modal
-     */
-    openModal(modalId) {
-        try {
-            const el = document.getElementById(modalId);
-            if (el) {
-                el.classList.add('active');
-                el.style.display = 'flex';
-                el.setAttribute('aria-hidden', 'false');
-
-                // Focus first focusable element
-                const firstFocusable = el.querySelector('button, input, a');
-                if (firstFocusable) {
-                    setTimeout(() => firstFocusable.focus(), 100);
-                }
-
-                console.log(`🔓 Modal opened: ${modalId}`);
-            }
-        } catch (err) {
-            console.warn('⚠️ Open modal error:', err);
-        }
-    },
-
-    /**
-     * Close modal
-     */
-    closeModal(modalId) {
-        try {
-            const el = document.getElementById(modalId);
-            if (el) {
-                el.classList.remove('active');
-                el.style.display = 'none';
-                el.setAttribute('aria-hidden', 'true');
-                console.log(`🔒 Modal closed: ${modalId}`);
-            }
-        } catch (err) {
-            console.warn('⚠️ Close modal error:', err);
-        }
-    },
-
-    /**
-     * Toggle modal visibility
-     */
-    toggleModal(modalId) {
-        const el = document.getElementById(modalId);
-        if (el && el.classList.contains('active')) {
-            this.closeModal(modalId);
-        } else {
-            this.openModal(modalId);
-        }
-    },
-
-    /**
-     * Setup modal close on ESC key
-     */
-    setupModalKeyboard(modalId) {
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeModal(modalId);
-            }
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            const isActive = b.getAttribute('data-tab') === tabName;
+            b.classList.toggle('active', isActive);
+            b.setAttribute('aria-selected', isActive);
         });
+
+        document.querySelectorAll('.tab-content').forEach(t => {
+            const isActive = t.id === tabName + '-tab';
+            t.classList.toggle('active', isActive);
+            t.setAttribute('aria-hidden', !isActive);
+        });
+
+        console.log(`📑 Switched to tab: ${tabName}`);
     },
 
-    // ========================================================================
-    // 🗑️ RESET PLAY HISTORY
-    // ========================================================================
-
-    /**
-     * Show reset play history confirmation modal
-     */
-    showResetHistoryModal() {
-        try {
-            // Create modal
-            const modal = document.createElement('div');
-            modal.id = 'resetHistoryModal';
-            modal.className = 'modal-overlay';
-            modal.setAttribute('role', 'alertdialog');
-            modal.setAttribute('aria-labelledby', 'resetHistoryTitle');
-            modal.setAttribute('aria-modal', 'true');
-
-            modal.innerHTML = `
-                <div class="modal-content" style="max-width: 400px;">
-                    <h2 id="resetHistoryTitle">🗑️ Delete Play History?</h2>
-                    <p style="color: var(--text-secondary); margin: 16px 0;">
-                        This will permanently delete <strong>ALL</strong> play history entries.
-                    </p>
-                    <p style="color: var(--accent-pink); font-weight: 600; margin: 16px 0;">
-                        ⚠️ This action cannot be undone!
-                    </p>
-
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button id="confirmResetBtn" class="button" style="flex: 1;">
-                            🗑️ Yes, Delete
-                        </button>
-                        <button id="cancelResetBtn" class="button button-secondary" style="flex: 1;">
-                            ❌ Cancel
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(modal);
-
-            // Setup listeners
-            const confirmBtn = document.getElementById('confirmResetBtn');
-            const cancelBtn = document.getElementById('cancelResetBtn');
-
-            confirmBtn.addEventListener('click', async () => {
-                await this.resetPlayHistory();
-                this.closeResetHistoryModal();
-            });
-
-            cancelBtn.addEventListener('click', () => {
-                this.closeResetHistoryModal();
-            });
-
-            // Close on overlay click
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.closeResetHistoryModal();
-                }
-            });
-
-            console.log('🗑️ Reset history modal shown');
-
-        } catch (err) {
-            console.error('❌ Show reset modal error:', err);
-        }
-    },
-
-    /**
-     * Close reset history modal
-     */
-    closeResetHistoryModal() {
-        const modal = document.getElementById('resetHistoryModal');
-        if (modal) {
-            modal.remove();
-            console.log('🗑️ Reset modal closed');
-        }
-    },
-
-    /**
-     * Delete play history via API
-     */
-    async resetPlayHistory() {
-        try {
-            console.log('🗑️ Deleting play history...');
-
-            // Get token
-            let token = null;
-            if (typeof Auth !== 'undefined') {
-                token = Auth.getToken();
-            } else {
-                token = localStorage.getItem('auth_token');
-            }
-
-            if (!token) {
-                this.showToast('❌ Not authenticated', 'error');
-                return;
-            }
-
-            // Get API base
-            let apiBase = 'https://localhost:3000/api';
-            if (typeof window.songNexusConfig !== 'undefined') {
-                apiBase = window.songNexusConfig.getApiBaseUrl();
-            }
-
-            // Delete play history
-            const response = await fetch(`${apiBase}/play-history/clear`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('✅ Play history deleted:', data);
-
-            this.showToast(`✅ ${data.deleted_count || 0} entries deleted`, 'success');
-
-            // Reload play history UI if available
-            if (typeof window.loadPlayHistory === 'function') {
-                window.loadPlayHistory();
-            }
-
-        } catch (err) {
-            console.error('❌ Reset play history error:', err);
-            this.showToast(`❌ Error: ${err.message}`, 'error');
-        }
-    },
-
-    // ========================================================================
-    // 🛠️ UTILITY FUNCTIONS
-    // ========================================================================
-
-    /**
-     * Escape HTML
-     */
     escapeHtml(text) {
-        if (!text) return '';
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return String(text).replace(/[&<>"']/g, m => map[m]);
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
 
-    /**
-     * Format currency
-     */
-    formatCurrency(amount, currency = 'EUR') {
-        return new Intl.NumberFormat('de-AT', {
-            style: 'currency',
-            currency: currency
-        }).format(amount);
+    formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString();
     },
 
-    /**
-     * Format time (seconds to MM:SS)
-     */
-    formatTime(seconds) {
-        if (!seconds || isNaN(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    disableElement(element) {
+        if (!element) return;
+        element.disabled = true;
+        element.style.opacity = '0.5';
+        element.style.cursor = 'not-allowed';
     },
 
-    /**
-     * Format number with K/M suffix
-     */
-    formatNumber(num) {
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-        return num.toString();
+    enableElement(element) {
+        if (!element) return;
+        element.disabled = false;
+        element.style.opacity = '1';
+        element.style.cursor = 'pointer';
     },
 
-    /**
-     * Get user ID from JWT token
-     */
-    getUserIdFromToken() {
-        try {
-            let token = null;
-            if (typeof Auth !== 'undefined') {
-                token = Auth.getToken();
-            } else {
-                token = localStorage.getItem('auth_token');
-            }
+    showSpinner(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.innerHTML = '<div class="spinner"></div>';
+    },
 
-            if (!token) {
-                console.warn('⚠️ No token found');
-                return null;
-            }
+    hideSpinner(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.innerHTML = '';
+    },
 
-            const payload = token.split('.')[1];
-            if (!payload) {
-                console.warn('⚠️ Invalid token format');
-                return null;
-            }
+    validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    },
 
-            const decoded = JSON.parse(atob(payload));
-            return decoded.id || decoded.user_id || null;
-
-        } catch (err) {
-            console.warn('⚠️ Error decoding token:', err);
-            return null;
-        }
-    }
+    validatePassword(password) {
+        return password && password.length >= 8;
+    },
 };
 
-// ========================================================================
-// INITIALIZE ON LOAD
-// ========================================================================
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('📄 DOM ready, initializing UI...');
-        UI.init();
-    });
-} else {
-    UI.init();
-}
-
-// Make global
-window.UI = UI;
+console.log('✅ UI v8.0 loaded - ES6 Module');

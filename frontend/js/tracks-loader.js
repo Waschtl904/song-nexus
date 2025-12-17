@@ -1,14 +1,11 @@
-/**
- * 🎵 SONG-NEXUS TracksLoader
- * Pagination + Infinite Scroll für Track-Liste
- * 
- * Verwendet:
- * - GET /api/tracks?page=1&limit=12
- * - Intersection Observer für Infinite Scroll
- * - Dynamic DOM rendering
- */
+// ============================================================================
+// 🎵 TRACKS-LOADER.JS v8.0 - ES6 CLASS
+// Pagination + Infinite Scroll für Track-Liste
+// ============================================================================
 
-class TracksLoader {
+import { APIClient } from './api-client.js';
+
+export class TracksLoader {
     constructor(containerElement, itemsPerPage = 12) {
         console.log('🎵 TracksLoader initializing...');
 
@@ -28,13 +25,9 @@ class TracksLoader {
     async init() {
         console.log('🔄 TracksLoader initializing infinite scroll...');
         this.setupInfiniteScroll();
-        await this.loadTracks(false); // Initial load
+        await this.loadTracks(false);
     }
 
-    /**
-     * ✅ Load tracks from API with pagination
-     * @param {boolean} append - True to append, false to replace
-     */
     async loadTracks(append = false) {
         // Prevent double-loading
         if (this.isLoading) {
@@ -52,16 +45,17 @@ class TracksLoader {
         this.hasError = false;
 
         try {
-            const apiBase = this.getApiBase();
+            const apiBase = APIClient.getApiBase();
             const queryParams = new URLSearchParams({
                 page: this.currentPage,
                 limit: this.itemsPerPage,
-                sort: this.sortBy
+                sort: this.sortBy,
             });
 
             if (this.searchQuery) {
                 queryParams.append('search', this.searchQuery);
             }
+
             if (this.selectedGenre) {
                 queryParams.append('genre', this.selectedGenre);
             }
@@ -81,21 +75,19 @@ class TracksLoader {
                 throw new Error(result.error || 'Unknown API error');
             }
 
-            // ✅ Update pagination state
+            // Update pagination state
             this.totalPages = result.pagination.totalPages;
-
             console.log(`✅ Loaded page ${this.currentPage}/${this.totalPages}, ${result.data.length} tracks`);
 
-            // ✅ Render tracks
+            // Render tracks
             if (append) {
                 this.addTracksToDOM(result.data);
             } else {
                 this.renderTracks(result.data);
             }
 
-            // ✅ Increment page for next load
+            // Increment page for next load
             this.currentPage++;
-
         } catch (error) {
             console.error('❌ TracksLoader error:', error);
             this.hasError = true;
@@ -105,22 +97,16 @@ class TracksLoader {
         }
     }
 
-    /**
-     * ✅ Replace container with new tracks
-     */
     renderTracks(tracks) {
         console.log(`🎨 Rendering ${tracks.length} tracks...`);
         this.container.innerHTML = '';
         this.addTracksToDOM(tracks);
     }
 
-    /**
-     * ✅ Append tracks to container
-     */
     addTracksToDOM(tracks) {
         if (tracks.length === 0) {
             if (this.currentPage === 1) {
-                this.container.innerHTML = '<p class="no-tracks">No tracks found.</p>';
+                this.container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;"><p>No tracks found.</p></div>';
             }
             return;
         }
@@ -133,175 +119,109 @@ class TracksLoader {
         console.log(`✅ Added ${tracks.length} track elements to DOM`);
     }
 
-    /**
-     * ✅ Create single track card element
-     */
     createTrackElement(track) {
         const div = document.createElement('div');
         div.className = 'track-card glass-style';
         div.setAttribute('data-track-id', track.id);
 
-        // ✅ Format duration
         const duration = this.formatDuration(track.duration_seconds || 0);
-
-        // ✅ Price display
-        let priceText = '0.99';
-        if (track.price_eur) {
-            priceText = parseFloat(track.price_eur).toFixed(2);
-        }
-        const priceDisplay = track.is_free
-            ? '<span class="free-badge">FREE</span>'
-            : `<span class="price">€${priceText}</span>`;
-
-        // ✅ Play counts
+        const price = track.price_eur ? parseFloat(track.price_eur).toFixed(2) : '0.99';
+        const priceDisplay = track.is_free ? 'FREE' : `€${price}`;
         const playCount = track.play_count || 0;
         const playCountText = playCount > 0 ? `${playCount} plays` : 'New';
 
         div.innerHTML = `
-      <div class="track-header">
-        <h3 class="track-name" title="${this.escapeHtml(track.name)}">
-          ${this.escapeHtml(track.name)}
-        </h3>
-        <p class="track-artist" title="${this.escapeHtml(track.artist)}">
-          ${this.escapeHtml(track.artist)}
-        </p>
+      <div class="track-card-header">
+        <h3 class="track-card-title">${this.escapeHtml(track.name)}</h3>
+        <span class="track-card-plays">${playCountText}</span>
       </div>
-      
-      <div class="track-meta">
-        <span class="genre" data-genre="${this.escapeHtml(track.genre)}">
-          ${this.escapeHtml(track.genre || 'Unknown')}
-        </span>
-        <span class="duration">⏱️ ${duration}</span>
+      <div class="track-card-meta">
+        <span class="track-card-artist">${this.escapeHtml(track.artist || 'Unknown')}</span>
+        <span class="track-card-duration">${duration}</span>
       </div>
-      
-      <div class="track-stats">
-        <span class="play-count">🎧 ${playCountText}</span>
-      </div>
-      
-      <div class="track-footer">
-        ${priceDisplay}
-        <button class="btn-play" data-track-id="${track.id}" aria-label="Play ${track.name}">
-          ▶ Play
-        </button>
-      </div>
+      <div class="track-card-price">${priceDisplay}</div>
+      <button class="button play-btn" data-track-id="${track.id}" aria-label="Play ${this.escapeHtml(track.name)}">
+        ▶️ Play
+      </button>
     `;
 
-        // ✅ Event Listeners
-        const playBtn = div.querySelector('.btn-play');
-        if (playBtn) {
-            playBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log(`▶ Playing track: ${track.name}`);
-                if (window.AudioPlayer) {
-                    window.AudioPlayer.loadTrack(track.id);
-                } else {
-                    console.warn('⚠️ AudioPlayer not available');
-                }
-            });
-        }
+        // Add play button listener
+        const playBtn = div.querySelector('.play-btn');
+        playBtn.addEventListener('click', () => {
+            if (typeof window.Player !== 'undefined') {
+                window.Player.loadAndPlay(track, !window.Auth?.getToken() && track.is_premium);
+            }
+        });
 
         return div;
     }
 
-    /**
-     * ✅ Setup Intersection Observer for infinite scroll
-     */
-    setupInfiniteScroll() {
-        console.log('👁️ Setting up infinite scroll observer...');
-
-        // Create sentinel element at the end
-        const sentinel = document.createElement('div');
-        sentinel.className = 'scroll-sentinel';
-        sentinel.setAttribute('aria-hidden', 'true');
-        this.container.appendChild(sentinel);
-
-        // Create observer
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && !this.isLoading && this.currentPage <= this.totalPages) {
-                    console.log(`📍 Sentinel visible - loading next page (${this.currentPage}/${this.totalPages})`);
-                    this.loadTracks(true); // Append mode
-                }
-            });
-        }, {
-            root: null,
-            rootMargin: '100px', // Load before user reaches bottom
-            threshold: 0.1
-        });
-
-        observer.observe(sentinel);
-        this.sentinel = sentinel;
-        console.log('✅ Infinite scroll observer ready');
-    }
-
-    /**
-     * ✅ Format seconds to MM:SS
-     */
     formatDuration(seconds) {
-        if (!seconds || seconds < 0) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    /**
-     * ✅ Escape HTML special characters
-     */
     escapeHtml(text) {
-        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    /**
-     * ✅ Get API base URL
-     */
-    getApiBase() {
-        if (typeof window !== 'undefined' && window.songNexusConfig) {
-            return window.songNexusConfig.getApiBaseUrl();
+    setupInfiniteScroll() {
+        if (!('IntersectionObserver' in window)) {
+            console.warn('⚠️ IntersectionObserver not supported, infinite scroll disabled');
+            return;
         }
-        return 'https://localhost:3000/api';
+
+        // Create sentinel element
+        const sentinel = document.createElement('div');
+        sentinel.className = 'tracks-sentinel';
+        sentinel.style.height = '50px';
+        this.container.appendChild(sentinel);
+
+        // Observe sentinel
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && !this.isLoading && this.currentPage <= this.totalPages) {
+                    console.log('📡 Infinite scroll triggered, loading next page...');
+                    this.loadTracks(true);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(sentinel);
+        console.log('✅ Infinite scroll observer attached');
     }
 
-    /**
-     * ✅ Show error message to user
-     */
     showError(message) {
-        console.error('❌ Error:', message);
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
-        errorDiv.textContent = `⚠️ ${message}`;
-        this.container.prepend(errorDiv);
+        errorDiv.textContent = `❌ ${message}`;
+        errorDiv.style.cssText = 'color: var(--error); padding: 16px; text-align: center; width: 100%;';
+        this.container.insertAdjacentElement('beforebegin', errorDiv);
+
+        setTimeout(() => errorDiv.remove(), 5000);
     }
 
-    /**
-     * ✅ Reset pagination (e.g., after search)
-     */
-    reset() {
-        console.log('🔄 Resetting pagination...');
+    setSortBy(sortKey) {
+        this.sortBy = sortKey;
         this.currentPage = 1;
-        this.totalPages = 1;
-        this.isLoading = false;
-        this.hasError = false;
+        this.loadTracks(false);
     }
 
-    /**
-     * ✅ Search tracks
-     */
-    async search(query, genre = '', sort = 'created_at') {
-        console.log(`🔍 Searching for: "${query}"`);
-        this.searchQuery = query;
+    setGenre(genre) {
         this.selectedGenre = genre;
-        this.sortBy = sort;
-        this.reset();
-        await this.loadTracks(false);
+        this.currentPage = 1;
+        this.loadTracks(false);
+    }
+
+    search(query) {
+        this.searchQuery = query;
+        this.currentPage = 1;
+        this.loadTracks(false);
     }
 }
 
-// ✅ Export for use
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = TracksLoader;
-}
-
-console.log('✅ TracksLoader loaded');
+console.log('✅ TracksLoader v8.0 loaded - ES6 Module');

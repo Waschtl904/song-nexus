@@ -102,6 +102,26 @@ const corsOrigins = process.env.NODE_ENV === 'production'
 console.log('🌐 CORS Origins:', corsOrigins);
 
 // ============================================================================
+// ✅ IMPROVED: CORS Configuration (MUSS VOR HELMET SEIN!)
+// ============================================================================
+
+const corsOptions = {
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Origin'
+    ],
+    exposedHeaders: ['Content-Type', 'X-Total-Count'],
+    optionsSuccessStatus: 200,
+    maxAge: 86400
+};
+
+// ============================================================================
 // 🛡️ SECURITY MIDDLEWARE
 // ============================================================================
 
@@ -163,29 +183,25 @@ app.use(helmet({
     hidePoweredBy: true,
 }));
 
-// ✅ IMPROVED: CORS Configuration
-const corsOptions = {
-    origin: corsOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'X-Requested-With',
-        'Accept',
-        'Origin'
-    ],
-    exposedHeaders: ['Content-Type', 'X-Total-Count'],
-    optionsSuccessStatus: 200,
-    maxAge: 86400
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));  // ← Explizit für pre-flight!
-
+// ✅ JSON PARSER
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(compression());
+
+// ✅ GZIP-KOMPRESSION (EINE, nicht drei!)
+app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        return compression.filter(req, res);
+    }
+}));
+
+// ✅ CORS (MUSS VOR ROUTES SEIN!)
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // ============================================================================
 // 🔐 SESSION MIDDLEWARE (für WebAuthn Challenges)
@@ -261,7 +277,7 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
 
 app.use('/api/', rateLimit(30, 60 * 1000));
 app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));
-app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000));  // ✅ 30 Requests in 15 Min
+app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000));
 app.use('/public/audio/', rateLimit(20, 60 * 1000));
 
 console.log('✅ Rate limiting enabled');
@@ -322,20 +338,41 @@ module.exports.pool = pool;
 
 const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
 
-// Apply auth middleware to /api/ routes
 app.use('/api/', (req, res, next) => {
-    // Log incoming request
     console.log(`📨 ${req.method} ${req.path}`);
     next();
 });
 
 console.log('✅ Auth middleware loaded');
 
+// ✅ CACHE MIDDLEWARE
+const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware');
+
 // ============================================================================
 // 🔌 API ROUTES
 // ============================================================================
 
 console.log('🔧 Registering API routes...');
+
+// ✅ GET /api/tracks MIT CACHE (300 Sekunden = 5 Minuten)
+app.get('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
+
+// ✅ GET /api/blog/posts.json MIT CACHE (600 Sekunden = 10 Minuten)
+app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
+    try {
+        const filePath = path.join(__dirname, 'public', 'blog', 'posts.json');
+        if (fs.existsSync(filePath)) {
+            res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+        } else {
+            res.status(404).json({ error: 'Posts file not found' });
+        }
+    } catch (err) {
+        console.error('❌ Error loading blog posts:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ✅ ALLE ANDEREN ROUTES (POST, PUT, DELETE ohne Cache)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/auth', require('./routes/webauthn'));
 app.use('/api/payments', require('./routes/payments'));
@@ -370,7 +407,7 @@ app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
 console.log('✅ Static audio directory enabled');
 
 // ============================================================================
-// 📄 SERVE STATIC FRONTEND FILES
+// 📄 SERVE STATIC FRONTEND FILES (NUR EINMAL!)
 // ============================================================================
 
 const frontendPath = path.join(__dirname, '../frontend');
@@ -397,7 +434,21 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================================================
-// 🚀 START SERVER (HTTP or HTTPS)
+// ✅ WARM UP - First query to initialize connection pool
+// ============================================================================
+
+async function warmupDatabase() {
+    try {
+        console.log('🔥 Warming up database connection...');
+        await pool.query('SELECT 1');
+        console.log('✅ Database warm - ready for requests!');
+    } catch (err) {
+        console.warn('⚠️ Warmup query failed:', err.message);
+    }
+}
+
+// ============================================================================
+// 🚀 SERVER STARTUP
 // ============================================================================
 
 const PORT = process.env.PORT || 3000;
@@ -406,7 +457,7 @@ const HOST = process.env.HOST || 'localhost';
 let server;
 
 if (httpsOptions && USE_HTTPS) {
-    server = https.createServer(httpsOptions, app).listen(PORT, HOST, () => {
+    server = https.createServer(httpsOptions, app).listen(PORT, HOST, async () => {
         const protocol = '🔒 HTTPS';
         const certType = fs.existsSync(mkcertCertPath) ? '(mkcert)' : '(self-signed)';
 
@@ -423,10 +474,13 @@ if (httpsOptions && USE_HTTPS) {
         console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'song_nexus_dev'}`);
         console.log(`🔐 WebAuthn RP: ${process.env.WEBAUTHN_RP_ID || 'localhost'}`);
         console.log('');
+
+        // ✨ NEU: Warm up database after server starts
+        await warmupDatabase();
     });
 } else {
     const http = require('http');
-    server = http.createServer(app).listen(PORT, HOST, () => {
+    server = http.createServer(app).listen(PORT, HOST, async () => {
         console.log('');
         console.log('╔════════════════════════════════════════════╗');
         console.log('║   🎵 SONG-NEXUS v6.2 Backend              ║');
@@ -444,6 +498,9 @@ if (httpsOptions && USE_HTTPS) {
             console.log('   NODE_ENV=development npm start');
         }
         console.log('');
+
+        // ✨ NEU: Warm up database after server starts
+        await warmupDatabase();
     });
 }
 

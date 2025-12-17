@@ -1,19 +1,18 @@
-"use strict";
-
 // ============================================================================
-// 🎮 DRAGGABLE & RESIZABLE PLAYER
-// ✅ UPDATED: Enhanced with keyboard support + A11y
+// 🎮 PLAYER-DRAGGABLE.JS v8.0 - ES6 MODULE
+// Draggable & Resizable Player mit Tastaturunterstützung + A11y
 // ============================================================================
 
-const PlayerDraggable = {
+export const PlayerDraggable = {
     isDragging: false,
     isResizing: false,
     dragStart: { x: 0, y: 0 },
     playerStart: { x: 0, y: 0, width: 0, height: 0 },
 
-    // ========================================================================
+    // ======================================================================
     // INITIALIZATION
-    // ========================================================================
+    // ======================================================================
+
     init() {
         const player = document.getElementById('stickyPlayer');
         const header = document.getElementById('playerHeader');
@@ -29,30 +28,30 @@ const PlayerDraggable = {
         // Load saved position & size
         this.loadPlayerState(player);
 
-        // ===== MOUSE DRAG LISTENERS =====
+        // Mouse drag listeners
         header.addEventListener('mousedown', (e) => this.startDrag(e, player));
         document.addEventListener('mousemove', (e) => this.onDrag(e, player));
         document.addEventListener('mouseup', () => this.stopDrag());
 
-        // ===== TOUCH SUPPORT FOR MOBILE =====
+        // Touch support for mobile
         header.addEventListener('touchstart', (e) => this.startDrag(e.touches[0], player));
         document.addEventListener('touchmove', (e) => this.onDrag(e.touches[0], player));
         document.addEventListener('touchend', () => this.stopDrag());
 
-        // ===== RESIZE LISTENERS =====
+        // Resize listeners
         resizeHandle.addEventListener('mousedown', (e) => this.startResize(e, player));
         document.addEventListener('mousemove', (e) => this.onResize(e, player));
         document.addEventListener('mouseup', () => this.stopResize());
 
-        // ===== TOUCH RESIZE =====
+        // Touch resize
         resizeHandle.addEventListener('touchstart', (e) => this.startResize(e.touches[0], player));
         document.addEventListener('touchmove', (e) => this.onResize(e.touches[0], player));
         document.addEventListener('touchend', () => this.stopResize());
 
-        // ===== KEYBOARD NAVIGATION FOR A11y =====
+        // Keyboard navigation
         this.setupKeyboardNavigation(player);
 
-        // ===== CLOSE BUTTON =====
+        // Close button
         const closeBtn = document.getElementById('playerClose');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => this.minimizePlayer(player));
@@ -60,33 +59,28 @@ const PlayerDraggable = {
             closeBtn.setAttribute('title', 'Minimize player (Escape)');
         }
 
-        // ===== HEADER CONTEXT MENU (right-click) =====
+        // Context menu
         header.addEventListener('contextmenu', (e) => this.showContextMenu(e, player));
 
-        // ===== DOUBLE-CLICK TO RESET POSITION =====
+        // Double-click to reset
         header.addEventListener('dblclick', () => this.resetPosition(player));
 
         console.log('✅ Player draggable & resizable initialized');
     },
 
-    // ========================================================================
+    // ======================================================================
     // DRAG FUNCTIONALITY
-    // ========================================================================
+    // ======================================================================
+
     startDrag(e, player) {
-        // Nicht wenn auf Buttons geklickt
-        if (e.target.closest('.player-btn') ||
-            e.target.closest('.player-controls') ||
-            e.target.closest('button')) {
+        // Don't drag if clicking on buttons
+        if (e.target.closest('.player-btn') || e.target.closest('.player-controls') || e.target.closest('button')) {
             return;
         }
 
         this.isDragging = true;
         this.dragStart = { x: e.clientX, y: e.clientY };
-        this.playerStart = {
-            x: player.offsetLeft,
-            y: player.offsetTop
-        };
-
+        this.playerStart = { x: player.offsetLeft, y: player.offsetTop };
         player.classList.add('dragging');
         document.body.style.userSelect = 'none';
     },
@@ -97,7 +91,6 @@ const PlayerDraggable = {
         const deltaX = e.clientX - this.dragStart.x;
         const deltaY = e.clientY - this.dragStart.y;
 
-        // Ensure player stays within viewport
         const newX = Math.max(0, Math.min(this.playerStart.x + deltaX, window.innerWidth - 100));
         const newY = Math.max(0, Math.min(this.playerStart.y + deltaY, window.innerHeight - 50));
 
@@ -109,8 +102,10 @@ const PlayerDraggable = {
 
     stopDrag() {
         if (!this.isDragging) return;
+
         this.isDragging = false;
         document.body.style.userSelect = '';
+
         const player = document.getElementById('stickyPlayer');
         if (player) {
             player.classList.remove('dragging');
@@ -119,18 +114,15 @@ const PlayerDraggable = {
         }
     },
 
-    // ========================================================================
+    // ======================================================================
     // RESIZE FUNCTIONALITY
-    // ========================================================================
+    // ======================================================================
+
     startResize(e, player) {
         e.preventDefault();
         this.isResizing = true;
         this.dragStart = { x: e.clientX, y: e.clientY };
-        this.playerStart = {
-            width: player.offsetWidth,
-            height: player.offsetHeight
-        };
-
+        this.playerStart = { width: player.offsetWidth, height: player.offsetHeight };
         player.classList.add('resizing');
         document.body.style.userSelect = 'none';
     },
@@ -150,8 +142,10 @@ const PlayerDraggable = {
 
     stopResize() {
         if (!this.isResizing) return;
+
         this.isResizing = false;
         document.body.style.userSelect = '';
+
         const player = document.getElementById('stickyPlayer');
         if (player) {
             player.classList.remove('resizing');
@@ -160,18 +154,17 @@ const PlayerDraggable = {
         }
     },
 
-    // ========================================================================
+    // ======================================================================
     // KEYBOARD NAVIGATION FOR ACCESSIBILITY
-    // ========================================================================
+    // ======================================================================
+
     setupKeyboardNavigation(player) {
         document.addEventListener('keydown', (e) => {
-            // Only if player is visible
             if (player.style.display === 'none') return;
 
-            const step = 10; // pixels per key press
+            const step = 10;
 
             switch (e.key) {
-                // Move player with Arrow Keys + Alt
                 case 'ArrowUp':
                     if (e.altKey) {
                         e.preventDefault();
@@ -200,16 +193,12 @@ const PlayerDraggable = {
                         this.savePlayerState(player);
                     }
                     break;
-
-                // Minimize with Escape
                 case 'Escape':
                     if (document.activeElement === player || player.contains(document.activeElement)) {
                         e.preventDefault();
                         this.minimizePlayer(player);
                     }
                     break;
-
-                // Reset position with 'R'
                 case 'r':
                 case 'R':
                     if (e.ctrlKey || e.metaKey) {
@@ -223,166 +212,118 @@ const PlayerDraggable = {
         console.log('✅ Keyboard navigation enabled (Alt+Arrow to move, Escape to minimize)');
     },
 
-    // ========================================================================
+    // ======================================================================
     // CONTEXT MENU (RIGHT-CLICK)
-    // ========================================================================
+    // ======================================================================
+
     showContextMenu(e, player) {
         e.preventDefault();
 
-        // Create context menu
         let menu = document.getElementById('playerContextMenu');
         if (!menu) {
             menu = document.createElement('div');
             menu.id = 'playerContextMenu';
             menu.style.cssText = `
-                position: fixed;
-                background: var(--color-surface);
-                border: 1px solid var(--color-border);
-                border-radius: 8px;
-                padding: 8px 0;
-                z-index: 10001;
-                min-width: 200px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            `;
+        position: fixed;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 8px 0;
+        z-index: 10001;
+        min-width: 200px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      `;
             document.body.appendChild(menu);
         }
 
         menu.innerHTML = `
-            <button style="display: block; width: 100%; text-align: left; padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 14px; color: var(--color-text);" data-action="reset">⟲ Reset Position</button>
-            <button style="display: block; width: 100%; text-align: left; padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 14px; color: var(--color-text);" data-action="minimize">⊞ Minimize</button>
-            <hr style="margin: 4px 0; border: none; border-top: 1px solid var(--color-border);">
-            <button style="display: block; width: 100%; text-align: left; padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 14px; color: var(--color-text);" data-action="close">✕ Close Menu</button>
-        `;
+      <div style="padding: 8px 16px; cursor: pointer;" 
+           onclick="PlayerDraggable.resetPosition(document.getElementById('stickyPlayer')); this.parentElement.style.display='none';">
+        ↺ Reset Position
+      </div>
+      <div style="padding: 8px 16px; cursor: pointer;" 
+           onclick="PlayerDraggable.minimizePlayer(document.getElementById('stickyPlayer')); this.parentElement.style.display='none';">
+        − Minimize
+      </div>
+    `;
 
+        menu.style.display = 'block';
         menu.style.left = e.clientX + 'px';
         menu.style.top = e.clientY + 'px';
-        menu.style.display = 'block';
 
-        // Add button listeners
-        menu.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const action = btn.getAttribute('data-action');
-                switch (action) {
-                    case 'reset':
-                        this.resetPosition(player);
-                        break;
-                    case 'minimize':
-                        this.minimizePlayer(player);
-                        break;
-                    case 'close':
-                        menu.style.display = 'none';
-                        break;
-                }
-            });
-        });
-
-        // Close menu on outside click
-        document.addEventListener('click', () => {
-            if (menu) menu.style.display = 'none';
-        }, { once: true });
+        setTimeout(() => {
+            document.addEventListener('click', () => {
+                menu.style.display = 'none';
+            }, { once: true });
+        }, 0);
     },
 
-    // ========================================================================
-    // HELPER FUNCTIONS
-    // ========================================================================
-    minimizePlayer(player) {
-        player.style.display = 'none';
-        localStorage.setItem('playerMinimized', 'true');
-        console.log('📦 Player minimized');
-
-        // Show restore button (in your UI)
-        const restoreBtn = document.getElementById('playerRestore');
-        if (restoreBtn) {
-            restoreBtn.style.display = 'block';
-        }
-    },
-
-    restorePlayer(player) {
-        player.style.display = 'flex';
-        localStorage.removeItem('playerMinimized');
-        console.log('📦 Player restored');
-
-        const restoreBtn = document.getElementById('playerRestore');
-        if (restoreBtn) {
-            restoreBtn.style.display = 'none';
-        }
-    },
+    // ======================================================================
+    // POSITION MANAGEMENT
+    // ======================================================================
 
     resetPosition(player) {
-        // Reset to bottom-right
         player.style.left = 'auto';
-        player.style.right = '20px';
         player.style.top = 'auto';
+        player.style.right = '20px';
         player.style.bottom = '20px';
-        player.style.width = '380px';
+        player.style.width = '350px';
         player.style.height = 'auto';
 
-        this.savePlayerState(player);
-        console.log('🔄 Player position reset to default');
+        sessionStorage.removeItem('playerPosition');
+        sessionStorage.removeItem('playerSize');
+
+        console.log('↺ Player position reset');
     },
 
-    // ========================================================================
-    // LOCAL STORAGE
-    // ========================================================================
+    minimizePlayer(player) {
+        const playerContent = document.getElementById('playerContent');
+        if (!playerContent) return;
+
+        const isHidden = playerContent.style.display === 'none';
+        playerContent.style.display = isHidden ? 'block' : 'none';
+
+        const minimizeBtn = document.getElementById('playerMinimize');
+        if (minimizeBtn) {
+            minimizeBtn.textContent = isHidden ? '−' : '+';
+        }
+
+        console.log(`${isHidden ? '📖' : '🔧'} Player ${isHidden ? 'expanded' : 'minimized'}`);
+    },
+
+    // ======================================================================
+    // STATE PERSISTENCE
+    // ======================================================================
+
     savePlayerState(player) {
         const state = {
             left: player.style.left,
             top: player.style.top,
-            right: player.style.right,
-            bottom: player.style.bottom,
             width: player.style.width,
             height: player.style.height,
-            timestamp: new Date().getTime()
         };
-        localStorage.setItem('playerState', JSON.stringify(state));
+
+        try {
+            sessionStorage.setItem('playerPosition', JSON.stringify(state));
+        } catch (err) {
+            console.warn('⚠️ Could not save player state:', err);
+        }
     },
 
     loadPlayerState(player) {
         try {
-            const saved = localStorage.getItem('playerState');
-            if (saved) {
-                const state = JSON.parse(saved);
-
-                // Validate state (not too old, reasonable values)
-                const age = new Date().getTime() - (state.timestamp || 0);
-                const isValid = age < 30 * 24 * 60 * 60 * 1000; // 30 days
-
-                if (isValid) {
-                    if (state.left) player.style.left = state.left;
-                    if (state.top) player.style.top = state.top;
-                    if (state.right) player.style.right = state.right;
-                    if (state.bottom) player.style.bottom = state.bottom;
-                    if (state.width) player.style.width = state.width;
-                    if (state.height) player.style.height = state.height;
-                    console.log('📍 Player state restored from localStorage');
-                } else {
-                    console.log('ℹ️ Player state too old, using defaults');
-                    localStorage.removeItem('playerState');
-                }
-            }
-
-            // Check if was minimized
-            if (localStorage.getItem('playerMinimized') === 'true') {
-                player.style.display = 'none';
-                console.log('📦 Player was minimized, keeping minimized');
+            const state = JSON.parse(sessionStorage.getItem('playerPosition'));
+            if (state) {
+                if (state.left) player.style.left = state.left;
+                if (state.top) player.style.top = state.top;
+                if (state.width) player.style.width = state.width;
+                if (state.height) player.style.height = state.height;
+                console.log('✅ Player state restored');
             }
         } catch (err) {
-            console.warn('⚠️ Failed to load player state:', err);
+            console.warn('⚠️ Could not load player state:', err);
         }
-    }
+    },
 };
 
-// ========================================================================
-// INITIALIZE ON DOM READY
-// ========================================================================
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('📄 DOM ready, initializing PlayerDraggable...');
-        PlayerDraggable.init();
-    });
-} else {
-    PlayerDraggable.init();
-}
-
-// Make global
-window.PlayerDraggable = PlayerDraggable;
+console.log('✅ PlayerDraggable v8.0 loaded - ES6 Module');

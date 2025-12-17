@@ -44,9 +44,8 @@
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
         rel="stylesheet">
 
-    <!-- ✅ CSS - KORREKT VERLINKT -->
-    <link rel="stylesheet" href="./css/styles-cyberpunk.css">
-    <link rel="stylesheet" href="./css/player.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/styles-cyberpunk.css">
 </head>
 
 <body>
@@ -210,7 +209,9 @@
                     </div>
                 </div>
 
-                <!-- PASSWORD LOGIN/REGISTER TAB -->
+                <!-- ========================================================================
+                                                     PASSWORD LOGIN/REGISTER TAB - UPDATED v7.3
+                                                     ======================================================================== -->
                 <div id="password-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-password">
 
                     <!-- LOGIN FORM (Default) -->
@@ -270,7 +271,7 @@
                     </div>
                 </div>
 
-                <!-- Magic Link Tab -->
+                <!-- Magic Link Tab (OUTSIDE of Password Tab!) -->
                 <div id="magic-link-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-magic">
                     <div class="form-group">
                         <label for="magicEmail">E-Mail-Adresse</label>
@@ -280,7 +281,7 @@
                     <button class="button" id="magicLinkBtn" style="width: 100%;">📧 Anmeldelink senden</button>
                     <div id="magicStatus" class="status-message" role="alert" aria-live="polite"></div>
 
-                    <!-- Manual Magic Link Verification -->
+                    <!-- ✅ NEW: Manual Magic Link Verification -->
                     <div
                         style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--accent-teal); opacity: 0.8;">
                         <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">
@@ -301,8 +302,9 @@
         </div>
 
         <!-- ====================================================================
-             🎵 FEATURED TRACKS
-             ==================================================================== -->
+                                             🎵 FEATURED TRACKS
+                                             ==================================================================== -->
+
         <section class="featured-section" aria-labelledby="tracks-heading">
             <h2 id="tracks-heading">🎵 Beliebte Tracks</h2>
             <p class="section-subtitle">Musik, keine Anmeldung erforderlich. 40 Sekunden Vorschau für
@@ -361,21 +363,50 @@
             </div>
         </div>
         <p style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; margin-top: 20px;">
-            🎵 SONG-NEXUS v8.0 ES6 Modules • Gebaut mit ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Barrierefrei |
+            🎵 SONG-NEXUS v6.2 • Gebaut mit ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Barrierefrei |
             <span style="color: var(--accent-green);">🍪 Keine Cookies • 📊 Kein Tracking</span>
         </p>
     </footer>
 
     <!-- ========================================================================
-         ✅ FINAL: WEBPACK BUNDLE (SINGLE REQUEST - ALL 11 MODULES!)
+         ✅ OPTIMIZED SCRIPT LOAD ORDER (11 MODULES)
          ======================================================================== -->
-    <script src="./dist/app.bundle.js"></script>
 
-    <!-- ========================================================================
-         ✅ MAGIC LINK HANDLER (Runs after bundle loads)
-         ======================================================================== -->
+    <!-- 1️⃣ CONFIG – Central configuration (FIRST!) -->
+    <script src="js/config.js"></script>
+
+    <!-- 2️⃣ API CLIENT – All API calls -->
+    <script src="js/api-client.js"></script>
+
+    <!-- 3️⃣ AUTH – Authentication logic -->
+    <script src="js/auth.js"></script>
+
+    <!-- 4️⃣ WEBAUTHN – Biometric authentication -->
+    <script src="js/webauthn.js"></script>
+
+    <!-- 5️⃣ AUDIO PLAYER – Audio playback engine -->
+    <script src="js/audio-player.js"></script>
+
+    <!-- 6️⃣ PLAYER – Player wrapper/integration -->
+    <script src="js/player.js"></script>
+
+    <!-- 7️⃣ TRACKS – Track browser + modal -->
+    <script src="js/tracks.js"></script>
+
+    <!-- 8️⃣ UI – UI utilities + theme management -->
+    <script src="js/ui.js"></script>
+
+    <!-- 9️⃣ PLAYER DRAGGABLE – Draggable/resizable player -->
+    <script src="js/player-draggable.js"></script>
+
+    <script src="./js/tracks-loader.js"></script>
+
+    <!-- 🔟 MAIN – Main app controller -->
+    <script src="js/main.js"></script>
+
     <script>
-        console.log('🔐 Checking current URL for Magic Link:', window.location.pathname);
+        // ✅ CRITICAL: Magic Link Handler - MUST RUN FIRST
+        console.log('🔐 Checking current URL:', window.location.pathname);
 
         if (window.location.pathname === '/auth/magic-link' ||
             window.location.pathname.includes('auth/magic-link')) {
@@ -386,7 +417,7 @@
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', async () => {
                     console.log('🔐 DOM loaded, calling Auth.verifyMagicLinkFromUrl()...');
-                    if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
+                    if (typeof Auth !== 'undefined') {
                         try {
                             const result = await Auth.verifyMagicLinkFromUrl();
                             console.log('✅ Magic link result:', result);
@@ -401,7 +432,7 @@
                 // DOM already loaded
                 setTimeout(async () => {
                     console.log('🔐 DOM already loaded, calling Auth.verifyMagicLinkFromUrl()...');
-                    if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
+                    if (typeof Auth !== 'undefined') {
                         try {
                             const result = await Auth.verifyMagicLinkFromUrl();
                             console.log('✅ Magic link result:', result);

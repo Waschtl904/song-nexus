@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     const sort = req.query.sort || 'created_at';
 
     // ✅ Build dynamic WHERE clause
-    let whereClause = 'WHERE is_published = TRUE AND is_deleted = FALSE';
+    let whereClause = 'WHERE is_published = TRUE AND (is_deleted = FALSE OR is_deleted IS NULL)';
     const params = [];
 
     if (search) {

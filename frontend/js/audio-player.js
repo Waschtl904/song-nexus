@@ -1,388 +1,290 @@
-"use strict";
-
 // ============================================================================
-// 🎚️ AUDIO PLAYER MODULE (Cyberpunk Edition)
-// ✅ UPDATED: Nutzt APIClient + config.js statt hardcoded URLs
+// 🎵 AUDIO-PLAYER.JS v8.0 - ES6 MODULE
+// Audio Playback Engine mit Waveform + Visualisierung
 // ============================================================================
 
-let audioElement = null;
-let audioContext = null;
-let isPlayerInitialized = false;
-let currentTrack = null;
-let animationFrameId = null;
-let playHistoryLogged = false;
-let previewDuration = null; // ✅ 40 Sekunden für Preview
+import { getAudioUrl } from './config.js';
 
-const AudioPlayer = {
+export const AudioPlayer = {
+    audio: null,
     state: {
         isPlaying: false,
-        isMuted: false,
-        isLooping: false,
+        isPaused: false,
         currentTime: 0,
         duration: 0,
-        volume: 0.8,
-        isPreview: false, // ✅ Tracking ob Preview Mode
+        volume: 80,
+        isMuted: false,
+        isLooping: false,
+        currentTrack: null,
     },
+    visualizer: null,
+    animationId: null,
 
-    // ===== INITIALIZATION =====
     init() {
-        if (isPlayerInitialized) return;
+        console.log('🎵 AudioPlayer initializing...');
 
-        // Create hidden audio element
-        audioElement = document.createElement('audio');
-        audioElement.id = 'song-nexus-audio-player';
-        audioElement.style.display = 'none';
-        document.body.appendChild(audioElement);
+        this.audio = new Audio();
+        this.audio.crossOrigin = 'anonymous';
 
-        // Audio Context für Waveform
-        audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        this.setupEventListeners();
+        this.setupVisualization();
 
-        // Event Listeners
-        audioElement.addEventListener('timeupdate', () => this.updateTimeDisplay());
-        audioElement.addEventListener('loadedmetadata', () => this.updateDuration());
-        audioElement.addEventListener('ended', () => this.onTrackEnded());
-        audioElement.addEventListener('play', () => this.onTrackPlay());
-
-        isPlayerInitialized = true;
-        console.log('🎚️ AudioPlayer initialized');
+        console.log('✅ AudioPlayer initialized');
     },
 
-    // ===== LOAD TRACK =====
-    loadTrack(track, isPreview = false) {
-        currentTrack = track;
-        playHistoryLogged = false;
-        this.state.isPreview = isPreview;
-        previewDuration = isPreview ? 40 : null; // ✅ 40 Sekunden für Preview
+    setupEventListeners() {
+        this.audio.addEventListener('play', () => {
+            this.state.isPlaying = true;
+            this.state.isPaused = false;
+            this.updatePlayerUI();
+            console.log('▶️ Audio playing');
+        });
 
-        if (!track.audio_filename) {
-            console.error('❌ Track has no audio_filename');
-            return;
-        }
+        this.audio.addEventListener('pause', () => {
+            this.state.isPlaying = false;
+            this.state.isPaused = true;
+            this.updatePlayerUI();
+            console.log('⏸️ Audio paused');
+        });
 
-        // ✅ NEW: Nutze APIClient + config.js für dynamische URLs
-        let audioUrl;
-        if (typeof window !== 'undefined' && window.songNexusConfig) {
-            // config.js ist geladen
-            const apiBase = window.songNexusConfig.getApiBaseUrl();
-            audioUrl = `${apiBase}/tracks/audio/${encodeURIComponent(track.audio_filename)}`;
-        } else {
-            // Fallback: Auto-detect
-            const host = window.location.hostname.includes('ngrok')
-                ? `https://${window.location.hostname}/api`
-                : 'https://localhost:3000/api';
-            audioUrl = `${host}/tracks/audio/${encodeURIComponent(track.audio_filename)}`;
-        }
+        this.audio.addEventListener('ended', () => {
+            this.state.isPlaying = false;
+            this.state.isPaused = false;
+            if (this.state.isLooping) {
+                this.audio.currentTime = 0;
+                this.audio.play();
+            }
+            this.updatePlayerUI();
+            console.log('🔄 Audio ended');
+        });
 
-        audioElement.src = audioUrl;
-        audioElement.volume = this.state.volume;
-        this.state.isLooping = false;
+        this.audio.addEventListener('timeupdate', () => {
+            this.state.currentTime = this.audio.currentTime;
+            this.updateTimeDisplay();
+        });
 
-        console.log(`🎵 Track loaded: ${track.name} (${isPreview ? 'PREVIEW 40s' : 'FULL'})`);
-        console.log(`   URL: ${audioUrl}`);
+        this.audio.addEventListener('loadedmetadata', () => {
+            this.state.duration = this.audio.duration;
+            this.updateTimeDisplay();
+            console.log(`📊 Duration: ${this.formatTime(this.state.duration)}`);
+        });
+
+        this.audio.addEventListener('error', (e) => {
+            console.error('❌ Audio error:', e);
+        });
     },
 
-    // ===== PLAY/PAUSE CONTROLS =====
-    play() {
-        if (!audioElement.src) return;
-        audioElement.play();
-        this.state.isPlaying = true;
+    setupVisualization() {
+        const canvas = document.getElementById('playerWaveform');
+        if (!canvas) return;
+
+        this.visualizer = canvas.getContext('2d');
         this.drawWaveform();
-        this.updatePlayerUI();
-        console.log('▶️ Playing...');
+    },
+
+    loadTrack(track, isPreview = false) {
+        try {
+            console.log(`🎵 Loading track: ${track.name}`);
+
+            const audioUrl = getAudioUrl(track.audio_filename);
+            this.audio.src = audioUrl;
+
+            this.state.currentTrack = track;
+            this.state.isPreview = isPreview;
+
+            if (isPreview && track.free_preview_duration) {
+                this.state.previewDuration = track.free_preview_duration;
+                console.log(`⏱️ Preview mode: ${this.state.previewDuration}s`);
+            }
+
+            this.updatePlayerUI();
+            console.log(`✅ Track loaded: ${audioUrl}`);
+        } catch (err) {
+            console.error('❌ Failed to load track:', err);
+        }
+    },
+
+    play() {
+        try {
+            if (!this.audio.src) {
+                console.warn('⚠️ No track loaded');
+                return;
+            }
+
+            this.audio.play();
+        } catch (err) {
+            console.error('❌ Play error:', err);
+        }
     },
 
     pause() {
-        audioElement.pause();
-        this.state.isPlaying = false;
-        cancelAnimationFrame(animationFrameId);
-        this.updatePlayerUI();
-        console.log('⏸️ Paused');
+        this.audio.pause();
     },
 
     stop() {
-        audioElement.pause();
-        audioElement.currentTime = 0;
+        this.audio.pause();
+        this.audio.currentTime = 0;
         this.state.isPlaying = false;
-        this.state.currentTime = 0;
-        cancelAnimationFrame(animationFrameId);
-        this.updateTimeDisplay();
+        this.state.isPaused = false;
         this.updatePlayerUI();
-        console.log('⏹️ Stopped');
     },
 
-    togglePlayPause() {
-        this.state.isPlaying ? this.pause() : this.play();
+    setTime(seconds) {
+        this.audio.currentTime = Math.min(seconds, this.audio.duration);
     },
 
-    toggleLoop() {
-        this.state.isLooping = !this.state.isLooping;
-        audioElement.loop = this.state.isLooping;
-        this.updatePlayerUI();
-        console.log(this.state.isLooping ? '🔄 Loop ON' : '🔄 Loop OFF');
+    setVolume(percent) {
+        const volume = Math.max(0, Math.min(100, percent));
+        this.state.volume = volume;
+        this.audio.volume = volume / 100;
+
+        const volumeDisplay = document.querySelector('.volume-display');
+        if (volumeDisplay) {
+            volumeDisplay.textContent = `${volume}%`;
+        }
+
+        console.log(`🔊 Volume: ${volume}%`);
     },
 
     toggleMute() {
         this.state.isMuted = !this.state.isMuted;
-        audioElement.volume = this.state.isMuted ? 0 : this.state.volume;
-        this.updatePlayerUI();
+        this.audio.muted = this.state.isMuted;
+
+        const muteBtn = document.getElementById('playerMuteBtn');
+        if (muteBtn) {
+            muteBtn.textContent = this.state.isMuted ? '🔇' : '🔊';
+        }
+
+        console.log(`${this.state.isMuted ? '🔇 Muted' : '🔊 Unmuted'}`);
     },
 
-    // ===== SEEK CONTROL =====
-    setTime(seconds) {
-        // ✅ Preview-Limit beachten
-        if (this.state.isPreview && seconds > previewDuration) {
-            console.warn(`⚠️ Preview limit: Only 40 seconds available. Buy to unlock full track!`);
-            audioElement.currentTime = previewDuration;
-            this.pause();
-            return;
+    toggleLoop() {
+        this.state.isLooping = !this.state.isLooping;
+
+        const loopBtn = document.getElementById('playerLoopBtn');
+        if (loopBtn) {
+            loopBtn.classList.toggle('active', this.state.isLooping);
         }
 
-        if (audioElement.duration && seconds >= 0 && seconds <= audioElement.duration) {
-            audioElement.currentTime = seconds;
-        }
-    },
-
-    seekBy(delta) {
-        const newTime = Math.max(0, Math.min(audioElement.duration, audioElement.currentTime + delta));
-        this.setTime(newTime);
-    },
-
-    // ===== VOLUME CONTROL =====
-    setVolume(percent) {
-        const volume = Math.max(0, Math.min(1, percent / 100));
-        this.state.volume = volume;
-        audioElement.volume = volume;
-        this.state.isMuted = false;
-        this.updatePlayerUI();
-    },
-
-    adjustVolume(delta) {
-        const newVolume = Math.max(0, Math.min(100, (this.state.volume * 100) + delta));
-        this.setVolume(newVolume);
-    },
-
-    // ===== TIME FORMATTING =====
-    formatTime(seconds) {
-        if (!isFinite(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    },
-
-    // ===== DISPLAY UPDATES =====
-    updateTimeDisplay() {
-        this.state.currentTime = audioElement.currentTime;
-
-        // ✅ Preview-Limit in Zeit anzeigen
-        let displayDuration = audioElement.duration;
-        if (this.state.isPreview && previewDuration) {
-            displayDuration = previewDuration;
-        }
-
-        const currentEl = document.getElementById('playerCurrentTime');
-        const durationEl = document.getElementById('playerDuration');
-        const seekBar = document.getElementById('playerSeekBar');
-
-        if (currentEl) {
-            currentEl.textContent = this.formatTime(audioElement.currentTime);
-        }
-        if (durationEl) {
-            durationEl.textContent = this.formatTime(displayDuration);
-        }
-        if (seekBar && displayDuration) {
-            seekBar.max = displayDuration;
-            seekBar.value = audioElement.currentTime;
-        }
-
-        // ✅ Auto-pause bei Preview-Ende
-        if (this.state.isPreview && previewDuration && audioElement.currentTime >= previewDuration) {
-            this.pause();
-            console.log('⏹️ Preview ended - Buy to hear full track');
-        }
-    },
-
-    updateDuration() {
-        this.state.duration = audioElement.duration;
-
-        // ✅ Preview-Limit anzeigen statt voller Dauer
-        let displayDuration = audioElement.duration;
-        if (this.state.isPreview && previewDuration) {
-            displayDuration = previewDuration;
-        }
-
-        const durationEl = document.getElementById('playerDuration');
-        if (durationEl) {
-            durationEl.textContent = this.formatTime(displayDuration);
-        }
+        console.log(`${this.state.isLooping ? '🔄 Loop ON' : '🔄 Loop OFF'}`);
     },
 
     updatePlayerUI() {
         const playBtn = document.getElementById('playerPlayBtn');
         const pauseBtn = document.getElementById('playerPauseBtn');
-        const loopBtn = document.getElementById('playerLoopBtn');
-        const volumeSlider = document.getElementById('playerVolumeSlider');
-
-        if (playBtn && pauseBtn) {
-            playBtn.style.display = this.state.isPlaying ? 'none' : 'inline-block';
-            pauseBtn.style.display = this.state.isPlaying ? 'inline-block' : 'none';
-        }
-        if (loopBtn) {
-            loopBtn.classList.toggle('active', this.state.isLooping);
-        }
-        if (volumeSlider) {
-            volumeSlider.value = this.state.volume * 100;
-        }
-
-        // ✅ Preview-Badge anzeigen
-        const previewBadge = document.getElementById('previewBadge');
-        if (previewBadge) {
-            previewBadge.style.display = this.state.isPreview ? 'block' : 'none';
-        }
-    },
-
-    // ===== WAVEFORM VISUALIZER =====
-    drawWaveform() {
-        const canvas = document.getElementById('playerWaveform');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        const width = canvas.offsetWidth;
-        const height = canvas.offsetHeight;
-        canvas.width = width;
-        canvas.height = height;
-
-        // Clear
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillRect(0, 0, width, height);
-
-        // Grid
-        ctx.strokeStyle = 'rgba(0, 224, 255, 0.1)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < width; i += 20) {
-            ctx.beginPath();
-            ctx.moveTo(i, 0);
-            ctx.lineTo(i, height);
-            ctx.stroke();
-        }
-
-        // Bars
-        const bars = 40;
-        const barWidth = width / bars;
-        const centerY = height / 2;
-
-        for (let i = 0; i < bars; i++) {
-            const barHeight = Math.random() * (height * 0.6) + (height * 0.2);
-            const x = i * barWidth;
-
-            const gradient = ctx.createLinearGradient(0, centerY - barHeight / 2, 0, centerY + barHeight / 2);
-            gradient.addColorStop(0, 'rgba(0, 224, 255, 0.1)');
-            gradient.addColorStop(0.5, 'rgba(50, 184, 198, 0.8)');
-            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.3)');
-
-            ctx.fillStyle = gradient;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(0, 224, 255, 0.5)';
-            ctx.fillRect(x, centerY - barHeight / 2, barWidth - 2, barHeight);
-        }
-
-        // Center line
-        ctx.strokeStyle = 'rgba(0, 224, 255, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        ctx.lineTo(width, centerY);
-        ctx.stroke();
 
         if (this.state.isPlaying) {
-            animationFrameId = requestAnimationFrame(() => this.drawWaveform());
+            if (playBtn) playBtn.style.display = 'none';
+            if (pauseBtn) pauseBtn.style.display = 'inline-block';
+        } else {
+            if (playBtn) playBtn.style.display = 'inline-block';
+            if (pauseBtn) pauseBtn.style.display = 'none';
+        }
+
+        const trackName = document.querySelector('.track-name');
+        if (trackName && this.state.currentTrack) {
+            trackName.textContent = this.state.currentTrack.name;
+        }
+
+        const trackArtist = document.querySelector('.track-artist');
+        if (trackArtist && this.state.currentTrack) {
+            trackArtist.textContent = this.state.currentTrack.artist || 'Unknown Artist';
         }
     },
 
-    // ===== PLAY HISTORY LOGGING =====
-    async logPlayHistory() {
-        if (!currentTrack || !currentTrack.id || playHistoryLogged) return;
+    updateTimeDisplay() {
+        const currentTimeEl = document.getElementById('playerCurrentTime');
+        const durationEl = document.getElementById('playerDuration');
+        const seekBar = document.getElementById('playerSeekBar');
 
-        // ✅ NEW: Prüfe APIClient statt globale token Variable
-        if (!APIClient || !APIClient.isAuthenticated()) {
-            console.warn('⚠️ No authentication for play history logging');
-            return;
+        if (currentTimeEl) {
+            currentTimeEl.textContent = this.formatTime(this.state.currentTime);
         }
 
-        try {
-            const durationSec = Math.floor(audioElement.currentTime);
-
-            // ✅ NEW: Nutze APIClient statt direktes fetch
-            await APIClient.logPlayEvent(currentTrack.id, durationSec);
-
-            playHistoryLogged = true;
-            console.log('✅ Play history logged:', currentTrack.name);
-
-        } catch (err) {
-            console.warn('⚠️ Play history logging error:', err);
+        if (durationEl) {
+            durationEl.textContent = this.formatTime(this.state.duration);
         }
-    },
 
-    onTrackPlay() {
-        console.log('🎵 Track play started');
-        // Log nach 2 Sekunden Wiedergabe
-        setTimeout(() => {
-            if (this.state.isPlaying) {
-                this.logPlayHistory();
-            }
-        }, 2000);
-    },
-
-    // ===== EVENT HANDLING =====
-    onTrackEnded() {
-        if (!this.state.isLooping) {
-            this.stop();
-            console.log('🎵 Track ended');
+        if (seekBar) {
+            const percent = this.state.duration ? (this.state.currentTime / this.state.duration) * 100 : 0;
+            seekBar.value = percent;
         }
+
+        this.drawWaveform();
     },
 
-    // ===== KEYBOARD SHORTCUTS =====
+    formatTime(seconds) {
+        if (!seconds || isNaN(seconds)) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    },
+
+    drawWaveform() {
+        if (!this.visualizer) return;
+
+        const canvas = this.visualizer.canvas;
+        const ctx = this.visualizer;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#20b0a0';
+        const barWidth = 4;
+        const barGap = 2;
+        const numBars = Math.floor(canvas.width / (barWidth + barGap));
+
+        for (let i = 0; i < numBars; i++) {
+            const height = Math.random() * canvas.height * 0.8;
+            const x = i * (barWidth + barGap);
+            const y = (canvas.height - height) / 2;
+
+            ctx.fillRect(x, y, barWidth, height);
+        }
+
+        const progress = this.state.duration ? (this.state.currentTime / this.state.duration) * canvas.width : 0;
+        ctx.fillStyle = '#ff5459';
+        ctx.fillRect(0, 0, progress, canvas.height);
+    },
+
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Only if modal is active
-            const modal = document.getElementById('trackModal');
-            if (!modal || !modal.classList.contains('active')) return;
+            if (e.code === 'Space' && e.target === document.body) {
+                e.preventDefault();
+                if (this.state.isPlaying) {
+                    this.pause();
+                } else {
+                    this.play();
+                }
+            }
 
-            switch (e.key) {
-                case ' ':
-                    e.preventDefault();
-                    this.togglePlayPause();
-                    break;
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    this.seekBy(-5);
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    this.seekBy(5);
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    this.adjustVolume(10);
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    this.adjustVolume(-10);
-                    break;
-                case 'm':
-                case 'M':
-                    this.toggleMute();
-                    break;
-                case 'l':
-                case 'L':
-                    this.toggleLoop();
-                    break;
-                case '0':
-                    this.stop();
-                    break;
+            if (e.code === 'ArrowRight') {
+                this.setTime(this.state.currentTime + 5);
+            }
+
+            if (e.code === 'ArrowLeft') {
+                this.setTime(this.state.currentTime - 5);
+            }
+
+            if (e.code === 'ArrowUp') {
+                this.setVolume(this.state.volume + 10);
+            }
+
+            if (e.code === 'ArrowDown') {
+                this.setVolume(this.state.volume - 10);
+            }
+
+            if (e.code === 'KeyM') {
+                this.toggleMute();
+            }
+
+            if (e.code === 'KeyL') {
+                this.toggleLoop();
             }
         });
+
+        console.log('✅ Keyboard shortcuts enabled');
     },
 };
 
-// Global reference
-window.AudioPlayer = AudioPlayer;
+console.log('✅ AudioPlayer v8.0 loaded - ES6 Module');
