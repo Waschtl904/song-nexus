@@ -7,43 +7,107 @@ const { verifyToken, verifyTokenSync } = require('../middleware/auth-middleware'
 const router = express.Router();
 
 // ============================================================================
-// 🎵 GET /api/tracks - Public track list (Public)
+// 🎵 GET /api/tracks - Public track list with PAGINATION
 // ============================================================================
 
 router.get('/', async (req, res) => {
   try {
-    const { search, genre, limit = 50, offset = 0, sort = 'name' } = req.query;
-    let query = `
-      SELECT id, name, artist, genre, description, price_eur, play_count,
-      is_free, free_preview_duration, audio_filename, duration_seconds
-      FROM tracks
-      WHERE is_published = TRUE AND is_deleted = FALSE
-    `;
+    // ✅ Parse query parameters with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 12, 100); // Max 100 per page
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+    const genre = req.query.genre || '';
+    const sort = req.query.sort || 'created_at';
+
+    // ✅ Build dynamic WHERE clause
+    let whereClause = 'WHERE is_published = TRUE AND is_deleted = FALSE';
     const params = [];
 
     if (search) {
-      query += ` AND (name ILIKE $${params.length + 1} OR artist ILIKE $${params.length + 2})`;
+      whereClause += ` AND (name ILIKE $${params.length + 1} OR artist ILIKE $${params.length + 2})`;
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (genre) {
-      query += ` AND genre = $${params.length + 1}`;
+      whereClause += ` AND genre = $${params.length + 1}`;
       params.push(genre);
     }
 
-    const validSort = ['name', 'artist', 'created_at', 'play_count'];
-    const sortBy = validSort.includes(sort) ? sort : 'name';
-    query += ` ORDER BY ${sortBy} ASC`;
-    query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(parseInt(limit), parseInt(offset));
+    // ✅ Validate sort parameter (prevent SQL injection)
+    const validSort = {
+      'created_at': 'created_at DESC',
+      'play_count': 'play_count DESC',
+      'name': 'name ASC',
+      'artist': 'artist ASC'
+    };
+    const orderBy = validSort[sort] || 'created_at DESC';
 
-    console.log('📊 Query:', query);
-    const result = await pool.query(query, params);
-    console.log(`✅ Tracks found: ${result.rows.length}`);
-    res.json(result.rows);
+    // ✅ QUERY 1: Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM tracks ${whereClause}`;
+    const countResult = await pool.query(countQuery, params);
+    console.log('🔍 COUNT Query Result:', countResult.rows[0]); // DEBUG
+    const total = parseInt(countResult.rows[0].total) || 0;
+    if (isNaN(total)) {
+      console.warn('⚠️ COUNT returned NaN, using fallback');
+    }
+    const totalPages = Math.ceil(total / limit);
+
+    // ✅ QUERY 2: Get paginated tracks
+    const tracksQuery = `
+      SELECT id, name, artist, genre, description, 
+             price_eur, duration_seconds, play_count,
+             audio_filename, is_free, free_preview_duration,
+             created_at
+      FROM tracks
+      ${whereClause}
+      ORDER BY ${orderBy}
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `;
+
+    params.push(limit, offset);
+
+    console.log('📊 Pagination Query:', {
+      page,
+      limit,
+      offset,
+      total,
+      totalPages,
+      sort: orderBy
+    });
+
+    const tracksResult = await pool.query(tracksQuery, params);
+
+    // ✅ Return structured response with pagination metadata
+    res.json({
+      success: true,
+      data: tracksResult.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        hasMore: offset + limit < total
+      },
+      metadata: {
+        timestamp: new Date().toISOString(),
+        search,
+        genre,
+        sort
+      }
+    });
+
+    console.log(`✅ Response: ${tracksResult.rows.length} tracks, page ${page}/${totalPages}`);
+
   } catch (err) {
     console.error('❌ Tracks GET error:', err);
-    res.status(500).json({ error: 'Failed to fetch tracks', details: err.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tracks',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 

@@ -297,39 +297,21 @@ const App = {
     // ===== LOAD TRACKS =====
     async loadTracks() {
         try {
-            console.log('🎵 Loading tracks...');
+            console.log('🎵 Initializing pagination with TracksLoader...');
 
-
-            // ✅ NEW: Nutze APIClient statt direktes fetch
-            if (typeof APIClient !== 'undefined') {
-                this.tracks = await APIClient.getTracks();
-            } else {
-                const apiBase = this.getApiBase();
-                const response = await fetch(`${apiBase}/tracks`);
-                if (!response.ok) throw new Error('Failed to load tracks');
-                this.tracks = await response.json();
+            // Initialisiere Pagination (einmalig!)
+            if (!window.tracksLoader) {
+                const container = document.getElementById('tracksList');
+                if (container) {
+                    window.tracksLoader = new TracksLoader(container, 12);
+                    console.log('✅ TracksLoader initialized');
+                } else {
+                    console.warn('⚠️ tracksList container not found');
+                }
             }
-
-
-            this.renderTracks();
-
-
-            const tracksList = document.getElementById('tracksList');
-            if (tracksList) {
-                tracksList.setAttribute('aria-busy', 'false');
-            }
-
-
-            console.log(`✅ Loaded ${this.tracks.length} tracks`);
         } catch (err) {
-            console.error('❌ Load tracks error:', err);
-            this.showError('Failed to load tracks');
-
-
-            const tracksList = document.getElementById('tracksList');
-            if (tracksList) {
-                tracksList.setAttribute('aria-busy', 'false');
-            }
+            console.error('❌ Pagination init error:', err);
+            this.showError('Failed to initialize tracks');
         }
     },
 
