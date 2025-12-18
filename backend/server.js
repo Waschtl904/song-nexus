@@ -1,3 +1,10 @@
+// ============================================================================
+// 🎵 SONG-NEXUS BACKEND v6.3 - FIXED SERVER.JS
+// ============================================================================
+// CRITICAL FIX: Session Middleware MUST be before routes!
+// ✅ Proper middleware ordering
+// ✅ WebAuthn session handling fixed
+
 require('dotenv').config();
 
 const express = require('express');
@@ -15,58 +22,59 @@ const session = require('express-session');
 const app = express();
 
 // ============================================================================
-// 🔒 HTTPS CERTIFICATE SETUP (mkcert for Development + Self-Signed)
+// 🔒 HTTPS CERTIFICATE SETUP (mkcert for Development)
 // ============================================================================
 
 let httpsOptions = null;
-
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const USE_HTTPS = process.env.USE_HTTPS === 'true';
-
 const certDir = path.join(__dirname, 'certs');
 const mkcertKeyPath = path.join(certDir, 'localhost-key.pem');
 const mkcertCertPath = path.join(certDir, 'localhost.pem');
-const selfSignedKeyPath = path.join(certDir, 'key.pem');
-const selfSignedCertPath = path.join(certDir, 'cert.pem');
 
 console.log('🔐 Checking SSL certificates...');
 console.log(`   NODE_ENV: ${NODE_ENV}`);
 console.log(`   USE_HTTPS: ${USE_HTTPS}`);
 
-// Try mkcert certificates first (preferred for development)
 if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
     httpsOptions = {
         key: fs.readFileSync(mkcertKeyPath),
         cert: fs.readFileSync(mkcertCertPath)
     };
     console.log('✅ Using mkcert certificates (localhost.pem)');
-}
-// Fallback to self-signed certificates
-else if (fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSignedCertPath)) {
-    httpsOptions = {
-        key: fs.readFileSync(selfSignedKeyPath),
-        cert: fs.readFileSync(selfSignedCertPath)
-    };
-    console.log('✅ Using self-signed certificates (cert.pem)');
-}
-// No certificates found
-else {
+} else {
     if (NODE_ENV === 'production') {
         console.error('❌ HTTPS certificates missing in production!');
-        console.error('   Use Let\'s Encrypt or valid SSL certificates.');
         process.exit(1);
-    } else {
-        console.warn('⚠️  HTTPS certificates not found. Using HTTP mode.');
-        console.log('   To generate mkcert certificates, run:');
-        console.log('   1. mkcert localhost');
-        console.log('   2. mv localhost.pem backend/certs/');
-        console.log('   3. mv localhost-key.pem backend/certs/');
-        console.log('');
-        console.log('   OR generate self-signed certificates with:');
-        console.log('   mkdir -p certs');
-        console.log('   openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes');
     }
 }
+
+// ============================================================================
+// 📦 DATABASE CONNECTION (Early - needed for app.db)
+// ============================================================================
+
+const { Pool } = require('pg');
+const pool = new Pool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || 'song_nexus_dev',
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
+
+pool.on('error', (err) => {
+    console.error('❌ Database connection error:', err);
+});
+
+pool.on('connect', () => {
+    console.log('✅ Database connected');
+});
+
+module.exports.pool = pool;
+
+// ✅ CRITICAL FIX: ATTACH DATABASE TO EXPRESS APP (FOR WEBAUTHN!)
+app.db = pool;
 
 // ============================================================================
 // ✅ DYNAMIC ORIGIN DETECTION (for ngrok + localhost)
@@ -82,7 +90,6 @@ function getOriginsList() {
         'https://localhost:3000',
     ];
 
-    // Add ALLOWED_ORIGINS from .env (for ngrok)
     if (process.env.ALLOWED_ORIGINS) {
         const allowedOrigins = process.env.ALLOWED_ORIGINS
             .split(',')
@@ -95,27 +102,21 @@ function getOriginsList() {
     return origins;
 }
 
-const corsOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://yourdomain.com', 'https://www.yourdomain.com']
+const corsOrigins = NODE_ENV === 'production'
+    ? ['https://yourdomain.com']
     : getOriginsList();
 
 console.log('🌐 CORS Origins:', corsOrigins);
 
 // ============================================================================
-// ✅ IMPROVED: CORS Configuration (MUSS VOR HELMET SEIN!)
+// ✅ CORS CONFIGURATION (BEFORE everything!)
 // ============================================================================
 
 const corsOptions = {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'X-Requested-With',
-        'Accept',
-        'Origin'
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     exposedHeaders: ['Content-Type', 'X-Total-Count'],
     optionsSuccessStatus: 200,
     maxAge: 86400
@@ -130,7 +131,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// ✅ IMPROVED: Dynamic CSP for ngrok + localhost
 const getCSPDirectives = () => {
     const connectSrc = [
         "'self'",
@@ -139,7 +139,6 @@ const getCSPDirectives = () => {
         "https://api.sandbox.paypal.com"
     ];
 
-    // Add ngrok domain if available
     if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
         const ngrokOrigin = process.env.ALLOWED_ORIGINS.split(',')[0].trim();
         connectSrc.push(ngrokOrigin);
@@ -149,16 +148,9 @@ const getCSPDirectives = () => {
     return {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "https://fonts.googleapis.com",
-        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        mediaSrc: [
-            "'self'",
-            "https://localhost:*"
-        ],
+        mediaSrc: ["'self'", "https://localhost:*"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: connectSrc,
         frameSrc: ["'none'"],
@@ -172,11 +164,7 @@ app.use(helmet({
         directives: getCSPDirectives(),
         reportUri: ['/api/csp-report'],
     },
-    hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
-    },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
     noSniff: true,
     xssFilter: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
@@ -187,24 +175,22 @@ app.use(helmet({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// ✅ GZIP-KOMPRESSION (EINE, nicht drei!)
+// ✅ GZIP COMPRESSION
 app.use(compression({
     level: 6,
     threshold: 1024,
     filter: (req, res) => {
-        if (req.headers['x-no-compression']) {
-            return false;
-        }
+        if (req.headers['x-no-compression']) return false;
         return compression.filter(req, res);
     }
 }));
 
-// ✅ CORS (MUSS VOR ROUTES SEIN!)
+// ✅ CORS (BEFORE routes!)
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // ============================================================================
-// 🔐 SESSION MIDDLEWARE (für WebAuthn Challenges)
+// 🔐 SESSION MIDDLEWARE - CRITICAL: MUST BE BEFORE ROUTES!
 // ============================================================================
 
 app.use(session({
@@ -216,20 +202,37 @@ app.use(session({
         secure: true,
         httpOnly: true,
         sameSite: 'lax',
-        maxAge: 1000 * 60 * 15
+        maxAge: 1000 * 60 * 15  // 15 minutes
     },
     name: 'connect.sid'
 }));
 
 console.log('✅ Session middleware configured');
 
-// ✅ Debug: Session logging
-app.use((req, res, next) => {
-    console.log('🍪 Cookie Header erhalten:', req.headers.cookie);
-    console.log('📋 Session ID:', req.sessionID);
-    console.log('💾 Session Data:', req.session);
-    next();
+// ============================================================================
+// 📊 LOGGING
+// ============================================================================
+
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+}
+
+const rotatingLogStream = rfs.createStream('app.log', {
+    interval: '1d',
+    path: logsDir,
+    maxSize: '10M',
+    maxFiles: 5,
+    compress: 'gzip'
 });
+
+app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: rotatingLogStream }));
+
+if (NODE_ENV !== 'production') {
+    app.use(morgan('dev'));
+}
+
+console.log('✅ Logging enabled');
 
 // ============================================================================
 // 🛡️ RATE LIMITING
@@ -283,57 +286,7 @@ app.use('/public/audio/', rateLimit(20, 60 * 1000));
 console.log('✅ Rate limiting enabled');
 
 // ============================================================================
-// 📊 LOGGING
-// ============================================================================
-
-const logsDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-}
-
-const rotatingLogStream = rfs.createStream('app.log', {
-    interval: '1d',
-    path: logsDir,
-    maxSize: '10M',
-    maxFiles: 5,
-    compress: 'gzip'
-});
-
-app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: rotatingLogStream }));
-
-if (process.env.NODE_ENV !== 'production') {
-    app.use(morgan('dev'));
-}
-
-console.log('✅ Logging enabled');
-
-// ============================================================================
-// 📦 DATABASE CONNECTION
-// ============================================================================
-
-const { Pool } = require('pg');
-
-const pool = new Pool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'song_nexus_dev',
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
-
-pool.on('error', (err) => {
-    console.error('❌ Database connection error:', err);
-});
-
-pool.on('connect', () => {
-    console.log('✅ Database connected');
-});
-
-module.exports.pool = pool;
-
-// ============================================================================
-// 🔐 AUTH MIDDLEWARE (CRITICAL: Load BEFORE routes!)
+// 🔐 AUTH MIDDLEWARE
 // ============================================================================
 
 const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
@@ -349,15 +302,15 @@ console.log('✅ Auth middleware loaded');
 const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware');
 
 // ============================================================================
-// 🔌 API ROUTES
+// 🌐 ROUTE REGISTRATION (AFTER all middleware!)
 // ============================================================================
 
 console.log('🔧 Registering API routes...');
 
-// ✅ GET /api/tracks MIT CACHE (300 Sekunden = 5 Minuten)
+// ✅ GET /api/tracks WITH CACHE
 app.get('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
 
-// ✅ GET /api/blog/posts.json MIT CACHE (600 Sekunden = 10 Minuten)
+// ✅ GET /api/blog/posts.json WITH CACHE
 app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
     try {
         const filePath = path.join(__dirname, 'public', 'blog', 'posts.json');
@@ -372,9 +325,16 @@ app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
     }
 });
 
-// ✅ ALLE ANDEREN ROUTES (POST, PUT, DELETE ohne Cache)
+// ============================================================================
+// 🔐 WEBAUTHN ROUTES - CRITICAL: Session middleware is ACTIVE here!
+// ============================================================================
+
+app.use('/api/auth/webauthn', require('./routes/webauthn'));
+
+console.log('✅ WebAuthn routes registered');
+
+// ✅ ALL OTHER ROUTES
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/auth', require('./routes/webauthn'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/tracks', require('./routes/tracks'));
 app.use('/api/users', require('./routes/users'));
@@ -382,14 +342,14 @@ app.use('/api/play-history', require('./routes/play-history'));
 app.use('/api/admin/tracks', require('./routes/admin-tracks'));
 
 app.post('/api/csp-report', (req, res) => {
-    console.warn('⚠️  CSP Violation:', JSON.stringify(req.body, null, 2));
+    console.warn('⚠️ CSP Violation:', JSON.stringify(req.body, null, 2));
     res.status(204).send();
 });
 
 console.log('✅ API routes registered');
 
 // ============================================================================
-// 🎵 STATIC AUDIO DIRECTORY (Public Access)
+// 🎵 STATIC AUDIO DIRECTORY
 // ============================================================================
 
 app.use('/public/audio', (req, res, next) => {
@@ -403,16 +363,14 @@ app.use('/public/audio', (req, res, next) => {
 });
 
 app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
-
 console.log('✅ Static audio directory enabled');
 
 // ============================================================================
-// 📄 SERVE STATIC FRONTEND FILES (NUR EINMAL!)
+// 📄 SERVE STATIC FRONTEND FILES
 // ============================================================================
 
 const frontendPath = path.join(__dirname, '../frontend');
 app.use(express.static(frontendPath));
-
 console.log('✅ Static frontend files enabled');
 
 // ============================================================================
@@ -421,112 +379,66 @@ console.log('✅ Static frontend files enabled');
 
 app.use((err, req, res, next) => {
     console.error('❌ Error:', err.message);
-
-    const errorResponse = {
-        error: err.message,
-    };
-
-    if (process.env.NODE_ENV === 'development') {
+    const errorResponse = { error: err.message };
+    if (NODE_ENV === 'development') {
         errorResponse.stack = err.stack;
     }
-
     res.status(err.status || 500).json(errorResponse);
 });
 
 // ============================================================================
-// ✅ WARM UP - First query to initialize connection pool
+// ✅ WARM UP DATABASE
 // ============================================================================
 
 async function warmupDatabase() {
     try {
         console.log('🔥 Warming up database connection...');
-        await pool.query('SELECT 1');
+        await pool.query('SELECT NOW()');
         console.log('✅ Database warm - ready for requests!');
     } catch (err) {
-        console.warn('⚠️ Warmup query failed:', err.message);
+        console.error('❌ Database warmup failed:', err);
     }
 }
 
 // ============================================================================
-// 🚀 SERVER STARTUP
+// 🚀 START SERVER
 // ============================================================================
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
-let server;
-
-if (httpsOptions && USE_HTTPS) {
-    server = https.createServer(httpsOptions, app).listen(PORT, HOST, async () => {
-        const protocol = '🔒 HTTPS';
-        const certType = fs.existsSync(mkcertCertPath) ? '(mkcert)' : '(self-signed)';
-
-        console.log('');
-        console.log('╔════════════════════════════════════════════╗');
-        console.log('║   🎵 SONG-NEXUS v6.2 Backend              ║');
-        console.log('║      Secure • Ad-Free • Cookie-Free        ║');
-        console.log('╚════════════════════════════════════════════╝');
-        console.log(`✅ ${protocol} Server running on https://${HOST}:${PORT} ${certType}`);
-        console.log(`🌍 Environment: ${NODE_ENV}`);
-        console.log(`🛡️  Security: Helmet + CORS + CSP + Session + Auth Middleware`);
-        console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
-        console.log(`📁 Frontend: ${frontendPath}`);
-        console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'song_nexus_dev'}`);
-        console.log(`🔐 WebAuthn RP: ${process.env.WEBAUTHN_RP_ID || 'localhost'}`);
-        console.log('');
-
-        // ✨ NEU: Warm up database after server starts
-        await warmupDatabase();
-    });
-} else {
-    const http = require('http');
-    server = http.createServer(app).listen(PORT, HOST, async () => {
-        console.log('');
-        console.log('╔════════════════════════════════════════════╗');
-        console.log('║   🎵 SONG-NEXUS v6.2 Backend              ║');
-        console.log('║      🌐 HTTP Mode (ngrok or no certs)     ║');
-        console.log('╚════════════════════════════════════════════╝');
-        console.log(`✅ Server running on http://${HOST}:${PORT}`);
-        console.log(`🌍 Environment: ${NODE_ENV}`);
-
-        if (!httpsOptions) {
+warmupDatabase().then(() => {
+    if (httpsOptions && USE_HTTPS) {
+        const server = https.createServer(httpsOptions, app);
+        server.listen(PORT, HOST, () => {
             console.log('');
-            console.log('📌 To enable HTTPS for WebAuthn:');
-            console.log('   mkcert localhost');
-            console.log('   mv localhost.pem backend/certs/');
-            console.log('   mv localhost-key.pem backend/certs/');
-            console.log('   NODE_ENV=development npm start');
-        }
-        console.log('');
-
-        // ✨ NEU: Warm up database after server starts
-        await warmupDatabase();
-    });
-}
-
-// ============================================================================
-// 🛑 GRACEFUL SHUTDOWN
-// ============================================================================
-
-process.on('SIGTERM', () => {
-    console.log('\n🛑 SIGTERM received. Shutting down gracefully...');
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
-
-    setTimeout(() => {
-        console.error('⚠️  Forced shutdown (timeout)');
-        process.exit(1);
-    }, 10000);
+            console.log('╔════════════════════════════════════════════╗');
+            console.log('║   🎵 SONG-NEXUS v6.3 Backend              ║');
+            console.log('║      Secure • Ad-Free • Cookie-Free        ║');
+            console.log('╚════════════════════════════════════════════╝');
+            console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
+            console.log(`🌍 Environment: ${NODE_ENV}`);
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + Auth Middleware');
+            console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
+            console.log(`📁 Frontend: ${frontendPath}`);
+            console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+            console.log('🔐 WebAuthn RP: localhost');
+            console.log('');
+        });
+    } else {
+        app.listen(PORT, HOST, () => {
+            console.log('');
+            console.log('╔════════════════════════════════════════════╗');
+            console.log('║   🎵 SONG-NEXUS v6.3 Backend              ║');
+            console.log('║      Secure • Ad-Free • Cookie-Free        ║');
+            console.log('╚════════════════════════════════════════════╝');
+            console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
+            console.log(`🌍 Environment: ${NODE_ENV}`);
+            console.log('⚠️  WARNING: HTTPS disabled');
+            console.log('');
+        });
+    }
+}).catch(err => {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1);
 });
-
-process.on('SIGINT', () => {
-    console.log('\n🛑 SIGINT received. Shutting down gracefully...');
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
-    });
-});
-
-module.exports = app;

@@ -1,205 +1,227 @@
 // ============================================================================
-// 🔐 WEBAUTHN.JS v8.0 - ES6 MODULE
-// WebAuthn / Biometric Authentication Handler
+// 🔐 WEBAUTHN.JS v6.0 - WebAuthn + Magic Link Implementation
 // ============================================================================
+// Handles biometric registration/authentication + Magic Link
 
-import { getApiBaseUrl } from './config.js';
 import { APIClient } from './api-client.js';
+import { getAuthToken, setAuthToken, clearAuthToken } from './config.js';
 
 export const WebAuthn = {
-    getApiBase() {
-        return getApiBaseUrl();
-    },
 
-    async getRegisterOptions() {
-        try {
-            console.log('🔐 Getting WebAuthn registration options...');
-            return await APIClient.getWebAuthnRegisterOptions();
-        } catch (err) {
-            console.error('❌ Failed to get registration options:', err);
-            throw err;
-        }
-    },
+    // ========================================================================
+    // 👆 BIOMETRIC REGISTRATION
+    // ========================================================================
 
     async registerWithBiometric(username, email) {
         try {
-            console.log('🔐 Starting WebAuthn biometric registration...');
+            console.log('📝 Getting WebAuthn registration options...');
 
-            if (!navigator.credentials || !window.PublicKeyCredential) {
-                throw new Error('WebAuthn not supported in this browser');
-            }
+            // Get registration options from backend
+            const options = await APIClient.post('/auth/webauthn/register-options', {
+                username,
+                email
+            });
 
-            const options = await this.getRegisterOptions();
+            console.log('✅ Registration options received');
+            console.log('   Challenge:', options.challenge.substring(0, 20) + '...');
 
-            if (!options.challenge) {
-                throw new Error('Server did not return challenge');
-            }
-
-            options.challenge = this.base64ToBuffer(options.challenge);
-            options.user.id = this.base64ToBuffer(options.user.id);
-
-            console.log('📋 Challenge received:', options.challenge.length, 'bytes');
-
+            // Create credential using WebAuthn API
+            console.log('👆 Waiting for biometric input...');
             const credential = await navigator.credentials.create({
-                publicKey: options,
+                publicKey: {
+                    challenge: this._base64urlToBuffer(options.challenge),
+                    rp: {
+                        name: options.rp.name,
+                        id: options.rp.id
+                    },
+                    user: {
+                        id: this._base64urlToBuffer(options.user.id),
+                        name: options.user.name,
+                        displayName: options.user.displayName
+                    },
+                    pubKeyCredParams: options.pubKeyCredParams,
+                    timeout: options.timeout,
+                    attestation: options.attestation,
+                    authenticatorSelection: options.authenticatorSelection
+                }
             });
 
             if (!credential) {
-                throw new Error('User cancelled biometric verification or registration failed');
+                throw new Error('User cancelled biometric registration');
             }
 
-            console.log('✅ Biometric credential created');
+            console.log('✅ Credential created');
+            console.log('   ID:', credential.id.substring(0, 20) + '...');
 
-            const credentialForServer = {
+            // Verify registration with backend
+            console.log('📡 Verifying credential with backend...');
+            const response = await APIClient.post('/auth/webauthn/register-verify', {
                 id: credential.id,
-                rawId: this.bufferToBase64(credential.rawId),
+                rawId: credential.id,
                 response: {
-                    clientDataJSON: this.bufferToBase64(credential.response.clientDataJSON),
-                    attestationObject: this.bufferToBase64(credential.response.attestationObject),
+                    clientDataJSON: this._bufferToBase64url(new Uint8Array(credential.response.clientDataJSON)),
+                    attestationObject: this._bufferToBase64url(new Uint8Array(credential.response.attestationObject)),
+                    transports: credential.response.getTransports ? credential.response.getTransports() : ['internal']
                 },
-                type: credential.type,
-            };
+                type: credential.type
+            });
 
-            const result = await APIClient.verifyWebAuthnRegistration(credentialForServer);
-            console.log('✅ Registration verified by server!', result);
-            return result;
-        } catch (err) {
-            console.error('❌ WebAuthn registration error:', err.message);
-            throw err;
+            if (response.token) {
+                console.log('✅ Registration verified!');
+                setAuthToken(response.token);
+                return response;
+            }
+
+            throw new Error('Registration verification failed');
+
+        } catch (error) {
+            console.error('❌ Biometric registration error:', error.message);
+            throw error;
         }
     },
 
-    async getAuthenticateOptions(email) {
-        try {
-            console.log('🔐 Getting WebAuthn authentication options...');
-            return await APIClient.getWebAuthnAuthenticateOptions(email);
-        } catch (err) {
-            console.error('❌ Failed to get authentication options:', err);
-            throw err;
-        }
-    },
+    // ========================================================================
+    // 👆 BIOMETRIC AUTHENTICATION
+    // ========================================================================
 
     async authenticateWithBiometric() {
         try {
-            console.log('🔐 Starting WebAuthn biometric authentication...');
+            console.log('📝 Getting WebAuthn authentication options...');
 
-            if (!navigator.credentials || !window.PublicKeyCredential) {
-                throw new Error('WebAuthn not supported in this browser');
-            }
+            // Get authentication options from backend
+            const options = await APIClient.post('/auth/webauthn/authenticate-options', {});
 
-            const options = await this.getAuthenticateOptions('');
+            console.log('✅ Authentication options received');
+            console.log('   Challenge:', options.challenge.substring(0, 20) + '...');
+            console.log('   Allow credentials:', options.allowCredentials.length);
 
-            if (!options.challenge) {
-                throw new Error('Server did not return challenge');
-            }
-
-            options.challenge = this.base64ToBuffer(options.challenge);
-
-            if (options.allowCredentials && Array.isArray(options.allowCredentials)) {
-                options.allowCredentials = options.allowCredentials.map(cred => ({
-                    ...cred,
-                    id: this.base64ToBuffer(cred.id),
-                }));
-            }
-
-            console.log('📋 Challenge received:', options.challenge.length, 'bytes');
-
+            // Get assertion using WebAuthn API
+            console.log('👆 Waiting for biometric input...');
             const assertion = await navigator.credentials.get({
-                publicKey: options,
+                publicKey: {
+                    challenge: this._base64urlToBuffer(options.challenge),
+                    timeout: options.timeout,
+                    rpId: options.rpId,
+                    allowCredentials: options.allowCredentials.map(cred => ({
+                        ...cred,
+                        id: this._base64urlToBuffer(cred.id)
+                    })),
+                    userVerification: options.userVerification
+                }
             });
 
             if (!assertion) {
-                throw new Error('User cancelled biometric verification or authentication failed');
+                throw new Error('User cancelled biometric authentication');
             }
 
-            console.log('✅ Biometric assertion created');
+            console.log('✅ Assertion created');
+            console.log('   ID:', assertion.id.substring(0, 20) + '...');
 
-            const assertionForServer = {
+            // Verify authentication with backend
+            console.log('📡 Verifying assertion with backend...');
+            const response = await APIClient.post('/auth/webauthn/authenticate-verify', {
                 id: assertion.id,
-                rawId: this.bufferToBase64(assertion.rawId),
+                rawId: assertion.id,
                 response: {
-                    clientDataJSON: this.bufferToBase64(assertion.response.clientDataJSON),
-                    authenticatorData: this.bufferToBase64(assertion.response.authenticatorData),
-                    signature: this.bufferToBase64(assertion.response.signature),
-                    userHandle: assertion.response.userHandle ? this.bufferToBase64(assertion.response.userHandle) : null,
+                    clientDataJSON: this._bufferToBase64url(new Uint8Array(assertion.response.clientDataJSON)),
+                    authenticatorData: this._bufferToBase64url(new Uint8Array(assertion.response.authenticatorData)),
+                    signature: this._bufferToBase64url(new Uint8Array(assertion.response.signature))
                 },
-                type: assertion.type,
-            };
+                type: assertion.type
+            });
 
-            const result = await APIClient.verifyWebAuthnAuthentication(assertionForServer);
-            console.log('✅ Authentication verified by server!', result);
-            return result;
-        } catch (err) {
-            console.error('❌ WebAuthn authentication error:', err.message);
-            throw err;
+            if (response.token) {
+                console.log('✅ Authentication verified!');
+                setAuthToken(response.token);
+                return response;
+            }
+
+            throw new Error('Authentication verification failed');
+
+        } catch (error) {
+            console.error('❌ Biometric authentication error:', error.message);
+            throw error;
         }
     },
+
+    // ========================================================================
+    // 📧 MAGIC LINK LOGIN
+    // ========================================================================
 
     async loginWithMagicLink(email) {
         try {
-            console.log('📧 Sending magic link to:', email);
-            const result = await APIClient.sendMagicLink(email);
-            console.log('✅ Magic link sent!');
-            return result;
-        } catch (err) {
-            console.error('❌ Magic link send error:', err.message);
-            throw err;
+            console.log('📧 Requesting magic link...');
+
+            // This endpoint will send email with magic link
+            const response = await APIClient.post('/auth/webauthn/login-magic-link', {
+                email
+            });
+
+            console.log('✅ Magic link sent to:', email);
+            return response;
+
+        } catch (error) {
+            console.error('❌ Magic link error:', error.message);
+            throw error;
         }
     },
+
+    // ========================================================================
+    // 📧 MAGIC LINK VERIFY
+    // ========================================================================
 
     async verifyMagicLink(token) {
         try {
             console.log('🔐 Verifying magic link token...');
-            const result = await APIClient.verifyMagicLink(token);
-            console.log('✅ Magic link verified!');
-            return result;
-        } catch (err) {
-            console.error('❌ Magic link verification error:', err.message);
-            throw err;
-        }
-    },
 
-    async devLogin() {
-        try {
-            console.log('🧪 Dev login...');
-            const apiBase = this.getApiBase();
-            const res = await fetch(`${apiBase}/auth/dev-login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
+            const response = await APIClient.post('/auth/webauthn/verify-magic-link', {
+                token
             });
 
-            if (!res.ok) throw new Error('Dev login failed');
-
-            const result = await res.json();
-            if (result.token) {
-                APIClient.setToken(result.token);
+            if (response.token) {
+                console.log('✅ Magic link verified!');
+                setAuthToken(response.token);
+                return response;
             }
-            console.log('✅ Dev login successful!');
-            return result;
-        } catch (err) {
-            console.error('❌ Dev login error:', err.message);
-            throw err;
+
+            throw new Error('Magic link verification failed');
+
+        } catch (error) {
+            console.error('❌ Magic link verification error:', error.message);
+            throw error;
         }
     },
 
-    base64ToBuffer(base64) {
-        const binary_string = atob(base64);
-        const bytes = new Uint8Array(binary_string.length);
-        for (let i = 0; i < binary_string.length; i++) {
-            bytes[i] = binary_string.charCodeAt(i);
+    // ========================================================================
+    // 🔧 HELPER FUNCTIONS
+    // ========================================================================
+
+    _base64urlToBuffer(base64url) {
+        const base64 = base64url
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+        const padLength = (4 - (base64.length % 4)) % 4;
+        const padded = base64 + '='.repeat(padLength);
+        const binary = atob(padded);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
         }
         return bytes.buffer;
     },
 
-    bufferToBase64(buffer) {
-        let binary = '';
+    _bufferToBase64url(buffer) {
         const bytes = new Uint8Array(buffer);
+        let binary = '';
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
-        return btoa(binary);
-    },
+        const base64 = btoa(binary);
+        return base64
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+    }
 };
 
-console.log('✅ WebAuthn v8.0 loaded - ES6 Module');
+console.log('✅ WebAuthn v6.0 loaded - Biometric + Magic Link');

@@ -1,5 +1,5 @@
 // ============================================================================
-// 🎵 APP.JS v8.0 - ES6 MODULE
+// 🎵 APP.JS v8.1 - ES6 MODULE (FIXED - NO DUPLICATE LISTENERS)
 // Main Application Controller - imports everything
 // ============================================================================
 
@@ -57,7 +57,16 @@ export const App = {
       UI.updateAuthUI();
       console.log('✅ UI initialized');
 
-      // Setup Event Listeners
+      // ⚠️ CRITICAL FIX: DO NOT duplicate Auth event listeners!
+      // Auth.js ALREADY handles:
+      // - Modal toggle button
+      // - Modal close button
+      // - Tab switching
+      // - All form submissions
+      // - WebAuthn buttons
+      // - Logout button
+      // ⚠️ We ONLY setup non-auth related listeners here!
+
       this.setupEventListeners();
 
       // Load Tracks with pagination
@@ -83,90 +92,14 @@ export const App = {
   },
 
   setupEventListeners() {
-    console.log('🔌 Setting up event listeners...');
+    console.log('🔌 Setting up event listeners (non-auth)...');
 
-    // ====== AUTH MODAL TOGGLE ======
-    const authToggle = document.getElementById('authToggle');
-    if (authToggle) {
-      authToggle.addEventListener('click', () => {
-        console.log('🔐 Auth modal toggle clicked');
-        this.toggleAuthModal();
-      });
-    }
+    // ====== BLOG CARD CLICKS ======
+    // This is done in renderBlogPosts()
 
-    // ====== MODAL CLOSE BUTTON ======
-    const modalClose = document.querySelector('.modal-close');
-    if (modalClose) {
-      modalClose.addEventListener('click', () => {
-        console.log('🔴 Modal close button clicked');
-        this.toggleAuthModal();
-      });
-    }
+    // ====== OTHER NON-AUTH LISTENERS CAN GO HERE ======
 
-    // ====== TAB SWITCHING ======
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const tabName = btn.getAttribute('data-tab');
-        console.log(`📑 Tab clicked: ${tabName}`);
-        this.switchTab(tabName, e);
-      });
-    });
-
-    // ====== PASSWORD LOGIN FORM ======
-    const passwordForm = document.querySelector('form[data-form="password-login"]');
-    if (passwordForm) {
-      passwordForm.addEventListener('submit', (e) => {
-        console.log('📝 Password form submitted');
-        Auth.login(e);
-      });
-    }
-
-    // ====== PASSWORD REGISTER FORM ======
-    const registerForm = document.getElementById('passwordRegisterFormElement');
-    if (registerForm) {
-      registerForm.addEventListener('submit', (e) => {
-        console.log('📝 Register form submitted');
-        Auth.register(e);
-      });
-    }
-
-    // ====== MAGIC LINK BUTTON ======
-    const magicLinkBtn = document.getElementById('magicLinkBtn');
-    if (magicLinkBtn) {
-      magicLinkBtn.addEventListener('click', () => {
-        console.log('📧 Magic link button clicked');
-        Auth.loginWithMagicLink();
-      });
-    }
-
-    // ====== WEBAUTHN BUTTON ======
-    const webauthnBtn = document.getElementById('webauthnBtn');
-    if (webauthnBtn) {
-      webauthnBtn.addEventListener('click', () => {
-        console.log('🔐 WebAuthn button clicked');
-        Auth.authenticateWithBiometric();
-      });
-    }
-
-    // ====== REGISTER BIOMETRIC BUTTON ======
-    const registerBioBtn = document.getElementById('registerBiometricBtn');
-    if (registerBioBtn) {
-      registerBioBtn.addEventListener('click', () => {
-        console.log('📝 Register biometric button clicked');
-        Auth.registerBiometric();
-      });
-    }
-
-    // ====== LOGOUT BUTTON ======
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        console.log('🚪 Logout button clicked');
-        Auth.logout();
-      });
-    }
-
-    console.log('✅ All event listeners attached');
+    console.log('✅ All non-auth event listeners attached');
   },
 
   loadTracksWithPagination() {
@@ -259,40 +192,6 @@ export const App = {
     console.log('✅ Blog posts rendered');
   },
 
-  toggleAuthModal() {
-    const modal = document.getElementById('authModal');
-    if (modal) {
-      const isHidden = modal.style.display === 'none';
-      modal.style.display = isHidden ? 'flex' : 'none';
-      modal.setAttribute('aria-hidden', !isHidden);
-
-      if (isHidden) {
-        const firstFocusable = modal.querySelector('button, input, a');
-        if (firstFocusable) firstFocusable.focus();
-      }
-
-      console.log(`${isHidden ? '📖 Auth modal opened' : '🔐 Auth modal closed'}`);
-    }
-  },
-
-  switchTab(tabName, event) {
-    if (event) event.preventDefault();
-
-    document.querySelectorAll('.tab-btn').forEach(b => {
-      const isActive = b.getAttribute('data-tab') === tabName;
-      b.classList.toggle('active', isActive);
-      b.setAttribute('aria-selected', isActive);
-    });
-
-    document.querySelectorAll('.tab-content').forEach(t => {
-      const isActive = t.id === tabName + '-tab';
-      t.classList.toggle('active', isActive);
-      t.setAttribute('aria-hidden', !isActive);
-    });
-
-    console.log(`📑 Switched to tab: ${tabName}`);
-  },
-
   updateUI() {
     const authToggle = document.getElementById('authToggle');
     const userInfo = document.getElementById('userInfo');
@@ -321,4 +220,4 @@ export const App = {
   },
 };
 
-console.log('✅ App v8.0 loaded - ES6 Module');
+console.log('✅ App v8.1 loaded - ES6 Module (NO DUPLICATE LISTENERS)');

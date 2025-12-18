@@ -1,203 +1,139 @@
-
 // ============================================================================
-// 🔧 CONFIG.JS v8.0 - ES6 MODULE
-// Zentrale API-Konfiguration + Helper-Funktionen
+// 🔧 CONFIG.JS - FRONTEND CONFIGURATION + API ENDPOINTS
 // ============================================================================
 
-"use strict";
-
-export function isNgrokEnvironment() {
-    return typeof window !== 'undefined' && window.location.hostname.includes('ngrok');
-}
-
-export function getApiBaseUrl() {
-    if (isNgrokEnvironment()) {
-        return `https://${window.location.hostname}/api`;
-    }
-    return 'https://localhost:3000/api';
-}
-
-export function getServerBaseUrl() {
-    if (isNgrokEnvironment()) {
-        return `https://${window.location.hostname}`;
-    }
-    return 'https://localhost:3000';
-}
+const API_BASE_URL = 'https://localhost:3000/api';
 
 export const API_ENDPOINTS = {
+    // Auth Routes
     auth: {
-        register: '/auth/webauthn/register-password',
-        login: '/auth/webauthn/authenticate-password',
-        logout: '/auth/logout',
-        refresh: '/auth/refresh',
-        me: '/auth/me',
+        login: `${API_BASE_URL}/auth/login`,
+        register: `${API_BASE_URL}/auth/register`,
+        logout: `${API_BASE_URL}/auth/logout`,
+        verify: `${API_BASE_URL}/auth/verify`,
     },
+
+    // WebAuthn Routes
     webauthn: {
-        registerOptions: '/auth/webauthn/register-options',
-        registerVerify: '/auth/webauthn/register-verify',
-        authenticateOptions: '/auth/webauthn/authenticate-options',
-        authenticateVerify: '/auth/webauthn/authenticate-verify',
+        registerOptions: `${API_BASE_URL}/auth/webauthn/register-options`,
+        registerVerify: `${API_BASE_URL}/auth/webauthn/register-verify`,
+        authenticateOptions: `${API_BASE_URL}/auth/webauthn/authenticate-options`,
+        authenticateVerify: `${API_BASE_URL}/auth/webauthn/authenticate-verify`,
     },
+
+    // Simple Auth (Magic Link)
     authSimple: {
-        sendMagicLink: '/auth/webauthn/magic-link-request',
-        verifyMagicLink: '/auth/webauthn/magic-link-verify',
+        sendMagicLink: `${API_BASE_URL}/auth/simple/send-magic-link`,
+        verifyMagicLink: `${API_BASE_URL}/auth/simple/verify-magic-link`,
     },
+
+    // Tracks
     tracks: {
-        list: '/tracks',
-        get: (id) => `/tracks/${id}`,
-        create: '/tracks',
-        update: (id) => `/tracks/${id}`,
-        delete: (id) => `/tracks/${id}`,
-        search: '/tracks/search',
-    },
-    users: {
-        get: (id) => `/users/${id}`,
-        update: (id) => `/users/${id}`,
-        profile: '/users/profile',
-        purchases: '/users/purchases',
-    },
-    payments: {
-        createOrder: '/payments/create-order',
-        captureOrder: '/payments/capture-order',
-        orderStatus: (orderId) => `/payments/order/${orderId}`,
-    },
-    playHistory: {
-        log: '/play-history/log',
-        list: '/play-history',
-        stats: '/play-history/stats',
-    },
-    admin: {
-        tracks: {
-            list: '/admin/tracks',
-            create: '/admin/tracks',
-            update: (id) => `/admin/tracks/${id}`,
-            delete: (id) => `/admin/tracks/${id}`,
-        },
+        list: `${API_BASE_URL}/tracks`,
+        get: (id) => `${API_BASE_URL}/tracks/${id}`,
+        create: `${API_BASE_URL}/tracks`,
+        update: (id) => `${API_BASE_URL}/tracks/${id}`,
+        delete: (id) => `${API_BASE_URL}/tracks/${id}`,
     },
 };
 
-export function getFullUrl(endpoint) {
-    const baseUrl = getApiBaseUrl();
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    return `${baseUrl}${cleanEndpoint}`;
-}
+// ============================================================================
+// 🔐 TOKEN MANAGEMENT
+// ============================================================================
 
-export async function apiCall(endpoint, options = {}) {
-    const url = getFullUrl(endpoint);
-    const defaultOptions = {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-    };
+const TOKEN_KEY = 'auth_token';
+const TOKEN_EXPIRY_KEY = 'auth_token_expiry';
 
-    const finalOptions = {
-        ...defaultOptions,
-        ...options,
-        headers: {
-            ...defaultOptions.headers,
-            ...(options.headers || {}),
-        },
-    };
-
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    if (token) {
-        finalOptions.headers.Authorization = `Bearer ${token}`;
+export function setAuthToken(token, expiryMinutes = 15) {
+    if (!token) {
+        clearAuthToken();
+        return;
     }
-
-    console.log(`📡 API Call: ${finalOptions.method} ${url}`);
 
     try {
-        const response = await fetch(url, finalOptions);
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const error = new Error(errorData.error || `API Error: ${response.status}`);
-            error.status = response.status;
-            error.data = errorData;
-            throw error;
-        }
-
-        if (response.status === 204) {
-            return null;
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error(`❌ API Error: ${error.message}`, error);
-        throw error;
-    }
-}
-
-export function setAuthToken(token) {
-    if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('auth_token', token);
+        localStorage.setItem(TOKEN_KEY, token);
+        const expiryTime = new Date().getTime() + (expiryMinutes * 60 * 1000);
+        localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
         console.log('✅ Auth token stored');
+    } catch (err) {
+        console.warn('⚠️ Could not store auth token:', err);
     }
 }
 
 export function getAuthToken() {
-    if (typeof localStorage !== 'undefined') {
-        return localStorage.getItem('auth_token');
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+
+        if (!token || !expiry) return null;
+
+        // Check if token is expired
+        if (new Date().getTime() > parseInt(expiry)) {
+            clearAuthToken();
+            return null;
+        }
+
+        return token;
+    } catch (err) {
+        console.warn('⚠️ Could not retrieve auth token:', err);
+        return null;
     }
-    return null;
 }
 
 export function clearAuthToken() {
-    if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('auth_token');
-        console.log('✅ Auth token cleared');
+    try {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    } catch (err) {
+        console.warn('⚠️ Could not clear auth token:', err);
     }
 }
 
-export function isAuthenticated() {
-    return !!getAuthToken();
+export function isTokenExpired() {
+    try {
+        const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+        if (!expiry) return true;
+        return new Date().getTime() > parseInt(expiry);
+    } catch (err) {
+        return true;
+    }
 }
 
-export function getAudioUrl(filename) {
-    const serverBase = getServerBaseUrl();
-    return `${serverBase}/public/audio/${filename}`;
+// ============================================================================
+// 🌐 API BASE URL HELPER (für Compatibility)
+// ============================================================================
+
+export function getApiBaseUrl() {
+    return API_BASE_URL;
 }
 
-export function getAssetUrl(path) {
-    const serverBase = getServerBaseUrl();
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    return `${serverBase}${cleanPath}`;
+// ============================================================================
+// 🎵 AUDIO URL HELPER (für Compatibility)
+// ============================================================================
+
+export function getAudioUrl(trackId) {
+    if (!trackId) {
+        console.warn('⚠️ No trackId provided to getAudioUrl');
+        return null;
+    }
+    return `${API_BASE_URL.replace('/api', '')}/public/audio/${trackId}.mp3`;
 }
 
-export async function fetchTracks() {
-    return apiCall('/tracks');
-}
-
-export async function fetchTrack(id) {
-    return apiCall(`/tracks/${id}`);
-}
-
-export async function registerWebAuthn(credential) {
-    return apiCall('/auth/webauthn/register-verify', {
-        method: 'POST',
-        body: JSON.stringify(credential),
-    });
-}
-
-export async function authenticateWebAuthn(assertion) {
-    return apiCall('/auth/webauthn/authenticate-verify', {
-        method: 'POST',
-        body: JSON.stringify(assertion),
-    });
-}
+// ============================================================================
+// 📋 CONFIG INFO LOGGING (für Debugging)
+// ============================================================================
 
 export function logConfigInfo() {
-    console.log('');
-    console.log('╔════════════════════════════════════════════╗');
-    console.log('║ 🔧 SONG-NEXUS API CONFIGURATION v8.0 ES6 ║');
-    console.log('╚════════════════════════════════════════════╝');
-    console.log(`🌐 Environment: ${isNgrokEnvironment() ? '🌍 ngrok' : '🏠 localhost'}`);
-    console.log(`📍 Server Base: ${getServerBaseUrl()}`);
-    console.log(`🔌 API Base: ${getApiBaseUrl()}`);
-    console.log(`🔐 Authenticated: ${isAuthenticated() ? '✅ Yes' : '❌ No'}`);
-    console.log('');
+    console.group('🔧 CONFIG INFO');
+    console.log('API_BASE_URL:', API_BASE_URL);
+    console.log('Auth Token:', getAuthToken() ? '✅ Present' : '❌ Missing');
+    console.log('Token Expired:', isTokenExpired() ? '⏰ YES' : '✅ NO');
+    console.log('API_ENDPOINTS:', API_ENDPOINTS);
+    console.groupEnd();
 }
 
-console.log('✅ config.js v8.0 loaded - ES6 Module');
+// ============================================================================
+// 🚀 AUTO-INIT ON LOAD
+// ============================================================================
+
+console.log('✅ Config loaded - API_ENDPOINTS + Token Management + Helpers');
