@@ -116,7 +116,9 @@ export function getAudioUrl(trackId) {
         console.warn('⚠️ No trackId provided to getAudioUrl');
         return null;
     }
-    return `${API_BASE_URL.replace('/api', '')}/public/audio/${trackId}.mp3`;
+    // ✅ FIXED: trackId already contains .mp3 extension!
+    // Don't add .mp3 again!
+    return `${API_BASE_URL.replace('/api', '')}/public/audio/${trackId}`;
 }
 
 // ============================================================================

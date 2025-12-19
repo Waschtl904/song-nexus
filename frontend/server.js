@@ -117,10 +117,63 @@ app.use((req, res, next) => {
 });
 
 // ========================================================================
+// ✨ COMPRESSION MIDDLEWARE (NEU!) ← GZIP AKTIVIEREN
+// ========================================================================
+
+const compression = require('compression');
+
+// ✅ GZIP für: CSS, JS, JSON, SVG, Text
+app.use(compression({
+    filter: function (req, res) {
+        // Skip kompression für bestimmte Requests
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        // Komprimiere alles außer Binärdateien
+        return compression.filter(req, res);
+    },
+    level: 9  // Maximum compression (1-9, 9 ist max)
+}));
+
+console.log('✅ Compression middleware enabled (GZIP)');
+
+// ========================================================================
 // 📦 SERVE STATIC FILES
 // ========================================================================
 
-app.use(express.static(path.join(__dirname)));
+// ✅ Serve static files with proper MIME types and caching
+app.use(express.static(path.join(__dirname), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    setHeaders: function (res, filePath) {
+        // WebP images
+        if (filePath.endsWith('.webp')) {
+            res.setHeader('Content-Type', 'image/webp');
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+        }
+        // JPEG images
+        if (filePath.endsWith('.jpeg') || filePath.endsWith('.jpg')) {
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+        }
+    }
+}));
+
+// ✅ EXPLICIT ASSET ROUTES (Fallback if static fails)
+app.get('/assets/*', (req, res) => {
+    const filePath = path.join(__dirname, req.path);
+    if (fs.existsSync(filePath)) {
+        if (req.path.endsWith('.webp')) {
+            res.setHeader('Content-Type', 'image/webp');
+        } else if (req.path.endsWith('.jpeg') || req.path.endsWith('.jpg')) {
+            res.setHeader('Content-Type', 'image/jpeg');
+        }
+        res.sendFile(filePath);
+    } else {
+        res.status(404).json({ error: 'Asset not found', requested: req.path });
+    }
+});
 
 // ========================================================================
 // 🎯 FALLBACK TO index.html (SPA SUPPORT)

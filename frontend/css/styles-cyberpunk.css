@@ -1362,3 +1362,79 @@ footer p {
         font-size: 12px;
     }
 }
+
+/* ✅ HERO BACKGROUND OPTIMIZATION - WebP + JPEG Fallback
+   
+   Modified to adhere to Perplexity Design System
+   
+   ======================================================================== */
+
+/* ========================================================================
+   Hero Background Container - Fixed Background Image
+   ======================================================================== */
+
+.hero-background-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+    background: linear-gradient(135deg,
+            var(--color-background) 0%,
+            var(--color-charcoal-800) 100%);
+}
+
+/* Picture Element Styling */
+.hero-background-container picture {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ✅ Bild-Optimierung */
+.hero-background-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    opacity: 1;
+    transition: opacity 600ms var(--ease-standard);
+}
+
+/* Während des Ladens - zeige Gradient Fallback */
+.hero-background-image[loading] {
+    opacity: 0.8;
+}
+
+/* ========================================================================
+   Responsive für Mobile
+   ======================================================================== */
+
+/* Mobile Portrait - 480px breakpoint per design system requirements */
+@media (max-width: 480px) {
+    .hero-background-container {
+        height: 50vh;
+    }
+}
+
+/* Tablet and larger mobile devices */
+@media (max-width: 768px) {
+    .hero-background-container {
+        height: 60vh;
+    }
+}
+
+/* ========================================================================
+   Print-Optimierung (Bild nicht drucken)
+   ======================================================================== */
+
+@media print {
+    .hero-background-container {
+        display: none;
+    }
+}
+
+/* END: Hero Background CSS */

@@ -34,10 +34,6 @@
     <!-- Performance: DNS Prefetch für API -->
     <link rel="dns-prefetch" href="https://api.paypal.com">
 
-    <!-- ✅ Performance: Preload optimierte Bilder (WebP + JPEG) -->
-    <link rel="preload" as="image" href="./assets/images/Hintergrundbild 1.webp" type="image/webp">
-    <link rel="preload" as="image" href="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
-
     <title>🎵 SONG-NEXUS – Musikstreaming-Plattform</title>
 
     <link rel="icon" type="image/svg+xml"
@@ -54,22 +50,6 @@
 </head>
 
 <body>
-    <!-- ✅ OPTIMIERTES HERO-HINTERGRUNDBILD MIT PICTURE ELEMENT -->
-    <!-- WebP wird zuerst versucht (160 KB) - beste Kompression -->
-    <!-- JPEG als Fallback für ältere Browser (300 KB) -->
-    <div id="heroBackground" class="hero-background-container" role="img" aria-label="Cyberpunk Musik Hintergrund">
-        <picture>
-            <!-- WebP: Moderne Browser + beste Kompression (160 KB) -->
-            <source srcset="./assets/images/Hintergrundbild 1.webp" type="image/webp">
-            <!-- JPEG: Fallback für ältere Browser (300 KB) -->
-            <source srcset="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
-            <!-- Ultimativer Fallback - HIER sind loading + decoding! -->
-            <img src="./assets/images/Hintergrundbild 1.jpeg"
-                alt="Cyberpunk Stadt Hintergrund - Neon und Stadt-Szenerie" class="hero-background-image" loading="lazy"
-                decoding="async">
-        </picture>
-    </div>
-
     <!-- ========================================================================
          🎵 STICKY PLAYER (Always visible bottom-right)
          ======================================================================== -->
