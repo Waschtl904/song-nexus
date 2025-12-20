@@ -60,7 +60,7 @@ export const Tracks = {
   },
 
   renderTracks(tracks) {
-    const container = document.getElementById('trackContainer');
+    const container = document.getElementById('tracksList');
     if (!container) {
       console.warn('⚠️ Track container not found');
       return;
@@ -88,15 +88,36 @@ export const Tracks = {
           ${track.is_free ? '' : '<div class="track-badge">🔒 Premium</div>'}
           ${track.is_premium ? '<div class="track-badge">💰 Paid</div>' : '<div class="track-badge" style="background: rgba(0, 204, 119, 0.15); color: #00cc77; border-color: #00cc77;">🆓 Free</div>'}
           
-          <button class="button play-track-btn" data-track-id="${track.id}" data-filename="${this.escapeHtml(track.audio_filename)}" data-premium="${track.is_premium}" data-name="${this.escapeHtml(track.name)}" style="width: 100%; margin-top: 12px;" aria-label="Play ${this.escapeHtml(track.name)}">
-            ▶️ ${track.is_premium && !token ? '🔊 Preview 40s' : 'Play'}
-          </button>
+          <button
+            class="button-metal-play"
+            data-track-id="${track.id}" 
+            data-filename="${this.escapeHtml(track.audio_filename)}" 
+            data-premium="${track.is_premium}" 
+            data-name="${this.escapeHtml(track.name)}" 
+            style="
+              background-image: url('./assets/images/metal-play-button-optimized.webp') !important;
+              background-size: contain !important;
+              background-repeat: no-repeat !important;
+              background-position: center !important;
+              background-color: transparent !important;
+              width: 140px !important;
+              height: 70px !important;
+              border: none !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+              cursor: pointer !important;
+              font-size: 0 !important;
+              color: transparent !important;
+              margin-top: 12px;
+            " 
+            aria-label="Play ${this.escapeHtml(track.name)}"
+          ></button>
         </div>
       `;
     }).join('');
 
-    // Add event listeners to play buttons
-    document.querySelectorAll('.play-track-btn').forEach(btn => {
+    // ← ÄNDERE HIER: .play-track-btn zu .button-metal-play
+    document.querySelectorAll('.button-metal-play').forEach(btn => {
       btn.addEventListener('click', () => {
         this.playTrack(
           parseInt(btn.getAttribute('data-track-id')),

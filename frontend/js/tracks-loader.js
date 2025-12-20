@@ -140,13 +140,31 @@ export class TracksLoader {
         <span class="track-card-duration">${duration}</span>
       </div>
       <div class="track-card-price">${priceDisplay}</div>
-      <button class="button play-btn" data-track-id="${track.id}" aria-label="Play ${this.escapeHtml(track.name)}">
-        ▶️ Play
-      </button>
+      <button
+  class="button-metal-play"
+  data-track-id="${track.id}" 
+  style="
+    background-image: url('./assets/images/metal-play-button-optimized.webp') !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-color: transparent !important;
+    width: 140px !important;
+    height: 70px !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    font-size: 0 !important;
+    color: transparent !important;
+    margin-top: 12px;
+  " 
+  aria-label="Play ${this.escapeHtml(track.name)}"
+></button>
     `;
 
         // Add play button listener
-        const playBtn = div.querySelector('.play-btn');
+        const playBtn = div.querySelector('.button-metal-play');  // ← Ändere hier
         playBtn.addEventListener('click', () => {
             if (typeof window.Player !== 'undefined') {
                 window.Player.loadAndPlay(track, !window.Auth?.getToken() && track.is_premium);

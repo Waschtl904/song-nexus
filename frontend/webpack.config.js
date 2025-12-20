@@ -1,5 +1,7 @@
 const path = require('path');
 const webpack = require('webpack');
+const CopyPlugin = require('copy-webpack-plugin');  // ← HINZUFÜGEN
+
 
 module.exports = {
     mode: 'production',
@@ -8,7 +10,7 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'app.bundle.js',
-        publicPath: '/dist/'
+        publicPath: '/'  // ← ÄNDERE von '/dist/' zu '/'
     },
 
     devtool: 'source-map',
@@ -48,7 +50,13 @@ module.exports = {
     plugins: [
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify('production')
-        })
+        }),
+        // ← HINZUFÜGEN: Assets kopieren
+        new CopyPlugin({
+            patterns: [
+                { from: 'assets', to: 'assets' }  // Kopiert assets/ → dist/assets/
+            ],
+        }),
     ],
 
     performance: {
