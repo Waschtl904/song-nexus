@@ -2,24 +2,28 @@
    DESIGN SYSTEM - Main CSS Entry Point
    ======================================== */
 
-/* 1. Auto-generierte Design Tokens (ZUERST!) */
+/* 1. Auto-generierte Design Tokens */
 @import '_design-tokens.css';
 
-/* 2. Base Styles */
-@import 'base/reset.css';
-@import 'base/typography.css';
-@import 'base/accessibility.css';
+/* ========================================
+   2. BASE STYLES - PHASE 5 ✅
+   ======================================== */
+@import 'base/_base.css';
 
-/* 3. Component Styles */
-@import 'components/buttons.css';
-@import 'components/forms.css';
-@import 'components/cards.css';
-@import 'components/player.css';
 
-/* 4. Layout Styles */
-@import 'layout/grid.css';
-@import 'layout/header.css';
-@import 'layout/footer.css';
+/* NEW: Phase 6 */
+@import 'components/_components.css';
 
-/* 5. Themes (optional) */
-/* @import 'themes/dark.css'; */
+@import 'layout/_layout.css';
+
+
+/* ========================================
+   3-5. Placeholder für Phase 6-8
+   ======================================== */
+/* (alle auskommentiert, wie in deiner neuen Datei) */
+
+/* ========================================
+   6. LEGACY STYLES
+   ======================================== */
+@import '../css/styles-cyberpunk.css';
+@import '../css/player.css';

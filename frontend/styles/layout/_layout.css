@@ -1,0 +1,634 @@
+/**
+ * SONG-NEXUS Design System - Layout Styles
+ * Grid, Containers, Header, Footer, Responsive
+ * Phase 7 Implementation - 22.12.2025
+ * 
+ * This module provides:
+ * - Container and grid layouts
+ * - Header styles and positioning
+ * - Footer styles and positioning
+ * - Main content area styling
+ * - Responsive breakpoints
+ * - Layout utilities
+ */
+
+/* ========================================================================
+   CONTAINERS & PAGE STRUCTURE
+   ======================================================================== */
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Main container */
+.container {
+    width: 100%;
+    max-width: var(--container-lg);
+    margin: 0 auto;
+    padding: 0 var(--space-16);
+}
+
+.container--sm {
+    max-width: var(--container-sm);
+}
+
+.container--md {
+    max-width: var(--container-md);
+}
+
+.container--lg {
+    max-width: var(--container-lg);
+}
+
+.container--xl {
+    max-width: var(--container-xl);
+}
+
+.container--full {
+    max-width: 100%;
+    padding: 0;
+}
+
+/* Wrapper for full-width backgrounds */
+.wrapper {
+    width: 100%;
+}
+
+.wrapper--primary {
+    background-color: var(--color-background);
+}
+
+.wrapper--secondary {
+    background-color: var(--color-surface);
+}
+
+/* ========================================================================
+   HEADER
+   ======================================================================== */
+
+header,
+.header {
+    width: 100%;
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-16) 0;
+    position: relative;
+    z-index: 100;
+}
+
+.header__content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+}
+
+.header__logo {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.header__logo:hover {
+    color: var(--color-primary);
+}
+
+.header__nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-24);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.header__nav-item {
+    font-size: var(--font-size-base);
+}
+
+.header__nav-link {
+    color: var(--color-text-primary);
+    text-decoration: none;
+    transition: color var(--transitions-fast) ease;
+    position: relative;
+    padding-bottom: var(--space-4);
+}
+
+.header__nav-link:hover {
+    color: var(--color-primary);
+}
+
+.header__nav-link.is-active {
+    color: var(--color-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+.header__nav-link.is-active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-primary);
+}
+
+.header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+}
+
+/* Mobile menu toggle */
+.header__menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: var(--font-size-xl);
+    padding: var(--space-8);
+}
+
+/* ========================================================================
+   MAIN CONTENT AREA
+   ======================================================================== */
+
+.page-content {
+    padding: var(--space-32) 0;
+    width: 100%;
+}
+
+.page-content--narrow {
+    padding: var(--space-24) 0;
+}
+
+.page-content--wide {
+    padding: var(--space-48) 0;
+}
+
+.content-section {
+    margin-bottom: var(--space-32);
+}
+
+.content-section:last-child {
+    margin-bottom: 0;
+}
+
+.content-section__header {
+    margin-bottom: var(--space-16);
+}
+
+.content-section__title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-8);
+}
+
+.content-section__subtitle {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+}
+
+/* ========================================================================
+   GRID LAYOUTS
+   ======================================================================== */
+
+.grid {
+    display: grid;
+    gap: var(--space-16);
+}
+
+.grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.grid--4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.grid--auto {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.grid--compact {
+    gap: var(--space-8);
+}
+
+.grid--loose {
+    gap: var(--space-24);
+}
+
+/* Grid items */
+.grid__item {
+    width: 100%;
+}
+
+.grid__item--span-2 {
+    grid-column: span 2;
+}
+
+.grid__item--span-3 {
+    grid-column: span 3;
+}
+
+.grid__item--span-full {
+    grid-column: 1 / -1;
+}
+
+/* ========================================================================
+   FLEX LAYOUTS
+   ======================================================================== */
+
+.flex-section {
+    display: flex;
+    gap: var(--space-16);
+    align-items: stretch;
+}
+
+.flex-section--col {
+    flex-direction: column;
+}
+
+.flex-section--row {
+    flex-direction: row;
+}
+
+.flex-section--center {
+    align-items: center;
+}
+
+.flex-section--start {
+    align-items: flex-start;
+}
+
+.flex-section--between {
+    justify-content: space-between;
+}
+
+.flex-section__item {
+    flex: 1;
+    min-width: 0;
+}
+
+.flex-section__item--fixed {
+    flex: 0 0 auto;
+}
+
+/* ========================================================================
+   SIDEBAR LAYOUTS
+   ======================================================================== */
+
+.sidebar-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: var(--space-24);
+    align-items: start;
+}
+
+.sidebar-layout__main {
+    grid-column: 1;
+}
+
+.sidebar-layout__sidebar {
+    grid-column: 2;
+    position: sticky;
+    top: var(--space-16);
+}
+
+.sidebar-layout--reverse {
+    grid-template-columns: 300px 1fr;
+}
+
+.sidebar-layout--reverse .sidebar-layout__main {
+    grid-column: 2;
+}
+
+.sidebar-layout--reverse .sidebar-layout__sidebar {
+    grid-column: 1;
+}
+
+/* ========================================================================
+   FOOTER
+   ======================================================================== */
+
+footer,
+.footer {
+    width: 100%;
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    padding: var(--space-32) 0;
+    margin-top: auto;
+}
+
+.footer__content {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-32);
+}
+
+.footer__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+}
+
+.footer__section-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.footer__section-link {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transitions-fast) ease;
+}
+
+.footer__section-link:hover {
+    color: var(--color-primary);
+}
+
+.footer__bottom {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-16);
+    margin-top: var(--space-24);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.footer__copyright {
+    flex: 1;
+}
+
+.footer__social {
+    display: flex;
+    gap: var(--space-12);
+}
+
+.footer__social-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--color-secondary);
+    color: var(--color-text-primary);
+    text-decoration: none;
+    transition: background-color var(--transitions-fast) ease;
+}
+
+.footer__social-link:hover {
+    background-color: var(--color-primary);
+    color: var(--color-background);
+}
+
+/* ========================================================================
+   SPACING UTILITIES
+   ======================================================================== */
+
+.section-spacing {
+    padding: var(--space-32) 0;
+}
+
+.section-spacing--sm {
+    padding: var(--space-16) 0;
+}
+
+.section-spacing--lg {
+    padding: var(--space-48) 0;
+}
+
+.section-spacing--xl {
+    padding: var(--space-64) 0;
+}
+
+.section-gap {
+    margin-bottom: var(--space-32);
+}
+
+.section-gap--sm {
+    margin-bottom: var(--space-16);
+}
+
+.section-gap--lg {
+    margin-bottom: var(--space-48);
+}
+
+/* ========================================================================
+   DARK MODE SUPPORT
+   ======================================================================== */
+
+@media (prefers-color-scheme: dark) {
+
+    header,
+    .header {
+        background-color: var(--color-surface);
+        border-bottom-color: var(--color-border);
+    }
+
+    footer,
+    .footer {
+        background-color: var(--color-surface);
+        border-top-color: var(--color-border);
+    }
+
+    .footer__bottom {
+        border-top-color: var(--color-border);
+    }
+}
+
+/* ========================================================================
+   RESPONSIVE DESIGN
+   ======================================================================== */
+
+/* Tablet (768px and below) */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 var(--space-12);
+    }
+
+    header,
+    .header {
+        padding: var(--space-12) 0;
+    }
+
+    .header__content {
+        gap: var(--space-12);
+    }
+
+    .header__nav {
+        display: none;
+    }
+
+    .header__menu-toggle {
+        display: flex;
+    }
+
+    .page-content {
+        padding: var(--space-24) 0;
+    }
+
+    .grid--3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid--4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .sidebar-layout,
+    .sidebar-layout--reverse {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar-layout__main,
+    .sidebar-layout--reverse .sidebar-layout__main {
+        grid-column: 1;
+    }
+
+    .sidebar-layout__sidebar,
+    .sidebar-layout--reverse .sidebar-layout__sidebar {
+        grid-column: 1;
+        position: static;
+    }
+
+    .footer__content {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-24);
+    }
+
+    .footer__bottom {
+        flex-direction: column;
+        gap: var(--space-12);
+    }
+
+    .grid__item--span-2 {
+        grid-column: span 1;
+    }
+
+    .section-spacing {
+        padding: var(--space-24) 0;
+    }
+
+    .section-spacing--lg {
+        padding: var(--space-32) 0;
+    }
+}
+
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+    .container {
+        padding: 0 var(--space-8);
+    }
+
+    header,
+    .header {
+        padding: var(--space-8) 0;
+    }
+
+    .header__content {
+        gap: var(--space-8);
+    }
+
+    .header__logo {
+        font-size: var(--font-size-lg);
+    }
+
+    .header__actions {
+        gap: var(--space-8);
+    }
+
+    .page-content {
+        padding: var(--space-16) 0;
+    }
+
+    .grid,
+    .grid--2,
+    .grid--3,
+    .grid--4 {
+        grid-template-columns: 1fr;
+        gap: var(--space-12);
+    }
+
+    .grid__item--span-2,
+    .grid__item--span-3 {
+        grid-column: span 1;
+    }
+
+    .flex-section {
+        flex-direction: column;
+        gap: var(--space-12);
+    }
+
+    .footer__content {
+        grid-template-columns: 1fr;
+        gap: var(--space-16);
+    }
+
+    .footer {
+        padding: var(--space-16) 0;
+    }
+
+    .section-spacing {
+        padding: var(--space-12) 0;
+    }
+
+    .section-spacing--lg {
+        padding: var(--space-16) 0;
+    }
+
+    .content-section__title {
+        font-size: var(--font-size-xl);
+    }
+}
+
+/* ========================================================================
+   PRINT STYLES (Optional)
+   ======================================================================== */
+
+@media print {
+
+    header,
+    .header,
+    footer,
+    .footer,
+    .no-print {
+        display: none;
+    }
+
+    body {
+        background-color: white;
+        color: black;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    a {
+        color: black;
+        text-decoration: underline;
+    }
+}
