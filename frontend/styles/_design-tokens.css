@@ -1,7 +1,7 @@
 :root {
-  --color-primary: #32B8C6;
-  --color-primary_hover: #2FA6B2;
-  --color-primary_active: #1A7073;
+  --color-primary: #00CC77;
+  --color-primary_hover: #00B366;
+  --color-primary_active: #009933;
   --color-secondary: #5E5240;
   --color-secondary_hover: #6B624F;
   --color-accent_teal: #32B8C6;
@@ -11,8 +11,8 @@
   --color-accent_pink: #FF1493;
   --color-background: #FCF8F9;
   --color-surface: #FFFFFD;
-  --color-text_primary: #134252;
-  --color-text_secondary: #626C71;
+  --color-text_primary: #00ffff;
+  --color-text_secondary: #88ddff;
   --color-text_muted: #A7A9A9;
   --color-border: rgba(94, 82, 64, 0.2);
   --color-border_focus: rgba(50, 184, 198, 0.4);
@@ -66,14 +66,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #50D4E8;
-    --color-primary_hover: #3AC5D9;
-    --color-primary_active: #2BA8BB;
+    --color-primary: #00CC77;
+    --color-primary_hover: #00B366;
+    --color-primary_active: #009933;
     --color-secondary: #8B7B6D;
     --color-background: #0F1419;
     --color-surface: #1A1F2E;
-    --color-text_primary: #E8EAEB;
-    --color-text_secondary: #B0B5B9;
+    --color-text_primary: #00ffff;
+    --color-text_secondary: #88ddff;
     --color-text_muted: #6B7076;
     --color-border: rgba(232, 234, 235, 0.15);
   }
