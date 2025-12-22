@@ -1,0 +1,80 @@
+:root {
+  --color-primary: #32B8C6;
+  --color-primary_hover: #2FA6B2;
+  --color-primary_active: #1A7073;
+  --color-secondary: #5E5240;
+  --color-secondary_hover: #6B624F;
+  --color-accent_teal: #32B8C6;
+  --color-accent_green: #22C55E;
+  --color-accent_red: #FF5459;
+  --color-accent_orange: #E68161;
+  --color-accent_pink: #FF1493;
+  --color-background: #FCF8F9;
+  --color-surface: #FFFFFD;
+  --color-text_primary: #134252;
+  --color-text_secondary: #626C71;
+  --color-text_muted: #A7A9A9;
+  --color-border: rgba(94, 82, 64, 0.2);
+  --color-border_focus: rgba(50, 184, 198, 0.4);
+  --color-status_success: #22C55E;
+  --color-status_error: #FF5459;
+  --color-status_warning: #E68161;
+  --color-status_info: #32B8C6;
+  --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  --font-size-4xl: 30px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 550;
+  --font-weight-bold: 600;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.8;
+  --space-0: 0;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --radius-sm: 6px;
+  --radius-base: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #50D4E8;
+    --color-primary_hover: #3AC5D9;
+    --color-primary_active: #2BA8BB;
+    --color-secondary: #8B7B6D;
+    --color-background: #0F1419;
+    --color-surface: #1A1F2E;
+    --color-text_primary: #E8EAEB;
+    --color-text_secondary: #B0B5B9;
+    --color-text_muted: #6B7076;
+    --color-border: rgba(232, 234, 235, 0.15);
+  }
+}

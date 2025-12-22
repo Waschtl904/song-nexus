@@ -1,0 +1,227 @@
+{
+  "version": "1.0",
+  "meta": {
+    "name": "SONG-NEXUS Cyberpunk Theme",
+    "author": "Your Designer Name",
+    "lastUpdated": "2025-12-20",
+    "description": "Central design system configuration for SONG-NEXUS music streaming platform"
+  },
+
+  "colors": {
+    "primary": "#32B8C6",
+    "primary_hover": "#2FA6B2",
+    "primary_active": "#1A7073",
+    "secondary": "#5E5240",
+    "secondary_hover": "#6B624F",
+    "accent_teal": "#32B8C6",
+    "accent_green": "#22C55E",
+    "accent_red": "#FF5459",
+    "accent_orange": "#E68161",
+    "accent_pink": "#FF1493",
+    
+    "background": "#FCF8F9",
+    "surface": "#FFFFFD",
+    "text_primary": "#134252",
+    "text_secondary": "#626C71",
+    "text_muted": "#A7A9A9",
+    
+    "border": "rgba(94, 82, 64, 0.2)",
+    "border_focus": "rgba(50, 184, 198, 0.4)",
+    
+    "status_success": "#22C55E",
+    "status_error": "#FF5459",
+    "status_warning": "#E68161",
+    "status_info": "#32B8C6"
+  },
+
+  "typography": {
+    "font_family_base": "\"FKGroteskNeue\", \"Geist\", \"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+    "font_family_mono": "\"Berkeley Mono\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    
+    "font_sizes": {
+      "xs": "11px",
+      "sm": "12px",
+      "base": "14px",
+      "md": "14px",
+      "lg": "16px",
+      "xl": "18px",
+      "2xl": "20px",
+      "3xl": "24px",
+      "4xl": "30px"
+    },
+    
+    "font_weights": {
+      "normal": 400,
+      "medium": 500,
+      "semibold": 550,
+      "bold": 600
+    },
+    
+    "line_heights": {
+      "tight": 1.2,
+      "normal": 1.5,
+      "relaxed": 1.8
+    },
+    
+    "letter_spacing": {
+      "tight": "-0.01em",
+      "normal": "0em",
+      "wide": "0.02em"
+    }
+  },
+
+  "spacing": {
+    "0": "0",
+    "1": "1px",
+    "2": "2px",
+    "4": "4px",
+    "6": "6px",
+    "8": "8px",
+    "10": "10px",
+    "12": "12px",
+    "16": "16px",
+    "20": "20px",
+    "24": "24px",
+    "32": "32px",
+    "48": "48px",
+    "64": "64px"
+  },
+
+  "radius": {
+    "sm": "6px",
+    "base": "8px",
+    "md": "10px",
+    "lg": "12px",
+    "xl": "16px",
+    "full": "9999px"
+  },
+
+  "shadows": {
+    "xs": "0 1px 2px rgba(0, 0, 0, 0.02)",
+    "sm": "0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)",
+    "md": "0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02)",
+    "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02)",
+    "xl": "0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 10px 10px -5px rgba(0, 0, 0, 0.02)"
+  },
+
+  "components": {
+    "buttons": {
+      "primary": {
+        "background": "@ref colors.primary",
+        "background_hover": "@ref colors.primary_hover",
+        "background_active": "@ref colors.primary_active",
+        "text_color": "@ref colors.background",
+        "padding": "@ref spacing.8 @ref spacing.16",
+        "border_radius": "@ref radius.base",
+        "font_size": "@ref typography.font_sizes.base",
+        "font_weight": "@ref typography.font_weights.medium",
+        "border": "none",
+        "cursor": "pointer",
+        "transition": "all 0.2s ease"
+      },
+      "secondary": {
+        "background": "@ref colors.secondary",
+        "background_hover": "@ref colors.secondary_hover",
+        "text_color": "@ref colors.text_primary",
+        "padding": "@ref spacing.8 @ref spacing.16",
+        "border_radius": "@ref radius.base",
+        "font_weight": "@ref typography.font_weights.medium"
+      },
+      "outline": {
+        "background": "transparent",
+        "border": "1px solid @ref colors.border",
+        "text_color": "@ref colors.text_primary",
+        "padding": "@ref spacing.8 @ref spacing.16",
+        "border_radius": "@ref radius.base"
+      },
+      "sm": {
+        "padding": "@ref spacing.4 @ref spacing.8",
+        "font_size": "@ref typography.font_sizes.sm"
+      },
+      "lg": {
+        "padding": "@ref spacing.12 @ref spacing.24",
+        "font_size": "@ref typography.font_sizes.lg"
+      }
+    },
+
+    "cards": {
+      "background": "@ref colors.surface",
+      "border": "1px solid @ref colors.border",
+      "border_radius": "@ref radius.lg",
+      "padding": "@ref spacing.16",
+      "shadow": "@ref shadows.sm",
+      "transition": "box-shadow 0.2s ease"
+    },
+
+    "forms": {
+      "input_background": "@ref colors.surface",
+      "input_border": "1px solid @ref colors.border",
+      "input_border_focus": "2px solid @ref colors.primary",
+      "input_padding": "@ref spacing.8 @ref spacing.12",
+      "input_border_radius": "@ref radius.base",
+      "input_font_size": "@ref typography.font_sizes.base",
+      "input_font_family": "@ref typography.font_family_base",
+      "label_font_size": "@ref typography.font_sizes.sm",
+      "label_font_weight": "@ref typography.font_weights.medium"
+    },
+
+    "player": {
+      "background": "@ref colors.surface",
+      "border": "1px solid @ref colors.border",
+      "control_background": "@ref colors.primary",
+      "control_background_hover": "@ref colors.primary_hover",
+      "icon_color": "@ref colors.text_primary",
+      "shadow": "@ref shadows.md"
+    },
+
+    "track_card": {
+      "background": "@ref colors.surface",
+      "border": "1px solid @ref colors.border",
+      "border_radius": "@ref radius.md",
+      "padding": "@ref spacing.12",
+      "shadow": "@ref shadows.sm",
+      "hover_shadow": "@ref shadows.md",
+      "title_color": "@ref colors.text_primary",
+      "artist_color": "@ref colors.text_secondary"
+    },
+
+    "modal": {
+      "background": "@ref colors.surface",
+      "border": "1px solid @ref colors.border",
+      "border_radius": "@ref radius.lg",
+      "shadow": "@ref shadows.lg",
+      "padding": "@ref spacing.24",
+      "overlay_background": "rgba(0, 0, 0, 0.5)"
+    }
+  },
+
+  "breakpoints": {
+    "mobile": "375px",
+    "tablet": "768px",
+    "desktop": "1024px",
+    "wide": "1280px",
+    "ultrawide": "1920px"
+  },
+
+  "darkMode": {
+    "colors": {
+      "primary": "#50D4E8",
+      "primary_hover": "#3AC5D9",
+      "primary_active": "#2BA8BB",
+      "secondary": "#8B7B6D",
+      "background": "#0F1419",
+      "surface": "#1A1F2E",
+      "text_primary": "#E8EAEB",
+      "text_secondary": "#B0B5B9",
+      "text_muted": "#6B7076",
+      "border": "rgba(232, 234, 235, 0.15)"
+    }
+  },
+
+  "transitions": {
+    "fast": "150ms",
+    "normal": "250ms",
+    "slow": "350ms",
+    "ease_standard": "cubic-bezier(0.16, 1, 0.3, 1)"
+  }
+}
