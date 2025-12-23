@@ -1,9 +1,33 @@
 // ============================================================================
-// 🎵 TRACKS-LOADER.JS v8.0 - ES6 CLASS
-// Pagination + Infinite Scroll für Track-Liste
+// 🎵 TRACKS-LOADER.JS v8.1 - ES6 CLASS
+// Pagination + Infinite Scroll für Track-Liste + Design Config
 // ============================================================================
 
 import { APIClient } from './api-client.js';
+
+// ← NEW: Design config loader
+let designConfig = null;
+
+async function loadDesignConfig() {
+    try {
+        const response = await fetch('./design.config.json');
+        designConfig = await response.json();
+        console.log('✅ Design config loaded');
+    } catch (err) {
+        console.warn('⚠️ Design config not found, using defaults:', err);
+        designConfig = {
+            components: {
+                buttons: {
+                    track_play: {
+                        image_url: './assets/images/metal-play-button-optimized.webp',
+                        width: 140,
+                        height: 70,
+                    }
+                }
+            }
+        };
+    }
+}
 
 export class TracksLoader {
     constructor(containerElement, itemsPerPage = 12) {
@@ -24,8 +48,27 @@ export class TracksLoader {
 
     async init() {
         console.log('🔄 TracksLoader initializing infinite scroll...');
+        await loadDesignConfig(); // ← NEW: Load design config
         this.setupInfiniteScroll();
         await this.loadTracks(false);
+    }
+
+    getPlayButtonStyles() {
+        // ← NEW: Holt Button-Styles aus design.config.json
+        if (!designConfig) {
+            return {
+                imageUrl: './assets/images/metal-play-button-optimized.webp',
+                width: 140,
+                height: 70,
+            };
+        }
+
+        const btnConfig = designConfig.components?.buttons?.track_play || {};
+        return {
+            imageUrl: btnConfig.image_url || './assets/images/metal-play-button-optimized.webp',
+            width: btnConfig.width || 140,
+            height: btnConfig.height || 70,
+        };
     }
 
     async loadTracks(append = false) {
@@ -130,6 +173,9 @@ export class TracksLoader {
         const playCount = track.play_count || 0;
         const playCountText = playCount > 0 ? `${playCount} plays` : 'New';
 
+        // ← NEW: Hole Button-Styles
+        const buttonStyles = this.getPlayButtonStyles();
+
         div.innerHTML = `
       <div class="track-card-header">
         <h3 class="track-card-title">${this.escapeHtml(track.name)}</h3>
@@ -141,30 +187,30 @@ export class TracksLoader {
       </div>
       <div class="track-card-price">${priceDisplay}</div>
       <button
-  class="button-metal-play"
-  data-track-id="${track.id}" 
-  style="
-    background-image: url('./assets/images/metal-play-button-optimized.webp') !important;
-    background-size: contain !important;
-    background-repeat: no-repeat !important;
-    background-position: center !important;
-    background-color: transparent !important;
-    width: 140px !important;
-    height: 70px !important;
-    border: none !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    cursor: pointer !important;
-    font-size: 0 !important;
-    color: transparent !important;
-    margin-top: 12px;
-  " 
-  aria-label="Play ${this.escapeHtml(track.name)}"
-></button>
-    `;
+        class="button-metal-play"
+        data-track-id="${track.id}" 
+        style="
+          background-image: url('${buttonStyles.imageUrl}') !important;
+          background-size: contain !important;
+          background-repeat: no-repeat !important;
+          background-position: center !important;
+          background-color: transparent !important;
+          width: ${buttonStyles.width}px !important;
+          height: ${buttonStyles.height}px !important;
+          border: none !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          cursor: pointer !important;
+          font-size: 0 !important;
+          color: transparent !important;
+          margin-top: 12px;
+        " 
+        aria-label="Play ${this.escapeHtml(track.name)}"
+      ></button>
+        `;
 
         // Add play button listener
-        const playBtn = div.querySelector('.button-metal-play');  // ← Ändere hier
+        const playBtn = div.querySelector('.button-metal-play');
         playBtn.addEventListener('click', () => {
             if (typeof window.Player !== 'undefined') {
                 window.Player.loadAndPlay(track, !window.Auth?.getToken() && track.is_premium);
@@ -242,4 +288,4 @@ export class TracksLoader {
     }
 }
 
-console.log('✅ TracksLoader v8.0 loaded - ES6 Module');
+console.log('✅ TracksLoader v8.1 loaded - ES6 Class with Design Config');

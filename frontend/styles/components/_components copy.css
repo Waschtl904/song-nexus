@@ -1,7 +1,7 @@
 /**
  * SONG-NEXUS Design System - Component Styles
  * Buttons, Forms, Cards, Modals, Player Controls
- * Phase 6 Implementation - 23.12.2025 UPDATED
+ * Phase 6 Implementation - 22.12.2025
  * 
  * This module provides:
  * - Button component styles (all variants, sizes, states)
@@ -9,10 +9,8 @@
  * - Card component styles (layout, spacing, effects)
  * - Modal/Dialog styles
  * - Player control styles
- * - All components use design tokens from design.config.json
+ * - All components use design tokens
  */
-
-@import '../styles/_design-tokens.css';
 
 /* ========================================================================
    BUTTONS
@@ -28,7 +26,7 @@
     font-weight: var(--font-weight-medium);
     border: none;
     cursor: pointer;
-    transition: all var(--transition);
+    transition: all var(--transitions-normal) var(--transitions-ease_standard);
     white-space: nowrap;
     user-select: none;
 }
@@ -50,43 +48,39 @@
 }
 
 .btn--primary:hover:not(:disabled) {
-    background-color: var(--color-primary);
-    filter: brightness(1.1);
+    background-color: var(--color-primary-hover);
 }
 
 .btn--primary:active:not(:disabled) {
-    background-color: var(--color-primary);
-    filter: brightness(0.9);
+    background-color: var(--color-primary-active);
 }
 
 .btn--secondary {
     background-color: var(--color-secondary);
-    color: var(--color-text_primary);
+    color: var(--color-text-primary);
 }
 
 .btn--secondary:hover:not(:disabled) {
-    background-color: var(--color-secondary);
-    filter: brightness(1.1);
+    background-color: var(--color-secondary-hover);
 }
 
 .btn--secondary:active:not(:disabled) {
-    background-color: var(--color-secondary);
-    filter: brightness(0.9);
+    background-color: var(--color-secondary-active);
 }
 
 .btn--outline {
     background-color: transparent;
-    border: 1px solid rgba(0, 204, 119, 0.3);
-    color: var(--color-text_primary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
 }
 
 .btn--outline:hover:not(:disabled) {
-    background-color: rgba(0, 204, 119, 0.1);
-    border-color: var(--color-primary);
+    background-color: var(--color-secondary);
+    border-color: var(--color-border);
 }
 
 .btn--outline:active:not(:disabled) {
-    background-color: rgba(0, 204, 119, 0.2);
+    background-color: var(--color-secondary-active);
 }
 
 /* Button Sizes */
@@ -133,7 +127,7 @@
     margin-bottom: var(--space-8);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-    color: var(--color-text_secondary);
+    color: var(--color-text-primary);
 }
 
 .form-control {
@@ -142,46 +136,46 @@
     padding: var(--space-8) var(--space-12);
     font-size: var(--font-size-base);
     line-height: var(--line-height-normal);
-    color: var(--color-text_primary);
-    background-color: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(0, 204, 119, 0.3);
+    color: var(--color-text-primary);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-base);
-    transition: border-color var(--transition), box-shadow var(--transition);
+    transition: border-color var(--transitions-fast) ease,
+        box-shadow var(--transitions-fast) ease;
     font-family: inherit;
 }
 
 .form-control:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.25), inset 0 0 8px rgba(0, 204, 119, 0.08);
-    background-color: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 3px rgba(0, 204, 119, 0.1);
 }
 
 .form-control:disabled {
-    background-color: rgba(0, 204, 119, 0.06);
+    background-color: var(--color-secondary);
     cursor: not-allowed;
     opacity: 0.6;
 }
 
 .form-control::placeholder {
-    color: rgba(0, 204, 119, 0.4);
+    color: var(--color-text-muted);
 }
 
 /* Text Input Variants */
 .form-control--error {
-    border-color: #ff5459;
+    border-color: var(--color-status-error);
 }
 
 .form-control--error:focus {
-    box-shadow: 0 0 12px rgba(255, 84, 89, 0.25), inset 0 0 8px rgba(255, 84, 89, 0.08);
+    box-shadow: 0 0 0 3px rgba(255, 84, 89, 0.1);
 }
 
 .form-control--success {
-    border-color: #00cc77;
+    border-color: var(--color-status-success);
 }
 
 .form-control--success:focus {
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.25), inset 0 0 8px rgba(0, 204, 119, 0.08);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
 
 /* Textarea */
@@ -194,7 +188,7 @@ textarea.form-control {
 /* Select */
 select.form-control {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300ccff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300ffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right var(--space-12) center;
     background-size: 16px;
@@ -206,14 +200,14 @@ select.form-control {
     display: block;
     margin-top: var(--space-4);
     font-size: var(--font-size-sm);
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
 }
 
 .form-error {
     display: block;
     margin-top: var(--space-4);
     font-size: var(--font-size-sm);
-    color: #ff5459;
+    color: var(--color-status-error);
 }
 
 /* ========================================================================
@@ -221,35 +215,34 @@ select.form-control {
    ======================================================================== */
 
 .card {
-    background-color: rgba(10, 14, 26, 0.35);
-    border: 1.5px solid rgba(0, 204, 119, 0.4);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 0 20px rgba(0, 204, 119, 0.12), inset 0 0 20px rgba(0, 204, 119, 0.04);
-    transition: box-shadow var(--transition), transform var(--transition);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transitions-normal) ease,
+        transform var(--transitions-normal) ease;
     overflow: hidden;
-    backdrop-filter: blur(12px);
 }
 
 .card:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 30px rgba(0, 204, 119, 0.2), inset 0 0 25px rgba(0, 204, 119, 0.08);
-    background: rgba(10, 14, 26, 0.5);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .card--flat {
     box-shadow: none;
-    border: 1px solid rgba(0, 204, 119, 0.2);
+    border: 1px solid var(--color-border);
 }
 
 .card--elevated {
-    box-shadow: 0 0 30px rgba(0, 204, 119, 0.25);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Card sections */
 .card__header {
     padding: var(--space-16);
-    border-bottom: 1px solid rgba(0, 204, 119, 0.15);
-    background-color: rgba(0, 204, 119, 0.08);
+    border-bottom: 1px solid var(--color-border);
+    background-color: rgba(0, 0, 0, 0.02);
 }
 
 .card__body {
@@ -258,8 +251,8 @@ select.form-control {
 
 .card__footer {
     padding: var(--space-16);
-    border-top: 1px solid rgba(0, 204, 119, 0.15);
-    background-color: rgba(0, 204, 119, 0.05);
+    border-top: 1px solid var(--color-border);
+    background-color: rgba(0, 0, 0, 0.02);
     display: flex;
     justify-content: flex-end;
     gap: var(--space-8);
@@ -271,7 +264,7 @@ select.form-control {
 }
 
 .card--clickable:hover {
-    background-color: rgba(0, 204, 119, 0.15);
+    background-color: var(--color-secondary);
 }
 
 /* ========================================================================
@@ -284,14 +277,15 @@ select.form-control {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transition: opacity var(--transition), visibility var(--transition);
+    transition: opacity var(--transitions-normal) ease,
+        visibility var(--transitions-normal) ease;
 }
 
 .modal.is-open {
@@ -300,16 +294,15 @@ select.form-control {
 }
 
 .modal__content {
-    background-color: var(--color-charcoal-700);
-    border: 2px solid var(--color-primary);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 0 30px rgba(0, 204, 119, 0.3);
+    box-shadow: var(--shadow-lg);
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
-    animation: slideUp var(--transition);
-    backdrop-filter: blur(8px);
+    animation: slideUp var(--transitions-normal) ease;
 }
 
 @keyframes slideUp {
@@ -326,7 +319,7 @@ select.form-control {
 
 .modal__header {
     padding: var(--space-24);
-    border-bottom: 1px solid var(--color-primary);
+    border-bottom: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -335,17 +328,15 @@ select.form-control {
 .modal__title {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
-    color: var(--color-primary);
+    color: var(--color-text-primary);
     margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
 .modal__close {
     background: none;
     border: none;
     font-size: var(--font-size-2xl);
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
     cursor: pointer;
     padding: 0;
     width: 32px;
@@ -353,25 +344,24 @@ select.form-control {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color var(--transition);
+    transition: color var(--transitions-fast) ease;
 }
 
 .modal__close:hover {
-    color: var(--color-primary);
+    color: var(--color-text-primary);
 }
 
 .modal__body {
     padding: var(--space-24);
-    color: var(--color-text_secondary);
 }
 
 .modal__footer {
     padding: var(--space-24);
-    border-top: 1px solid var(--color-primary);
+    border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: flex-end;
     gap: var(--space-8);
-    background-color: rgba(0, 204, 119, 0.05);
+    background-color: rgba(0, 0, 0, 0.02);
 }
 
 /* ========================================================================
@@ -381,7 +371,7 @@ select.form-control {
 .player-control {
     background: none;
     border: none;
-    color: var(--color-text_primary);
+    color: var(--color-text-primary);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -389,16 +379,17 @@ select.form-control {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    transition: background-color var(--transition), color var(--transition);
+    transition: background-color var(--transitions-fast) ease,
+        color var(--transitions-fast) ease;
 }
 
 .player-control:hover {
-    background-color: rgba(0, 204, 119, 0.1);
+    background-color: var(--color-secondary);
     color: var(--color-primary);
 }
 
 .player-control:active {
-    background-color: rgba(0, 204, 119, 0.2);
+    background-color: var(--color-secondary-active);
 }
 
 .player-control.is-active {
@@ -410,23 +401,22 @@ select.form-control {
 .progress-bar {
     width: 100%;
     height: 4px;
-    background-color: rgba(0, 204, 119, 0.1);
+    background-color: var(--color-secondary);
     border-radius: var(--radius-full);
     overflow: hidden;
     cursor: pointer;
     position: relative;
-    border: 1px solid rgba(0, 204, 119, 0.15);
 }
 
 .progress-bar__fill {
     height: 100%;
     background-color: var(--color-primary);
     width: 0%;
-    transition: width var(--transition);
+    transition: width var(--transitions-fast) linear;
 }
 
 .progress-bar:hover .progress-bar__fill {
-    background-color: var(--color-accent_orange);
+    background-color: var(--color-primary-hover);
 }
 
 /* Volume slider */
@@ -435,7 +425,7 @@ select.form-control {
     max-width: 120px;
     height: 4px;
     appearance: none;
-    background: rgba(0, 204, 119, 0.15);
+    background: var(--color-secondary);
     border-radius: var(--radius-full);
     outline: none;
     cursor: pointer;
@@ -448,13 +438,11 @@ select.form-control {
     background-color: var(--color-primary);
     border-radius: 50%;
     cursor: pointer;
-    transition: background-color var(--transition);
-    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
+    transition: background-color var(--transitions-fast) ease;
 }
 
 .volume-slider::-webkit-slider-thumb:hover {
-    background-color: var(--color-accent_orange);
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
+    background-color: var(--color-primary-hover);
 }
 
 .volume-slider::-moz-range-thumb {
@@ -464,33 +452,19 @@ select.form-control {
     border-radius: 50%;
     border: none;
     cursor: pointer;
-    transition: background-color var(--transition);
-    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
+    transition: background-color var(--transitions-fast) ease;
 }
 
 .volume-slider::-moz-range-thumb:hover {
-    background-color: var(--color-accent_orange);
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
-}
-
-.volume-slider::-moz-range-track {
-    background: transparent;
-    border: none;
-}
-
-.volume-slider::-moz-range-progress {
-    background: var(--color-primary);
-    height: 4px;
-    border-radius: var(--radius-full);
+    background-color: var(--color-primary-hover);
 }
 
 /* Waveform visualization */
 .waveform {
     width: 100%;
     height: 60px;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--color-secondary);
     border-radius: var(--radius-base);
-    border: 1px solid rgba(0, 204, 119, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -505,12 +479,13 @@ select.form-control {
     background-color: var(--color-primary);
     border-radius: var(--radius-full);
     opacity: 0.7;
-    transition: opacity var(--transition), background-color var(--transition);
+    transition: opacity var(--transitions-fast) ease,
+        background-color var(--transitions-fast) ease;
 }
 
 .waveform__bar.is-active {
     opacity: 1;
-    background-color: var(--color-accent_orange);
+    background-color: var(--color-primary-hover);
 }
 
 /* ========================================================================
@@ -551,26 +526,26 @@ select.form-control {
 }
 
 .status-badge--success {
-    background-color: rgba(0, 204, 119, 0.15);
-    color: var(--color-primary);
-    border: 1px solid rgba(0, 204, 119, 0.3);
+    background-color: rgba(34, 197, 94, 0.15);
+    color: var(--color-status-success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .status-badge--error {
     background-color: rgba(255, 84, 89, 0.15);
-    color: #ff5459;
+    color: var(--color-status-error);
     border: 1px solid rgba(255, 84, 89, 0.3);
 }
 
 .status-badge--warning {
     background-color: rgba(230, 129, 97, 0.15);
-    color: #e09040;
+    color: var(--color-status-warning);
     border: 1px solid rgba(230, 129, 97, 0.3);
 }
 
 .status-badge--info {
     background-color: rgba(50, 184, 198, 0.15);
-    color: #32b8c6;
+    color: var(--color-status-info);
     border: 1px solid rgba(50, 184, 198, 0.3);
 }
 
@@ -580,27 +555,27 @@ select.form-control {
 
 @media (prefers-color-scheme: dark) {
     .card {
-        background-color: rgba(10, 14, 26, 0.4);
+        background-color: var(--color-surface);
     }
 
     .card__header,
     .card__footer {
-        background-color: rgba(0, 204, 119, 0.1);
+        background-color: rgba(255, 255, 255, 0.05);
     }
 
     .modal__content {
-        background-color: var(--color-charcoal-800);
+        background-color: var(--color-surface);
     }
 
     .modal__header,
     .modal__footer {
-        background-color: rgba(0, 204, 119, 0.08);
+        background-color: rgba(255, 255, 255, 0.05);
     }
 
     .form-control {
-        background-color: rgba(0, 0, 0, 0.5);
-        color: var(--color-text_primary);
-        border-color: rgba(0, 204, 119, 0.3);
+        background-color: var(--color-surface);
+        color: var(--color-text-primary);
+        border-color: var(--color-border);
     }
 }
 

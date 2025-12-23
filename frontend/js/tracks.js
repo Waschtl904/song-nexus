@@ -1,18 +1,43 @@
 // ============================================================================
-// 🎵 TRACKS.JS v8.0 - ES6 MODULE
-// Track Browser + Integration mit APIClient + Auth + Player
+// 🎵 TRACKS.JS v8.1 - ES6 MODULE
+// Track Browser + Integration mit APIClient + Auth + Player + Design Config
 // ============================================================================
 
 import { APIClient } from './api-client.js';
 import { Auth } from './auth.js';
+
+// ← NEW: Import design config loader
+let designConfig = null;
+
+async function loadDesignConfig() {
+  try {
+    const response = await fetch('./design.config.json');
+    designConfig = await response.json();
+    console.log('✅ Design config loaded');
+  } catch (err) {
+    console.warn('⚠️ Design config not found, using defaults:', err);
+    designConfig = {
+      components: {
+        buttons: {
+          track_play: {
+            image_url: './assets/images/metal-play-button-optimized.webp',
+            width: 140,
+            height: 70,
+          }
+        }
+      }
+    };
+  }
+}
 
 export const Tracks = {
   allTracks: [],
   userPurchases: [],
   currentModalTrack: null,
 
-  init() {
+  async init() {
     console.log('🎵 Tracks module initializing...');
+    await loadDesignConfig();
     this.loadTracks();
   },
 
@@ -59,6 +84,24 @@ export const Tracks = {
     }
   },
 
+  getPlayButtonStyles() {
+    // ← NEW: Holt Button-Styles aus design.config.json
+    if (!designConfig) {
+      return {
+        imageUrl: './assets/images/metal-play-button-optimized.webp',
+        width: 140,
+        height: 70,
+      };
+    }
+
+    const btnConfig = designConfig.components?.buttons?.track_play || {};
+    return {
+      imageUrl: btnConfig.image_url || './assets/images/metal-play-button-optimized.webp',
+      width: btnConfig.width || 140,
+      height: btnConfig.height || 70,
+    };
+  },
+
   renderTracks(tracks) {
     const container = document.getElementById('tracksList');
     if (!container) {
@@ -72,6 +115,7 @@ export const Tracks = {
     }
 
     const token = Auth.getToken();
+    const buttonStyles = this.getPlayButtonStyles(); // ← NEW: Hole Button-Styles
 
     container.innerHTML = tracks.map(track => {
       const isPurchased = this.userPurchases.some(p => p.track_id === track.id);
@@ -95,13 +139,13 @@ export const Tracks = {
             data-premium="${track.is_premium}" 
             data-name="${this.escapeHtml(track.name)}" 
             style="
-              background-image: url('./assets/images/metal-play-button-optimized.webp') !important;
+              background-image: url('${buttonStyles.imageUrl}') !important;
               background-size: contain !important;
               background-repeat: no-repeat !important;
               background-position: center !important;
               background-color: transparent !important;
-              width: 140px !important;
-              height: 70px !important;
+              width: ${buttonStyles.width}px !important;
+              height: ${buttonStyles.height}px !important;
               border: none !important;
               padding: 0 !important;
               box-shadow: none !important;
@@ -116,7 +160,6 @@ export const Tracks = {
       `;
     }).join('');
 
-    // ← ÄNDERE HIER: .play-track-btn zu .button-metal-play
     document.querySelectorAll('.button-metal-play').forEach(btn => {
       btn.addEventListener('click', () => {
         this.playTrack(
@@ -180,4 +223,4 @@ export const Tracks = {
   },
 };
 
-console.log('✅ Tracks v8.0 loaded - ES6 Module');
+console.log('✅ Tracks v8.1 loaded - ES6 Module with Design Config');

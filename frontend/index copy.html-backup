@@ -50,19 +50,19 @@
 
     <!-- ✅ CSS - KORREKT VERLINKT -->
     <link rel="stylesheet" href="/styles/index.css">
-
-    <!-- 🎨 DESIGN-SYSTEM STYLES (wird dynamisch geladen) -->
-    <style id="design-system-styles">
-        /* Design-System Farben & Bilder werden hier injiziert */
-    </style>
 </head>
 
 <body>
     <!-- ✅ OPTIMIERTES HERO-HINTERGRUNDBILD MIT PICTURE ELEMENT -->
+    <!-- WebP wird zuerst versucht (160 KB) - beste Kompression -->
+    <!-- JPEG als Fallback für ältere Browser (300 KB) -->
     <div id="heroBackground" class="hero-background-container" role="img" aria-label="Cyberpunk Musik Hintergrund">
         <picture>
+            <!-- WebP: Moderne Browser + beste Kompression (160 KB) -->
             <source srcset="./assets/images/Hintergrundbild 1.webp" type="image/webp">
+            <!-- JPEG: Fallback für ältere Browser (300 KB) -->
             <source srcset="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
+            <!-- Ultimativer Fallback - HIER sind loading + decoding! -->
             <img src="./assets/images/Hintergrundbild 1.jpeg"
                 alt="Cyberpunk Stadt Hintergrund - Neon und Stadt-Szenerie" class="hero-background-image" loading="lazy"
                 decoding="async">
@@ -133,6 +133,7 @@
         <div class="header-content">
             <div class="logo-section">
                 <h1 id="neonSign">♪ SONG-NEXUS</h1>
+                <!-- Optional: Grime overlay -->
                 <div class="neon-grime" style="
                     position: absolute;
                     top: -10px;
@@ -230,6 +231,7 @@
 
                 <!-- PASSWORD LOGIN/REGISTER TAB -->
                 <div id="password-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-password">
+
                     <!-- LOGIN FORM (Default) -->
                     <div id="passwordLoginForm">
                         <form id="passwordLoginFormElement" data-form="password-login" novalidate>
@@ -382,132 +384,6 @@
             <span style="color: var(--accent-green);">🍪 Keine Cookies • 📊 Kein Tracking</span>
         </p>
     </footer>
-
-    <!-- ========================================================================
-         🎨 DESIGN-SYSTEM LOADER (Runs BEFORE bundle!)
-         ======================================================================== -->
-    <script>
-        // ============================================================================
-        // 🎨 LADE DESIGN-SYSTEM UND WENDE FARBEN/BILDER AN
-        // ============================================================================
-
-        async function loadDesignSystem() {
-            try {
-                console.log('🎨 Loading design system from backend...');
-
-                // ✅ Use absolute backend URL
-                const apiUrl = 'https://localhost:3000/api/design-system';
-                console.log('🌐 Fetching from:', apiUrl);
-
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include'
-                });
-
-                console.log('📊 Response status:', response.status);
-
-                if (!response.ok) {
-                    throw new Error(`Design system API error: ${response.status} ${response.statusText}`);
-                }
-
-                // Verify JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    throw new Error(`Expected JSON, got ${contentType}`);
-                }
-
-                const ds = await response.json();
-                console.log('✅ Design system loaded:', ds);
-
-                // ============================================================================
-                // 🎨 ERSTELLE CSS-VARIABLEN AUS DER DATENBANK
-                // ============================================================================
-
-                const cssVariables = `
-                    :root {
-                        --color-primary: ${ds.color_primary || '#00CC77'};
-                        --color-secondary: ${ds.color_secondary || '#5E5240'};
-                        --color-accent-teal: ${ds.color_accent_teal || '#32B8C6'};
-                        --color-accent-green: ${ds.color_accent_green || '#22C55E'};
-                        --color-accent-red: ${ds.color_accent_red || '#FF5459'};
-                        --color-text-primary: ${ds.color_text_primary || '#1A1F2E'};
-                        --color-background: ${ds.color_background || '#FCF8F9'};
-                        --font-family-base: ${ds.font_family_base || 'Inter, sans-serif'};
-                        --font-size-base: ${ds.font_size_base || 14}px;
-                        --button-padding: ${ds.button_padding || '10px 20px'};
-                        --border-radius: ${ds.border_radius || 8}px;
-                        --spacing-unit: ${ds.spacing_unit || 8}px;
-                    }
-                    
-                    /* ============================================================ */
-                    /* 🎨 HERO BACKGROUND (aus Database) */
-                    /* ============================================================ */
-                    #heroBackground {
-                        ${ds.background_image_url ? `
-                            background-image: url('${ds.background_image_url}');
-                            background-size: cover;
-                            background-position: center;
-                            background-attachment: fixed;
-                        ` : ''}
-                    }
-                    
-                    /* ============================================================ */
-                    /* 🎵 PLAYER BACKGROUND (aus Database) */
-                    /* ============================================================ */
-                    #stickyPlayer {
-                        ${ds.player_background_image_url ? `
-                            background-image: url('${ds.player_background_image_url}');
-                            background-size: cover;
-                            background-position: center;
-                        ` : ''}
-                    }
-                    
-                    /* ============================================================ */
-                    /* 🏷️ LOGO (aus Database) */
-                    /* ============================================================ */
-                    #neonSign {
-                        ${ds.logo_url ? `
-                            background-image: url('${ds.logo_url}');
-                            background-size: contain;
-                            background-repeat: no-repeat;
-                        ` : ''}
-                    }
-                `;
-
-                // ============================================================================
-                // 💉 INJIZIERE CSS IN DIE SEITE
-                // ============================================================================
-
-                const styleElement = document.getElementById('design-system-styles');
-                if (styleElement) {
-                    styleElement.textContent = cssVariables;
-                    console.log('✅ Design system CSS injected');
-                } else {
-                    console.error('❌ Design system style element not found!');
-                }
-
-            } catch (err) {
-                console.error('❌ Error loading design system:', err);
-                console.warn('⚠️ Using default colors (CSS fallback)');
-            }
-        }
-
-        // ============================================================================
-        // 🚀 LADE DESIGN-SYSTEM SOFORT (VOR Bundle!)
-        // ============================================================================
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', loadDesignSystem);
-        } else {
-            // DOM already loaded
-            loadDesignSystem();
-        }
-    </script>
 
     <!-- ========================================================================
          ✅ FINAL: WEBPACK BUNDLE (SINGLE REQUEST - ALL 11 MODULES!)

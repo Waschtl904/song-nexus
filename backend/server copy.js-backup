@@ -1,10 +1,9 @@
 // ============================================================================
-// 🎵 SONG-NEXUS BACKEND v6.3 - FIXED SERVER.JS WITH DESIGN-SYSTEM
+// 🎵 SONG-NEXUS BACKEND v6.3 - FIXED SERVER.JS
 // ============================================================================
 // CRITICAL FIX: Session Middleware MUST be before routes!
 // ✅ Proper middleware ordering
 // ✅ WebAuthn session handling fixed
-// ✅ Design-System API endpoints added
 
 require('dotenv').config();
 
@@ -303,99 +302,7 @@ console.log('✅ Auth middleware loaded');
 const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware');
 
 // ============================================================================
-// 🎨 DESIGN-SYSTEM API ENDPOINTS (VOR anderen Routes!)
-// ============================================================================
-
-// GET design system settings (PUBLIC - anyone can read)
-app.get('/api/design-system', async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT * FROM design_system WHERE is_active = true ORDER BY updated_at DESC LIMIT 1'
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'No design system found' });
-        }
-
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error('❌ Error loading design system:', err);
-        res.status(500).json({ error: 'Database error' });
-    }
-});
-
-// PUT update design system (PROTECTED - only authenticated users)
-app.put('/api/design-system/:id', async (req, res) => {
-    try {
-        console.log('📝 PUT /api/design-system/:id received');
-        console.log('   Body:', Object.keys(req.body));
-
-        const { id } = req.params;
-        const updates = req.body;
-
-        // Allowed fields only
-        const allowedFields = [
-            'color_primary', 'color_secondary', 'color_accent_teal',
-            'color_text_primary', 'color_background',
-            'background_image_url', 'player_background_image_url', 'logo_url',
-            'font_family_base', 'font_size_base',
-            'button_padding', 'border_radius', 'spacing_unit'
-        ];
-
-        // Filter to allowed fields
-        const filteredUpdates = {};
-        for (const [key, value] of Object.entries(updates)) {
-            if (allowedFields.includes(key)) {
-                filteredUpdates[key] = value;
-            }
-        }
-
-        if (Object.keys(filteredUpdates).length === 0) {
-            return res.status(400).json({ error: 'No valid fields to update' });
-        }
-
-        // Build SET clause
-        const setClause = Object.keys(filteredUpdates)
-            .map((key, index) => `${key} = $${index + 1}`)
-            .join(', ');
-
-        const values = Object.values(filteredUpdates);
-        values.push(id); // Add id for WHERE clause
-
-        const query = `
-            UPDATE design_system 
-            SET ${setClause}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $${values.length}
-            RETURNING *
-        `;
-
-        console.log('🔧 SQL:', query);
-        console.log('📊 Values:', values);
-
-        const result = await pool.query(query, values);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Design system not found' });
-        }
-
-        console.log('✅ Design system updated successfully');
-        res.json(result.rows[0]);
-
-    } catch (err) {
-        console.error('❌ Error in PUT /api/design-system/:id');
-        console.error('   Message:', err.message);
-        console.error('   Stack:', err.stack);
-        res.status(500).json({
-            error: 'Database error',
-            message: err.message
-        });
-    }
-});
-
-console.log('✅ Design-System API endpoints registered');
-
-// ============================================================================
-// 🌐 ROUTE REGISTRATION (AFTER Design-System!)
+// 🌐 ROUTE REGISTRATION (AFTER all middleware!)
 // ============================================================================
 
 console.log('🔧 Registering API routes...');
@@ -516,7 +423,6 @@ warmupDatabase().then(() => {
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT)');
             console.log('');
         });
     } else {
@@ -529,7 +435,6 @@ warmupDatabase().then(() => {
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
             console.log('⚠️  WARNING: HTTPS disabled');
-            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT)');
             console.log('');
         });
     }

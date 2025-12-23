@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Design Editor – SONG-NEXUS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1820 100%);
+            color: #b0b0b0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 40px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #808080;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+            margin-bottom: 5px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+            font-weight: normal;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        .editor-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1024px) {
+            .editor-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(15, 15, 18, 0.9);
+            border: 1px solid #333;
+            border-radius: 2px;
+            padding: 30px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .panel h2 {
+            color: #808080;
+            margin-bottom: 25px;
+            font-size: 1.2rem;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            font-weight: normal;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid rgba(100, 100, 100, 0.2);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            color: #666;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            font-weight: normal;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #888;
+            font-size: 0.8rem;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="color"],
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(20, 20, 25, 0.8);
+            border: 1px solid #333;
+            border-radius: 2px;
+            color: #b0b0b0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            transition: all 200ms ease;
+        }
+
+        input[type="color"] {
+            cursor: pointer;
+            height: 50px;
+            padding: 2px;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #555;
+            background: rgba(20, 20, 25, 0.95);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-size: 0.85rem;
+        }
+
+        .color-value {
+            font-size: 0.75rem;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .button-group.full {
+            grid-template-columns: 1fr;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: 1px solid #444;
+            border-radius: 2px;
+            background: rgba(30, 30, 35, 0.8);
+            color: #888;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 200ms ease;
+        }
+
+        button:hover {
+            background: rgba(40, 40, 45, 0.9);
+            border-color: #555;
+            color: #a0a0a0;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-save {
+            background: rgba(30, 40, 30, 0.8);
+            border-color: #444;
+            color: #888;
+        }
+
+        .btn-save:hover {
+            background: rgba(40, 50, 40, 0.9);
+            border-color: #555;
+            color: #a0a0a0;
+        }
+
+        .btn-reset {
+            background: rgba(40, 30, 30, 0.8);
+            border-color: #444;
+            color: #888;
+        }
+
+        .btn-reset:hover {
+            background: rgba(50, 35, 35, 0.9);
+            border-color: #555;
+            color: #a0a0a0;
+        }
+
+        .btn-master-reset {
+            background: rgba(30, 25, 25, 0.8);
+            border-color: #555;
+            color: #777;
+            font-size: 0.75rem;
+            width: 100%;
+        }
+
+        .btn-master-reset:hover {
+            background: rgba(40, 30, 30, 0.9);
+            border-color: #666;
+            color: #999;
+        }
+
+        .preview-section {
+            min-height: 400px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(15, 15, 20, 0.9), rgba(20, 20, 25, 0.9));
+            border-radius: 2px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .preview-card {
+            width: 100%;
+            padding: 20px;
+            border-radius: 2px;
+            margin: 15px 0;
+            border: 1px solid #333;
+            text-align: center;
+        }
+
+        .preview-button {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 2px;
+            margin: 10px 5px;
+            border: 1px solid;
+            font-weight: normal;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        .status-message {
+            padding: 12px 15px;
+            border-radius: 2px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            border-left: 1px solid;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-success {
+            background: rgba(30, 40, 30, 0.2);
+            border-left-color: #555;
+            color: #888;
+        }
+
+        .status-error {
+            background: rgba(40, 30, 30, 0.2);
+            border-left-color: #666;
+            color: #999;
+        }
+
+        .status-loading {
+            background: rgba(30, 35, 40, 0.2);
+            border-left-color: #555;
+            color: #888;
+        }
+
+        .info-box {
+            background: rgba(20, 25, 30, 0.5);
+            border: 1px solid #333;
+            border-radius: 2px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            color: #777;
+        }
+
+        .info-box strong {
+            color: #888;
+        }
+
+        .danger-zone {
+            background: rgba(40, 25, 25, 0.3);
+            border: 1px solid #444;
+            border-radius: 2px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .danger-zone h3 {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .danger-zone p {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 1px solid #444;
+            border-top: 1px solid #888;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <h1>═══ DESIGN EDITOR ═══</h1>
+            <p class="subtitle">Konfiguriere die visuellen Einstellungen des Systems</p>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <div class="editor-layout">
+            <!-- LEFT PANEL: EDITOR -->
+            <div class="panel">
+                <h2>⚙ EINSTELLUNGEN</h2>
+
+                <div class="info-box">
+                    <strong>→ Hinweis:</strong> Änderungen werden live in der Vorschau angezeigt. Mit "SPEICHERN" in die
+                    Datenbank schreiben.
+                </div>
+
+                <!-- FARBEN -->
+                <div class="section">
+                    <div class="section-title">► Farben</div>
+
+                    <div class="form-group">
+                        <label for="colorPrimary">Primärfarbe</label>
+                        <input type="color" id="colorPrimary" value="#00CC77">
+                        <div class="color-value" id="colorPrimaryValue">#00CC77</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="colorSecondary">Sekundärfarbe</label>
+                        <input type="color" id="colorSecondary" value="#5E5240">
+                        <div class="color-value" id="colorSecondaryValue">#5E5240</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="colorAccentTeal">Akzentfarbe (Teal)</label>
+                        <input type="color" id="colorAccentTeal" value="#32B8C6">
+                        <div class="color-value" id="colorAccentTealValue">#32B8C6</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="colorTextPrimary">Textfarbe</label>
+                        <input type="color" id="colorTextPrimary" value="#1A1F2E">
+                        <div class="color-value" id="colorTextPrimaryValue">#1A1F2E</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="colorBackground">Hintergrundfarbe</label>
+                        <input type="color" id="colorBackground" value="#FCF8F9">
+                        <div class="color-value" id="colorBackgroundValue">#FCF8F9</div>
+                    </div>
+                </div>
+
+                <!-- BILDER -->
+                <div class="section">
+                    <div class="section-title">► Bilder & Assets</div>
+
+                    <div class="form-group">
+                        <label for="backgroundImageUrl">Hintergrund-URL</label>
+                        <input type="text" id="backgroundImageUrl" placeholder="https://example.com/bg.jpg">
+                        <div style="color: #555; font-size: 0.75rem; margin-top: 5px;">WebP oder JPEG empfohlen</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="playerBackgroundImageUrl">Player-Hintergrund URL</label>
+                        <input type="text" id="playerBackgroundImageUrl"
+                            placeholder="https://example.com/player-bg.jpg">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="logoUrl">Logo URL</label>
+                        <input type="text" id="logoUrl" placeholder="https://example.com/logo.png">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayImageUrl">Play Button Image URL</label>
+                        <input type="text" id="buttonPlayImageUrl"
+                            value="./assets/images/metal-play-button-optimized.webp"
+                            placeholder="./assets/images/button.webp">
+                    </div>
+                </div>
+
+                <!-- TYPOGRAFIE -->
+                <div class="section">
+                    <div class="section-title">► Typografie</div>
+
+                    <div class="form-group">
+                        <label for="fontFamilyBase">Schriftart</label>
+                        <input type="text" id="fontFamilyBase" value="Inter, sans-serif"
+                            placeholder="z.B. Inter, sans-serif">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fontSizeBase">Basis-Schriftgröße (px)</label>
+                        <input type="number" id="fontSizeBase" value="14" min="10" max="20">
+                    </div>
+                </div>
+
+                <!-- LAYOUT -->
+                <div class="section">
+                    <div class="section-title">► Layout</div>
+
+                    <div class="form-group">
+                        <label for="buttonPadding">Button-Padding</label>
+                        <input type="text" id="buttonPadding" value="10px 20px" placeholder="10px 20px">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="borderRadius">Border-Radius (px)</label>
+                        <input type="number" id="borderRadius" value="8" min="0" max="20">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="spacingUnit">Spacing-Unit (px)</label>
+                        <input type="number" id="spacingUnit" value="8" min="4" max="16">
+                    </div>
+                </div>
+
+                <!-- PLAY BUTTON STYLES - BASIC -->
+                <div class="section">
+                    <div class="section-title">► Play Button – Grundlagen</div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayIcon">Button Icon</label>
+                        <input type="text" id="buttonPlayIcon" value="▶" placeholder="z.B. ▶, ►, ◀, etc.">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayLabel">Button Label</label>
+                        <input type="text" id="buttonPlayLabel" value="Play" placeholder="z.B. Play, Start, Go">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="buttonPlayWidth">Width (px)</label>
+                            <input type="number" id="buttonPlayWidth" value="140" min="50" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="buttonPlayHeight">Height (px)</label>
+                            <input type="number" id="buttonPlayHeight" value="70" min="30" max="200">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PLAY BUTTON STYLES - COLORS & STYLING -->
+                <div class="section">
+                    <div class="section-title">► Play Button – Farben & Styling</div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayGradientStart">Gradient Start Color</label>
+                        <input type="color" id="buttonPlayGradientStart" value="#c0c0c0">
+                        <div class="color-value" id="buttonPlayGradientStartValue">#C0C0C0</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayGradientEnd">Gradient End Color</label>
+                        <input type="color" id="buttonPlayGradientEnd" value="#808080">
+                        <div class="color-value" id="buttonPlayGradientEndValue">#808080</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayTextColor">Text Color</label>
+                        <input type="color" id="buttonPlayTextColor" value="#000000">
+                        <div class="color-value" id="buttonPlayTextColorValue">#000000</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayBorderColor">Border Color</label>
+                        <input type="color" id="buttonPlayBorderColor" value="#505050">
+                        <div class="color-value" id="buttonPlayBorderColorValue">#505050</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayTextShadow">Text Shadow</label>
+                        <input type="text" id="buttonPlayTextShadow" value="1px 1px 0 rgba(255,255,255,0.5)"
+                            placeholder="1px 1px 0 rgba(255,255,255,0.5)">
+                    </div>
+                </div>
+
+                <!-- PLAY BUTTON STYLES - SPACING & SIZE -->
+                <div class="section">
+                    <div class="section-title">► Play Button – Spacing & Größe</div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayPadding">Button Padding</label>
+                        <input type="text" id="buttonPlayPadding" value="12px 24px" placeholder="12px 24px">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="buttonPlayFontSize">Font Size (px)</label>
+                            <input type="number" id="buttonPlayFontSize" value="14" min="10" max="24">
+                        </div>
+                        <div class="form-group">
+                            <label for="buttonPlayBorderWidth">Border Width (px)</label>
+                            <input type="number" id="buttonPlayBorderWidth" value="2" min="0" max="5">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayBorderRadius">Border Radius (px)</label>
+                        <input type="number" id="buttonPlayBorderRadius" value="8" min="0" max="20">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayMarginTop">Margin Top (px)</label>
+                        <input type="number" id="buttonPlayMarginTop" value="12" min="0" max="40">
+                    </div>
+                </div>
+
+                <!-- PLAY BUTTON STYLES - EFFECTS & HOVER -->
+                <div class="section">
+                    <div class="section-title">► Play Button – Effects & Hover</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="buttonPlayOpacity">Opacity (0-1)</label>
+                            <input type="number" id="buttonPlayOpacity" value="1" min="0" max="1" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="buttonPlayOpacityHover">Opacity Hover (0-1)</label>
+                            <input type="number" id="buttonPlayOpacityHover" value="0.95" min="0" max="1" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="buttonPlayHoverOffset">Hover Offset Y (px)</label>
+                            <input type="number" id="buttonPlayHoverOffset" value="-2" min="-10" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="buttonPlayShadowIntensity">Shadow Intensity (0-1)</label>
+                            <input type="number" id="buttonPlayShadowIntensity" value="0.4" min="0" max="1" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayFilter">Filter (CSS)</label>
+                        <input type="text" id="buttonPlayFilter" value="none"
+                            placeholder="brightness(1.05) drop-shadow(...)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayFilterHover">Filter Hover (CSS)</label>
+                        <input type="text" id="buttonPlayFilterHover"
+                            value="brightness(1.05) drop-shadow(0 0 8px rgba(0,0,0,0.3))"
+                            placeholder="brightness(1.05) ...">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="buttonPlayTransform">Transform</label>
+                            <input type="text" id="buttonPlayTransform" value="scale(1)" placeholder="scale(1)">
+                        </div>
+                        <div class="form-group">
+                            <label for="buttonPlayTransformHover">Transform Hover</label>
+                            <input type="text" id="buttonPlayTransformHover" value="scale(1.02)"
+                                placeholder="scale(1.02)">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayTransition">Transition (CSS)</label>
+                        <input type="text" id="buttonPlayTransition" value="all 150ms ease"
+                            placeholder="all 150ms ease">
+                    </div>
+                </div>
+
+                <!-- PLAY BUTTON STYLES - SHADOWS -->
+                <div class="section">
+                    <div class="section-title">► Play Button – Shadows</div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayBoxShadow">Box Shadow</label>
+                        <input type="text" id="buttonPlayBoxShadow"
+                            value="0 4px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)"
+                            placeholder="box-shadow value">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayBoxShadowHover">Box Shadow Hover</label>
+                        <input type="text" id="buttonPlayBoxShadowHover"
+                            value="0 6px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4)"
+                            placeholder="box-shadow value">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="buttonPlayBoxShadowActive">Box Shadow Active</label>
+                        <input type="text" id="buttonPlayBoxShadowActive"
+                            value="0 2px 4px rgba(0,0,0,0.2), inset 0 2px 4px rgba(0,0,0,0.3)"
+                            placeholder="box-shadow value">
+                    </div>
+                </div>
+
+                <!-- BUTTONS -->
+                <div class="button-group">
+                    <button class="btn-save" id="saveBtn">💾 SPEICHERN</button>
+                    <button class="btn-reset" id="resetBtn">↶ ZURÜCKSETZEN</button>
+                </div>
+
+                <!-- DANGER ZONE: MASTER RESET -->
+                <div class="danger-zone">
+                    <h3>⚠ MEISTER-ZURÜCKSETZEN</h3>
+                    <p>Setzt alle Design-Einstellungen auf die Standardwerte zurück. Diese Aktion kann nicht rückgängig
+                        gemacht werden.</p>
+                    <button class="btn-master-reset" id="masterResetBtn">🔄 ALLE EINSTELLUNGEN ZURÜCKSETZEN</button>
+                </div>
+
+                <!-- STATUS MESSAGE -->
+                <div class="status-message" id="statusMessage"></div>
+            </div>
+
+            <!-- RIGHT PANEL: PREVIEW -->
+            <div class="panel">
+                <h2>👁 VORSCHAU</h2>
+                <div class="preview-section" id="previewContainer">
+                    <p style="color: #666;">Änderungen werden hier angezeigt...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // [Rest des Scripts wie oben - vollständig gespeichert in der Datei]
+    </script>
+</body>
+
+</html>

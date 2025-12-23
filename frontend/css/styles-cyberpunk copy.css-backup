@@ -1009,14 +1009,422 @@ footer p {
     }
 }
 
+/* ========================================================================
+   🎮 STICKY PLAYER – Draggable & Resizable
+   ======================================================================== */
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   🎮 HEAVY METAL PLAY BUTTON - FIXED - WITH CSS VARIABLES & EVENTS
-   ═══════════════════════════════════════════════════════════════════════════ */
+.sticky-player {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    min-width: 280px;
+    max-width: 600px;
+    background: rgba(10, 14, 26, 0.95);
+    border: 2px solid var(--color-primary);
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 204, 0, 0.2);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
 
+    /* Wichtig: Damit Dragging funktioniert */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ===== PLAYER HEADER (Draggable) ===== */
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(0, 204, 0, 0.1), rgba(0, 100, 50, 0.05));
+    border-bottom: 1px solid rgba(0, 204, 0, 0.2);
+    cursor: move;
+    /* ← Zeigt dass es draggbar ist */
+    border-radius: 6px 6px 0 0;
+}
+
+.player-header:active {
+    background: linear-gradient(135deg, rgba(0, 204, 0, 0.15), rgba(0, 100, 50, 0.1));
+}
+
+.now-playing {
+    flex: 1;
+    min-width: 0;
+}
+
+.track-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--accent-green);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-artist {
+    font-size: 0.75rem;
+    color: var(--color-text_secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-controls-header {
+    display: flex;
+    gap: 8px;
+    margin-left: 12px;
+}
+
+/* ===== PLAYER CONTENT ===== */
+.player-content {
+    padding: 12px;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+/* ===== RESIZE HANDLE ===== */
+.player-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+    /* ← Diagonales Resize-Icon */
+    background: linear-gradient(135deg, transparent 50%, var(--color-primary) 50%);
+    border-radius: 0 0 6px 0;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.player-resize-handle:hover {
+    opacity: 1;
+}
+
+/* ===== DRAGGING VISUAL FEEDBACK ===== */
+.sticky-player.dragging {
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(0, 204, 0, 0.4);
+}
+
+.sticky-player.resizing {
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(0, 204, 0, 0.4);
+}
+
+/* ============================================================================
+   📊 PAGINATION STYLES
+   ============================================================================ */
+
+.tracks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 32px 16px;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.track-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    animation: slideUp 0.3s ease forwards;
+    opacity: 0;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.track-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(0, 217, 255, 0.5);
+    box-shadow: 0 12px 40px rgba(0, 217, 255, 0.2);
+}
+
+.track-header {
+    margin-bottom: 12px;
+}
+
+.track-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.track-artist {
+    font-size: 13px;
+    opacity: 0.7;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.genre {
+    background: rgba(0, 217, 255, 0.2);
+    color: #00d9ff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.duration {
+    font-size: 12px;
+}
+
+.track-stats {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 8px 0;
+}
+
+.track-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.price {
+    font-weight: 600;
+    color: #64c864;
+    min-width: 50px;
+}
+
+.free-badge {
+    background: linear-gradient(135deg, rgba(100, 200, 100, 0.3), rgba(50, 150, 50, 0.2));
+    color: #64c864;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 50px;
+    text-align: center;
+}
+
+.btn-play {
+    flex: 1;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, rgba(0, 217, 255, 0.3), rgba(0, 153, 255, 0.2));
+    border: 1px solid rgba(0, 217, 255, 0.5);
+    color: #00d9ff;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.btn-play:hover {
+    background: linear-gradient(135deg, rgba(0, 217, 255, 0.5), rgba(0, 153, 255, 0.3));
+    box-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+    transform: scale(1.02);
+}
+
+.btn-play:active {
+    transform: scale(0.98);
+}
+
+/* Scroll Sentinel (invisible, triggers infinite scroll) */
+.scroll-sentinel {
+    height: 1px;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Error Message */
+.error-message {
+    background: rgba(255, 84, 89, 0.2);
+    border: 1px solid rgba(255, 84, 89, 0.5);
+    color: #ff5459;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* No Tracks Message */
+.no-tracks {
+    text-align: center;
+    padding: 48px 16px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 16px;
+}
+
+/* Responsive Grid */
+@media (max-width: 1024px) {
+    .tracks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .tracks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .track-card {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tracks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .track-card {
+        padding: 10px;
+    }
+
+    .track-name {
+        font-size: 14px;
+    }
+
+    .track-artist {
+        font-size: 12px;
+    }
+}
+
+/* ✅ HERO BACKGROUND OPTIMIZATION - WebP + JPEG Fallback
+   
+   Modified to adhere to Perplexity Design System
+   
+   ======================================================================== */
+
+/* ========================================================================
+   Hero Background Container - Fixed Background Image
+   ======================================================================== */
+
+.hero-background-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+    background: linear-gradient(135deg,
+            var(--color-background) 0%,
+            var(--color-charcoal-800) 100%);
+}
+
+/* Picture Element Styling */
+.hero-background-container picture {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ✅ Bild-Optimierung */
+.hero-background-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    opacity: 1;
+    transition: opacity 600ms var(--ease-standard);
+}
+
+/* Während des Ladens - zeige Gradient Fallback */
+.hero-background-image[loading] {
+    opacity: 0.8;
+}
+
+/* ========================================================================
+   Responsive für Mobile
+   ======================================================================== */
+
+/* Mobile Portrait - 480px breakpoint per design system requirements */
+@media (max-width: 480px) {
+    .hero-background-container {
+        height: 50vh;
+    }
+}
+
+/* Tablet and larger mobile devices */
+@media (max-width: 768px) {
+    .hero-background-container {
+        height: 60vh;
+    }
+}
+
+/* ========================================================================
+   Print-Optimierung (Bild nicht drucken)
+   ======================================================================== */
+
+@media print {
+    .hero-background-container {
+        display: none;
+    }
+}
+
+/* END: Hero Background CSS */
+
+/* 🤘 HEAVY METAL PLAY BUTTON - MAXIMUM SPECIFICITY */
 .button-metal-play,
 button.button-metal-play {
-    /* ← FIXED: background-image muss direkt sein (url() kann keine vars) */
     background-image: url('./assets/images/metal-play-button-optimized.webp') !important;
     background-size: contain !important;
     background-repeat: no-repeat !important;
@@ -1028,52 +1436,28 @@ button.button-metal-play {
     padding: 0 !important;
 
     border: none !important;
-    outline: none !important;
     box-shadow: none !important;
+    outline: none !important;
 
     color: transparent !important;
     font-size: 0 !important;
     text-transform: none !important;
 
     cursor: pointer !important;
-    opacity: 1 !important;
-    filter: none !important;
-    transform: scale(1) !important;
-    transform-origin: center !important;
-
-    transition: all 150ms ease !important;
-    position: relative;
-    display: inline-block;
-    margin-top: 12px !important;
-    margin: 0 !important;
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s !important;
 }
 
-/* ← HOVER STATE - Nutzt CSS-Variablen für Effects */
-button.button-metal-play:hover:not(:disabled) {
-    opacity: var(--button-track-play-opacity-hover, 0.95) !important;
-    filter: var(--button-track-play-filter-hover, brightness(1.05) drop-shadow(0 0 8px rgba(0, 0, 0, 0.3))) !important;
-    transform: scale(var(--button-track-play-scale-hover, 1.02)) translateY(var(--button-track-play-hover-offset-y, -2px)) !important;
-    box-shadow: var(--button-track-play-box-shadow-hover, 0 6px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4)) !important;
+button.button-metal-play:hover {
+    filter: brightness(1.1) drop-shadow(0 0 8px rgba(0, 255, 0, 0.4)) !important;
+    transform: scale(1.02) !important;
 }
 
-/* ← ACTIVE STATE */
-button.button-metal-play:active:not(:disabled) {
-    opacity: var(--button-track-play-opacity-active, 0.9) !important;
-    filter: var(--button-track-play-filter-active, brightness(0.95)) !important;
-    transform: scale(var(--button-track-play-scale-active, 0.98)) translateY(0) !important;
-    box-shadow: var(--button-track-play-box-shadow-active, 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3)) !important;
+button.button-metal-play:active {
+    transform: scale(0.96) translateY(2px) !important;
+    filter: brightness(0.9) !important;
 }
 
-/* ← FOCUS VISIBLE STATE (Accessibility) */
 button.button-metal-play:focus-visible {
-    outline: var(--button-track-play-outline-focus, 2px solid #00CC77) !important;
-    outline-offset: var(--button-track-play-outline-focus-offset, 2px) !important;
-    box-shadow: var(--button-track-play-box-shadow-focus, 0 0 0 3px rgba(0, 204, 119, 0.2), 0 4px 6px rgba(0, 0, 0, 0.2)) !important;
-}
-
-/* ← DISABLED STATE */
-button.button-metal-play:disabled {
-    opacity: var(--button-track-play-opacity-disabled, 0.5) !important;
-    cursor: var(--button-track-play-disabled-cursor, not-allowed) !important;
-    filter: var(--button-track-play-filter-disabled, grayscale(0.5) opacity(0.6)) !important;
+    outline: 2px solid var(--accent-green, #00ff00) !important;
+    outline-offset: 4px !important;
 }

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 SONG-NEXUS Farbpalette</title>
+    <link rel="stylesheet" href="FARBPALETTE.css">
+    <style>
+        /* Quick inline preview styles */
+        .color-sample-primary {
+            background: #00CC77;
+            color: white;
+        }
+        .color-sample-primary-hover {
+            background: #00B366;
+            color: white;
+        }
+        .color-sample-primary-active {
+            background: #009933;
+            color: white;
+        }
+        .color-sample-secondary {
+            background: #5E5240;
+            color: white;
+        }
+        .color-sample-secondary-hover {
+            background: #6B624F;
+            color: white;
+        }
+        .color-sample-accent-teal {
+            background: #32B8C6;
+            color: white;
+        }
+        .color-sample-accent-green {
+            background: #22C55E;
+            color: white;
+        }
+        .color-sample-accent-red {
+            background: #FF5459;
+            color: white;
+        }
+        .color-sample-accent-orange {
+            background: #E68161;
+            color: white;
+        }
+        .color-sample-accent-pink {
+            background: #FF1493;
+            color: white;
+        }
+        .color-sample-background {
+            background: #FCF8F9;
+            color: #00ffff;
+        }
+        .color-sample-surface {
+            background: #FFFFFD;
+            color: #00ffff;
+        }
+        .color-sample-text-primary {
+            background: #1A1F2E;
+            color: #00ffff;
+        }
+        .color-sample-text-secondary {
+            background: #1A1F2E;
+            color: #88ddff;
+        }
+        .color-sample-text-muted {
+            background: #1A1F2E;
+            color: #A7A9A9;
+        }
+        .color-sample-dark-bg {
+            background: #0F1419;
+            color: #00ffff;
+        }
+        .color-sample-dark-surface {
+            background: #1A1F2E;
+            color: #00ffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ================================
+             HEADER
+             ================================ -->
+        <header>
+            <h1>🎨 SONG-NEXUS FARBPALETTE</h1>
+            <p class="subtitle">Interactive Color Palette für Designer & Developer</p>
+            <div class="info">
+                <strong>ℹ️ Hinweis:</strong> Diese Seite zeigt alle Farben aus <code>design.config.json</code>. 
+                Klick auf Farben um Hex-Codes zu kopieren. Nutze die Experimentier-Sektion um neue Farbtöne zu testen!
+            </div>
+        </header>
+
+        <!-- ================================
+             PRIMÄRFARBEN
+             ================================ -->
+        <section class="section primary-section">
+            <h2 class="section-title">🟢 PRIMÄRFARBEN</h2>
+            
+            <div class="color-grid">
+                <!-- Primary Green -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-primary">
+                        Primary Green
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">primary</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#00CC77')">#00CC77</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(0, 204, 119)')">rgb(0, 204, 119)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Buttons, Links, CTA, Aktionen</div>
+                    </div>
+                </div>
+
+                <!-- Primary Hover -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-primary-hover">
+                        Hover
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">primary_hover</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#00B366')">#00B366</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(0, 179, 102)')">rgb(0, 179, 102)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Hover-Zustand von Buttons</div>
+                    </div>
+                </div>
+
+                <!-- Primary Active -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-primary-active">
+                        Active
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">primary_active</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#009933')">#009933</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(0, 153, 51)')">rgb(0, 153, 51)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Active/geklickter Zustand</div>
+                    </div>
+                </div>
+
+                <!-- Secondary -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-secondary">
+                        Secondary
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">secondary</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#5E5240')">#5E5240</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(94, 82, 64)')">rgb(94, 82, 64)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Sekundäre Buttons & Aktionen</div>
+                    </div>
+                </div>
+
+                <!-- Secondary Hover -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-secondary-hover">
+                        Hover
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">secondary_hover</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#6B624F')">#6B624F</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(107, 98, 79)')">rgb(107, 98, 79)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Hover-Zustand von sekundären Buttons</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             AKZENTFARBEN
+             ================================ -->
+        <section class="section accent-section">
+            <h2 class="section-title">✨ AKZENTFARBEN</h2>
+            
+            <div class="color-grid">
+                <!-- Teal -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-accent-teal">
+                        Teal
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">accent_teal</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#32B8C6')">#32B8C6</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(50, 184, 198)')">rgb(50, 184, 198)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Info, Highlights, Fokus</div>
+                    </div>
+                </div>
+
+                <!-- Green Success -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-accent-green">
+                        Success
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">accent_green</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#22C55E')">#22C55E</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(34, 197, 94)')">rgb(34, 197, 94)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Erfolgs-Meldungen, OK-Buttons</div>
+                    </div>
+                </div>
+
+                <!-- Red Error -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-accent-red">
+                        Error
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">accent_red</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#FF5459')">#FF5459</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(255, 84, 89)')">rgb(255, 84, 89)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Fehler, Validierung, Löschen</div>
+                    </div>
+                </div>
+
+                <!-- Orange Warning -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-accent-orange">
+                        Warning
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">accent_orange</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#E68161')">#E68161</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(230, 129, 97)')">rgb(230, 129, 97)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Warnungen, Achtung erforderlich</div>
+                    </div>
+                </div>
+
+                <!-- Pink Highlight -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-accent-pink">
+                        Highlight
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">accent_pink</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#FF1493')">#FF1493</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(255, 20, 147)')">rgb(255, 20, 147)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Favoriten, Highlights, Featured</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             STATUS-FARBEN
+             ================================ -->
+        <section class="section">
+            <h2 class="section-title">📊 STATUS-FARBEN (Semantic)</h2>
+            
+            <div class="status-grid">
+                <div class="status-card status-success">
+                    <div class="status-icon">✅</div>
+                    <div class="status-name">Success</div>
+                    <div class="status-code">#22C55E</div>
+                </div>
+                <div class="status-card status-error">
+                    <div class="status-icon">❌</div>
+                    <div class="status-name">Error</div>
+                    <div class="status-code">#FF5459</div>
+                </div>
+                <div class="status-card status-warning">
+                    <div class="status-icon">⚠️</div>
+                    <div class="status-name">Warning</div>
+                    <div class="status-code">#E68161</div>
+                </div>
+                <div class="status-card status-info">
+                    <div class="status-icon">ℹ️</div>
+                    <div class="status-name">Info</div>
+                    <div class="status-code">#32B8C6</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             HINTERGRUND & OBERFLÄCHEN
+             ================================ -->
+        <section class="section">
+            <h2 class="section-title">🎨 HINTERGRUND & OBERFLÄCHEN</h2>
+            
+            <div class="color-grid">
+                <!-- Background -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-background">
+                        Background
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">background</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#FCF8F9')">#FCF8F9</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(252, 248, 249)')">rgb(252, 248, 249)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Seiten-Hintergrund (Haupt-BG)</div>
+                    </div>
+                </div>
+
+                <!-- Surface -->
+                <div class="color-card">
+                    <div class="color-sample color-sample-surface">
+                        Surface
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">surface</div>
+                        <div class="color-codes">
+                            <div>
+                                <div class="color-label">Hex</div>
+                                <div class="color-code" onclick="copyToClipboard('#FFFFFD')">#FFFFFD</div>
+                            </div>
+                            <div>
+                                <div class="color-label">RGB</div>
+                                <div class="color-code" onclick="copyToClipboard('rgb(255, 255, 253)')">rgb(255, 255, 253)</div>
+                            </div>
+                        </div>
+                        <div class="color-usage">Karten, Modals, Container</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             TEXT-FARBEN
+             ================================ -->
+        <section class="section">
+            <h2 class="section-title">🔤 TEXT-FARBEN</h2>
+            
+            <div class="text-examples">
+                <div class="text-example">
+                    <div class="text-example-title">text_primary</div>
+                    <div class="text-primary">Haupttext, Überschriften - #00ffff</div>
+                    <div class="copy-hint">
+                        Hex: <code onclick="copyToClipboard('#00ffff')" style="cursor: pointer;">#00ffff</code><br>
+                        RGB: <code onclick="copyToClipboard('rgb(0, 255, 255)')" style="cursor: pointer;">rgb(0, 255, 255)</code>
+                    </div>
+                </div>
+
+                <div class="text-example">
+                    <div class="text-example-title">text_secondary</div>
+                    <div class="text-secondary">Sekundärtext, Beschreibungen - #88ddff</div>
+                    <div class="copy-hint">
+                        Hex: <code onclick="copyToClipboard('#88ddff')" style="cursor: pointer;">#88ddff</code><br>
+                        RGB: <code onclick="copyToClipboard('rgb(136, 221, 255)')" style="cursor: pointer;">rgb(136, 221, 255)</code>
+                    </div>
+                </div>
+
+                <div class="text-example">
+                    <div class="text-example-title">text_muted</div>
+                    <div class="text-muted">Schwacher Text, deaktiviert - #A7A9A9</div>
+                    <div class="copy-hint">
+                        Hex: <code onclick="copyToClipboard('#A7A9A9')" style="cursor: pointer;">#A7A9A9</code><br>
+                        RGB: <code onclick="copyToClipboard('rgb(167, 169, 169)')" style="cursor: pointer;">rgb(167, 169, 169)</code>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             DARK MODE VORSCHAU
+             ================================ -->
+        <section class="section">
+            <h2 class="section-title">🌙 DARK MODE VORSCHAU</h2>
+            
+            <div class="dark-mode-preview">
+                <h3 style="margin-bottom: 2rem; color: #00ffff; border-bottom: 2px solid #32B8C6; padding-bottom: 1rem;">Dark Mode Farben</h3>
+                
+                <div class="dark-mode-grid">
+                    <!-- Dark Primary -->
+                    <div class="dark-color-card">
+                        <div class="dark-color-sample" style="background: #00CC77;">#00CC77</div>
+                        <div class="dark-color-info">
+                            <div class="dark-color-name">primary (bleibt gleich)</div>
+                            <div class="dark-color-code" onclick="copyToClipboard('#00CC77')">#00CC77</div>
+                        </div>
+                    </div>
+
+                    <!-- Dark Secondary -->
+                    <div class="dark-color-card">
+                        <div class="dark-color-sample" style="background: #8B7B6D;">#8B7B6D</div>
+                        <div class="dark-color-info">
+                            <div class="dark-color-name">secondary_dark</div>
+                            <div class="dark-color-code" onclick="copyToClipboard('#8B7B6D')">#8B7B6D</div>
+                        </div>
+                    </div>
+
+                    <!-- Dark BG -->
+                    <div class="dark-color-card">
+                        <div class="dark-color-sample" style="background: #0F1419;">#0F1419</div>
+                        <div class="dark-color-info">
+                            <div class="dark-color-name">background_dark</div>
+                            <div class="dark-color-code" onclick="copyToClipboard('#0F1419')">#0F1419</div>
+                        </div>
+                    </div>
+
+                    <!-- Dark Surface -->
+                    <div class="dark-color-card">
+                        <div class="dark-color-sample" style="background: #1A1F2E;">#1A1F2E</div>
+                        <div class="dark-color-info">
+                            <div class="dark-color-name">surface_dark</div>
+                            <div class="dark-color-code" onclick="copyToClipboard('#1A1F2E')">#1A1F2E</div>
+                        </div>
+                    </div>
+
+                    <!-- Dark Text Primary -->
+                    <div class="dark-color-card">
+                        <div class="dark-color-sample" style="background: #1A1F2E; color: #00ffff; border: 2px solid #32B8C6;">#00ffff</div>
+                        <div class="dark-color-info">
+                            <div class="dark-color-name">text_primary_dark</div>
+                            <div class="dark-color-code" onclick="copyToClipboard('#00ffff')">#00ffff</div>
+                        </div>
+                    </div>
+
+                    <!-- Dark Text Secondary -->
+                    <div class="dark-color-card">
+                        <div class="dark-color-sample" style="background: #1A1F2E; color: #88ddff; border: 2px solid #32B8C6;">#88ddff</div>
+                        <div class="dark-color-info">
+                            <div class="dark-color-name">text_secondary_dark</div>
+                            <div class="dark-color-code" onclick="copyToClipboard('#88ddff')">#88ddff</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             EXPERIMENTIER-BEREICH
+             ================================ -->
+        <section class="section experiment-section">
+            <h2 class="experiment-title">🧪 EXPERIMENTIER-BEREICH</h2>
+            <p class="experiment-subtitle">Teste neue Farbtöne hier! Gib einen HEX-Code ein und sehe die Vorschau.</p>
+            
+            <div class="experiment-grid">
+                <div class="experiment-card">
+                    <label class="experiment-input-label">Experiment 1</label>
+                    <input type="text" class="experiment-input" id="exp1" placeholder="#FF0000" value="#FF00FF">
+                    <div class="experiment-preview" id="exp1-preview" style="background: #FF00FF;"></div>
+                    <div class="experiment-code">
+                        HEX: <span id="exp1-hex">#FF00FF</span><br>
+                        RGB: <span id="exp1-rgb">rgb(255, 0, 255)</span>
+                    </div>
+                </div>
+
+                <div class="experiment-card">
+                    <label class="experiment-input-label">Experiment 2</label>
+                    <input type="text" class="experiment-input" id="exp2" placeholder="#00FF00" value="#00FF00">
+                    <div class="experiment-preview" id="exp2-preview" style="background: #00FF00;"></div>
+                    <div class="experiment-code">
+                        HEX: <span id="exp2-hex">#00FF00</span><br>
+                        RGB: <span id="exp2-rgb">rgb(0, 255, 0)</span>
+                    </div>
+                </div>
+
+                <div class="experiment-card">
+                    <label class="experiment-input-label">Experiment 3</label>
+                    <input type="text" class="experiment-input" id="exp3" placeholder="#0000FF" value="#0000FF">
+                    <div class="experiment-preview" id="exp3-preview" style="background: #0000FF;"></div>
+                    <div class="experiment-code">
+                        HEX: <span id="exp3-hex">#0000FF</span><br>
+                        RGB: <span id="exp3-rgb">rgb(0, 0, 255)</span>
+                    </div>
+                </div>
+
+                <div class="experiment-card">
+                    <label class="experiment-input-label">Experiment 4</label>
+                    <input type="text" class="experiment-input" id="exp4" placeholder="#FF8800" value="#FF8800">
+                    <div class="experiment-preview" id="exp4-preview" style="background: #FF8800;"></div>
+                    <div class="experiment-code">
+                        HEX: <span id="exp4-hex">#FF8800</span><br>
+                        RGB: <span id="exp4-rgb">rgb(255, 136, 0)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================
+             FOOTER
+             ================================ -->
+        <footer>
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h3>📚 Dokumentation</h3>
+                    <ul>
+                        <li><a href="#">FARBEN-REFERENZ.md</a></li>
+                        <li><a href="#">design.config.json</a></li>
+                        <li><a href="#">DESIGNER-ANLEITUNG-DE.md</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3>🎯 Tipps</h3>
+                    <ul>
+                        <li>Klick auf HEX-Codes zum Kopieren</li>
+                        <li>Nutze VS Code Color Picker</li>
+                        <li>Teste neue Farben im Experimentier-Bereich</li>
+                        <li>Speichere deine Favoriten!</li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3>🔗 Ressourcen</h3>
+                    <ul>
+                        <li><a href="https://coolors.co" target="_blank">coolors.co</a></li>
+                        <li><a href="https://colorhexa.com" target="_blank">colorhexa.com</a></li>
+                        <li><a href="https://htmlcolors.com" target="_blank">htmlcolors.com</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>🎨 SONG-NEXUS Color System v1.0 | Erstellt am 22.12.2025</p>
+                <p>Frag den Developer bei Fragen!</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ================================
+         JAVASCRIPT FUNKTIONEN
+         ================================ -->
+    <script>
+        // Copy to Clipboard Funktion
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Kurze Bestätigung anzeigen
+                const originalText = event.target.textContent;
+                event.target.textContent = '✅ Kopiert!';
+                event.target.style.opacity = '0.7';
+                
+                setTimeout(() => {
+                    event.target.textContent = originalText;
+                    event.target.style.opacity = '1';
+                }, 1500);
+            });
+        }
+
+        // Experiment-Bereich Funktionalität
+        function setupExperiment(id) {
+            const input = document.getElementById(`exp${id}`);
+            const preview = document.getElementById(`exp${id}-preview`);
+            const hexSpan = document.getElementById(`exp${id}-hex`);
+            const rgbSpan = document.getElementById(`exp${id}-rgb`);
+
+            input.addEventListener('input', (e) => {
+                let color = e.target.value;
+                
+                // Validiere HEX-Code
+                if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    if (color.length === 6 && !/^#/.test(color)) {
+                        color = '#' + color;
+                    }
+                }
+
+                if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    // Aktualisiere Vorschau
+                    preview.style.background = color;
+                    hexSpan.textContent = color.toUpperCase();
+                    
+                    // Konvertiere zu RGB
+                    const hex = color.substring(1);
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    
+                    rgbSpan.textContent = `rgb(${r}, ${g}, ${b})`;
+                    
+                    // Ändern Textfarbe je nach Helligkeit
+                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                    preview.style.color = brightness > 128 ? '#000' : '#fff';
+                }
+            });
+
+            // Initiale Berechnung
+            input.dispatchEvent(new Event('input'));
+        }
+
+        // Starte alle Experiments
+        for (let i = 1; i <= 4; i++) {
+            setupExperiment(i);
+        }
+
+        // Smooth Scroll für Links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
