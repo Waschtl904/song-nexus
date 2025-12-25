@@ -12,7 +12,7 @@
  * - All components use design tokens from design.config.json
  */
 
-@import '../styles/_design-tokens.css';
+@import '../_design-tokens.css';
 
 /* ========================================================================
    BUTTONS

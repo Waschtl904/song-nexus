@@ -8,20 +8,54 @@
 
 html {
     font-family: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
-    background: var(--color-background);
+    /* Kein Background hier, das macht unser Pseudo-Element */
     color: var(--color-text_primary);
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
+    height: 100%;
 }
 
 body {
-    background: linear-gradient(135deg, var(--color-background) 0%, var(--color-charcoal-700) 100%);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     margin: 0;
     position: relative;
-    overflow-x: hidden;
+    /* Hintergrundfarbe als Fallback */
+    background-color: var(--color-background);
+}
+
+/* 🔥 FIX: Das HTML-Bild (#heroBackground) fixieren! */
+/* Damit nimmt es keinen Platz mehr im Scroll-Flow weg */
+.hero-background-container,
+#heroBackground {
+    position: fixed !important;
+    /* Bleibt stehen */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -10;
+    /* GANZ nach hinten */
+    pointer-events: none;
+    /* Klicks gehen durch */
+    overflow: hidden;
+}
+
+/* Das Bild selbst soll alles abdecken */
+.hero-background-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Kein Verzerren, füllt alles aus */
+    object-position: center;
+    filter: brightness(0.6) contrast(1.1);
+    /* Lesbarkeit verbessern */
+}
+
+/* Das CSS-Pseudo-Element brauchen wir nicht mehr, da wir das HTML-Bild nutzen */
+body::before {
+    display: none !important;
 }
 
 @keyframes scanlines {
@@ -34,6 +68,7 @@ body {
     }
 }
 
+/* Scanlines liegen ÜBER dem Bild (z-index -5), aber HINTER dem Text (z-index 1) */
 body::after {
     content: '';
     position: fixed;
@@ -41,26 +76,11 @@ body::after {
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: -5;
     background: repeating-linear-gradient(0deg, rgba(0, 204, 119, 0.008), rgba(0, 204, 119, 0.008) 1px, transparent 1px, transparent 2px);
     pointer-events: none;
-    z-index: 999;
     animation: scanlines 8s linear infinite;
     opacity: 0.5;
-}
-
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url('https://user-gen-media-assets.s3.amazonaws.com/seedream_images/313c36a1-b49c-4bb7-b002-11c11ca08f38.png');
-    background-size: cover;
-    background-attachment: fixed;
-    opacity: 0.75;
-    z-index: 0;
-    filter: contrast(1.3) saturate(1.25) brightness(0.88);
 }
 
 .container {
@@ -69,7 +89,10 @@ body::before {
     padding: 40px 20px;
     position: relative;
     z-index: 1;
+    /* Inhalt ist wichtig und liegt oben */
 }
+
+/* --- Components & Rest der Datei --- */
 
 .theme-toggle {
     position: fixed;
@@ -405,10 +428,7 @@ h2 {
     border: 1px solid rgba(183, 65, 14, 0.3);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   STICKY PLAYER
-   ═══════════════════════════════════════════════════════════════════════════ */
-
+/* --- STICKY PLAYER --- */
 .sticky-player {
     position: fixed;
     bottom: 20px;
@@ -654,17 +674,7 @@ h2 {
     transform: scale(1.15);
 }
 
-.volume-slider::-moz-range-track {
-    background: transparent;
-    border: none;
-}
-
-.volume-slider::-moz-range-progress {
-    background: var(--color-primary);
-    height: 4px;
-    border-radius: 9999px;
-}
-
+/* --- MODALS --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -894,6 +904,7 @@ footer p {
     font-size: 0.75rem;
 }
 
+/* --- RESPONSIVE --- */
 @media (max-width: 768px) {
     .track-grid {
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -1009,22 +1020,18 @@ footer p {
     }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   🎮 HEAVY METAL PLAY BUTTON - FIXED - WITH CSS VARIABLES & EVENTS
-   ═══════════════════════════════════════════════════════════════════════════ */
-
+/* 🎮 HEAVY METAL PLAY BUTTON - FIXED - WITH CSS VARIABLES & EVENTS */
 .button-metal-play,
 button.button-metal-play {
-    /* ← FIXED: background-image muss direkt sein (url() kann keine vars) */
-    background-image: url('./assets/images/metal-play-button-optimized.webp') !important;
+    /* ← NUTZE CSS-VARIABLE statt Hardcode! */
+    background-image: var(--button-track-play-image-url, url('../assets/images/metal-play-button-optimized.webp')) !important;
     background-size: contain !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
     background-color: transparent !important;
 
-    width: 140px !important;
-    height: 70px !important;
+    width: var(--button-track-play-width, 140px) !important;
+    height: var(--button-track-play-height, 70px) !important;
     padding: 0 !important;
 
     border: none !important;
@@ -1052,7 +1059,7 @@ button.button-metal-play {
 button.button-metal-play:hover:not(:disabled) {
     opacity: var(--button-track-play-opacity-hover, 0.95) !important;
     filter: var(--button-track-play-filter-hover, brightness(1.05) drop-shadow(0 0 8px rgba(0, 0, 0, 0.3))) !important;
-    transform: scale(var(--button-track-play-scale-hover, 1.02)) translateY(var(--button-track-play-hover-offset-y, -2px)) !important;
+    transform: scale(var(--button-track-play-transform-hover, 1.02)) translateY(var(--button-track-play-hover-offset-y, -2px)) !important;
     box-shadow: var(--button-track-play-box-shadow-hover, 0 6px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4)) !important;
 }
 
@@ -1060,7 +1067,7 @@ button.button-metal-play:hover:not(:disabled) {
 button.button-metal-play:active:not(:disabled) {
     opacity: var(--button-track-play-opacity-active, 0.9) !important;
     filter: var(--button-track-play-filter-active, brightness(0.95)) !important;
-    transform: scale(var(--button-track-play-scale-active, 0.98)) translateY(0) !important;
+    transform: scale(var(--button-track-play-transform-active, 0.98)) translateY(0) !important;
     box-shadow: var(--button-track-play-box-shadow-active, 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3)) !important;
 }
 
@@ -1076,4 +1083,67 @@ button.button-metal-play:disabled {
     opacity: var(--button-track-play-opacity-disabled, 0.5) !important;
     cursor: var(--button-track-play-disabled-cursor, not-allowed) !important;
     filter: var(--button-track-play-filter-disabled, grayscale(0.5) opacity(0.6)) !important;
+}
+
+
+/* 🔥 RETTUNG: Header nach GANZ oben holen */
+header {
+    position: relative;
+    /* Oder sticky/fixed, je nach Design */
+    z-index: 1000 !important;
+    /* Über allem anderen */
+    pointer-events: auto !important;
+    /* Klicks erlauben */
+}
+
+.header-actions {
+    position: relative;
+    z-index: 1001 !important;
+}
+
+#authButton {
+    position: relative;
+    z-index: 1002 !important;
+    cursor: pointer !important;
+}
+
+/* 🔥 Z-INDEX RETTUNGSPAKET - Fix für nicht klickbaren Header */
+
+header {
+    position: relative !important;
+    z-index: 9999 !important;
+    /* Extrem hoch */
+    pointer-events: auto !important;
+}
+
+.header-content,
+.header-actions {
+    position: relative !important;
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+}
+
+/* Spezifisch für den Auth Button */
+#authButton {
+    position: relative !important;
+    z-index: 10001 !important;
+    /* Höher als alles andere */
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    /* Visuelles Feedback erzwingen */
+    border: 2px solid red !important;
+    /* DEBUG: Roter Rand = Fix aktiv */
+}
+
+/* Verhindern, dass Neon-Grime Klicks klaut */
+.neon-grime {
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
+/* Verhindern, dass Hintergrund Klicks klaut */
+#heroBackground,
+.hero-background-container {
+    z-index: -999 !important;
+    pointer-events: none !important;
 }

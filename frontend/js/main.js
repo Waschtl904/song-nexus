@@ -1,5 +1,5 @@
 // ============================================================================
-// 🚀 MAIN.JS v8.3 - WEBPACK ENTRY POINT (FIXED WITH API_ENDPOINTS)
+// 🚀 MAIN.JS v8.4 - WEBPACK ENTRY POINT (FIXED: PLAYER INITIALIZATION)
 // ============================================================================
 
 import {
@@ -22,13 +22,14 @@ import { Tracks } from './tracks.js';
 import { TracksLoader } from './tracks-loader.js';
 import { UI } from './ui.js';
 import { App } from './app.js';
+import '../css/styles-cyberpunk.css';
 
 // ============================================================================
 // 🌍 MAKE ALL MODULES GLOBAL (CRITICAL FIX!)
 // ============================================================================
 
 if (typeof window !== 'undefined') {
-    // ✅ CONFIG ENDPOINTS (NEW!)
+    // ✅ CONFIG ENDPOINTS
     window.API_ENDPOINTS = API_ENDPOINTS;
     window.logConfigInfo = logConfigInfo;
     window.getAuthToken = getAuthToken;
@@ -69,10 +70,10 @@ if (typeof window !== 'undefined') {
 function initializeApp() {
     console.log('');
     console.log('╔══════════════════════════════════════════════════╗');
-    console.log('║  🎵 SONG-NEXUS v8.3 - ES6 Modules + Webpack     ║');
+    console.log('║  🎵 SONG-NEXUS v8.4 - ES6 Modules + Webpack      ║');
     console.log('║  All 11 modules bundled into app.bundle.js       ║');
-    console.log('║  ✅ Auth Modal + WebAuthn + Magic Link Ready    ║');
-    console.log('║  ✅ API_ENDPOINTS GLOBALLY AVAILABLE            ║');
+    console.log('║  ✅ Auth Modal + WebAuthn + Magic Link Ready     ║');
+    console.log('║  ✅ PLAYER CONTROLLER ACTIVE                     ║');
     console.log('╚══════════════════════════════════════════════════╝');
     console.log('');
 
@@ -139,6 +140,20 @@ function initializeApp() {
     }
 
     // ────────────────────────────────────────────────────────────────
+    // 🔥 Step 5b: Initialize Audio Player Logic (CRITICAL FIX!)
+    // ────────────────────────────────────────────────────────────────
+    console.log('📋 Step 5b: Initializing Audio Player Controller...');
+    if (typeof Tracks !== 'undefined' && Tracks.init) {
+        Tracks.init().then(() => {
+            console.log('✅ Tracks/Audio Controller initialized & listening!');
+        }).catch(err => {
+            console.error('❌ Tracks/Audio Controller init failed:', err);
+        });
+    } else {
+        console.warn('⚠️ Tracks module not found - Audio playback might not work!');
+    }
+
+    // ────────────────────────────────────────────────────────────────
     // Step 6: Check for Magic Link in URL
     // ────────────────────────────────────────────────────────────────
     console.log('📋 Step 6: Checking for Magic Link verification...');
@@ -177,7 +192,7 @@ if (document.readyState === 'loading') {
 // ============================================================================
 
 console.log('');
-console.log('🚀 main.js v8.3 loaded - ES6 Module Entry Point for Webpack');
+console.log('🚀 main.js v8.4 loaded - ES6 Module Entry Point for Webpack');
 console.log('📦 All 11 modules imported and ready to bundle');
 console.log('🌍 API_ENDPOINTS + Config functions exported to window');
 console.log('🚀 App will initialize on DOMContentLoaded');

@@ -1,31 +1,26 @@
 // ============================================================================
-// 🎵 TRACKS.JS v8.1 - ES6 MODULE
-// Track Browser + Integration mit APIClient + Auth + Player + Design Config
+// 🎵 TRACKS.JS v8.7 - FIXED: USES CENTRAL AUDIOPLAYER
+// Integration mit APIClient + Auth + Central Player Logic
 // ============================================================================
 
 import { APIClient } from './api-client.js';
 import { Auth } from './auth.js';
+import { AudioPlayer } from './audio-player.js';
 
-// ← NEW: Import design config loader
+// ← Design config storage
 let designConfig = null;
 
 async function loadDesignConfig() {
   try {
-    const response = await fetch('./design.config.json');
+    const response = await fetch('./config/design.config.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
     designConfig = await response.json();
-    console.log('✅ Design config loaded');
+    console.log(`✅ Design config loaded in Tracks module`);
   } catch (err) {
-    console.warn('⚠️ Design config not found, using defaults:', err);
+    console.warn('⚠️ Design config load failed in Tracks module:', err.message);
     designConfig = {
-      components: {
-        buttons: {
-          track_play: {
-            image_url: './assets/images/metal-play-button-optimized.webp',
-            width: 140,
-            height: 70,
-          }
-        }
-      }
+      components: { buttons: { track_play: { image_url: '../assets/images/metal-play-button-optimized.webp' } } }
     };
   }
 }
@@ -33,12 +28,21 @@ async function loadDesignConfig() {
 export const Tracks = {
   allTracks: [],
   userPurchases: [],
-  currentModalTrack: null,
+  currentlyPlayingId: null,
 
   async init() {
     console.log('🎵 Tracks module initializing...');
     await loadDesignConfig();
-    this.loadTracks();
+
+    // 1. Tracks laden
+    await this.loadTracks();
+
+    // 2. 🔥 Event Listener für Play-Requests
+    // WICHTIG: Das wird von tracks-loader.js gesendet!
+    document.addEventListener('track-play-request', (e) => {
+      console.log('🎧 Tracks module received play request:', e.detail);
+      this.playTrack(e.detail.trackData);
+    });
   },
 
   getApiBase() {
@@ -48,17 +52,17 @@ export const Tracks = {
   async loadTracks() {
     try {
       console.log('📥 Loading tracks...');
-
       const token = Auth.getToken();
       this.allTracks = await APIClient.getTracks();
-
       console.log('📊 Tracks loaded:', this.allTracks.length);
 
       if (token) {
         await this.loadUserPurchases(token);
       }
 
+      // Legacy Render (falls TracksLoader nicht genutzt wird)
       this.renderTracks(this.allTracks);
+
     } catch (err) {
       console.error('❌ Track load error:', err);
       this.showStatus('Failed to load tracks', 'error');
@@ -69,9 +73,7 @@ export const Tracks = {
     try {
       const apiBase = this.getApiBase();
       const response = await fetch(`${apiBase}/users/purchases`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         credentials: 'include',
       });
 
@@ -84,143 +86,84 @@ export const Tracks = {
     }
   },
 
-  getPlayButtonStyles() {
-    // ← NEW: Holt Button-Styles aus design.config.json
-    if (!designConfig) {
-      return {
-        imageUrl: './assets/images/metal-play-button-optimized.webp',
-        width: 140,
-        height: 70,
-      };
+  // 🔥 DER NEUE FIX: Nutze den zentralen AudioPlayer!
+  playTrack(track) {
+    console.log('▶️ Attempting to play track:', track.name || track.title);
+
+    // 1. Toggle: Wenn wir auf den gleichen Track klicken, pause/resume
+    if (this.currentlyPlayingId === track.id) {
+      if (AudioPlayer.state.isPlaying) {
+        AudioPlayer.pause();
+      } else {
+        AudioPlayer.play();
+      }
+      return;
     }
 
-    const btnConfig = designConfig.components?.buttons?.track_play || {};
-    return {
-      imageUrl: btnConfig.image_url || './assets/images/metal-play-button-optimized.webp',
-      width: btnConfig.width || 140,
-      height: btnConfig.height || 70,
-    };
+    // 2. Stoppe den alten Track
+    AudioPlayer.stop();
+
+    // 3. Lade den neuen Track in den zentralen Player
+    try {
+      AudioPlayer.loadTrack(track, false); // false = nicht im Preview Mode
+      AudioPlayer.play();
+      this.currentlyPlayingId = track.id;
+      console.log('✅ Track loaded and playing in central AudioPlayer');
+    } catch (err) {
+      console.error('❌ Failed to play track:', err);
+      this.showStatus(`Could not play "${track.name}"`, 'error');
+    }
   },
 
+  // Legacy Render (falls TracksLoader nicht genutzt wird)
   renderTracks(tracks) {
     const container = document.getElementById('tracksList');
-    if (!container) {
-      console.warn('⚠️ Track container not found');
-      return;
-    }
+    if (!container || container.children.length > 0) return;
 
-    if (!tracks || tracks.length === 0) {
-      container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;"><p style="color: var(--text-secondary);">🎵 No tracks available</p></div>';
-      return;
-    }
-
-    const token = Auth.getToken();
-    const buttonStyles = this.getPlayButtonStyles(); // ← NEW: Hole Button-Styles
-
-    container.innerHTML = tracks.map(track => {
-      const isPurchased = this.userPurchases.some(p => p.track_id === track.id);
-      const isFree = track.is_free === true || (track.free_preview_duration >= 999999);
-      const price = track.price_eur || track.price || 0;
-      const isPreview = track.is_premium && !token;
-
-      return `
-        <div class="card track-card">
-          <div class="track-title">♪ ${this.escapeHtml(track.name)}</div>
-          <div class="track-meta">🎤 ${this.escapeHtml(track.artist || 'Unknown')}</div>
-          <div class="track-meta">⏱️ ${track.duration || '3:00'}</div>
-          
-          ${track.is_free ? '' : '<div class="track-badge">🔒 Premium</div>'}
-          ${track.is_premium ? '<div class="track-badge">💰 Paid</div>' : '<div class="track-badge" style="background: rgba(0, 204, 119, 0.15); color: #00cc77; border-color: #00cc77;">🆓 Free</div>'}
-          
-          <button
-            class="button-metal-play"
-            data-track-id="${track.id}" 
-            data-filename="${this.escapeHtml(track.audio_filename)}" 
-            data-premium="${track.is_premium}" 
-            data-name="${this.escapeHtml(track.name)}" 
-            style="
-              background-image: url('${buttonStyles.imageUrl}') !important;
-              background-size: contain !important;
-              background-repeat: no-repeat !important;
-              background-position: center !important;
-              background-color: transparent !important;
-              width: ${buttonStyles.width}px !important;
-              height: ${buttonStyles.height}px !important;
-              border: none !important;
-              padding: 0 !important;
-              box-shadow: none !important;
-              cursor: pointer !important;
-              font-size: 0 !important;
-              color: transparent !important;
-              margin-top: 12px;
-            " 
-            aria-label="Play ${this.escapeHtml(track.name)}"
-          ></button>
-        </div>
-      `;
-    }).join('');
-
-    document.querySelectorAll('.button-metal-play').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.playTrack(
-          parseInt(btn.getAttribute('data-track-id')),
-          btn.getAttribute('data-filename'),
-          btn.getAttribute('data-premium') === 'true',
-          btn.getAttribute('data-name')
-        );
-      });
+    tracks.forEach((track) => {
+      const trackCard = document.createElement('div');
+      trackCard.className = 'card track-card';
+      trackCard.innerHTML = `
+                <div class="track-header">
+                    <div class="track-info">
+                        <h3 class="track-title">${this.escapeHtml(track.name || track.title)}</h3>
+                        <p class="track-artist">${this.escapeHtml(track.artist)}</p>
+                    </div>
+                    <button 
+                        class="play-button button-metal-play"
+                        data-track-id="${track.id}"
+                        aria-label="Play"
+                    ></button>
+                </div>
+            `;
+      const btn = trackCard.querySelector('.play-button');
+      if (btn) {
+        if (designConfig?.components?.buttons?.track_play?.image_url) {
+          btn.style.backgroundImage = `url('${designConfig.components.buttons.track_play.image_url}')`;
+        }
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.playTrack(track);
+        });
+      }
+      container.appendChild(trackCard);
     });
-
-    console.log('✅ Tracks rendered');
   },
 
-  async playTrack(trackId, filename, isPremium, trackName) {
-    try {
-      console.log(`▶️ Playing track: ${trackName}`);
-
-      const track = {
-        id: trackId,
-        name: trackName,
-        audio_filename: filename,
-        is_premium: isPremium,
-      };
-
-      const isPreview = isPremium && !Auth.getToken();
-
-      if (typeof window.AudioPlayer !== 'undefined') {
-        window.AudioPlayer.loadTrack(track, isPreview);
-        window.AudioPlayer.play();
-      }
-
-      this.updatePlayerDisplay(trackName);
-
-      if (Auth.getToken()) {
-        APIClient.logPlayEvent(trackId, null).catch(e => console.warn('Play log failed:', e));
-      }
-
-      console.log(`▶️ Playing: ${trackName} ${isPreview ? '(PREVIEW)' : '(FULL)'}`);
-    } catch (err) {
-      console.error('❌ Play error:', err);
-      this.showStatus('Failed to play track', 'error');
-    }
-  },
-
-  updatePlayerDisplay(trackName) {
-    const trackNameEl = document.querySelector('.track-name');
-    if (trackNameEl) {
-      trackNameEl.textContent = trackName;
+  showStatus(message, type = 'info') {
+    const container = document.getElementById('tracksList');
+    if (container) {
+      const statusDiv = document.createElement('div');
+      statusDiv.className = `status-message status-${type}`;
+      statusDiv.textContent = message;
+      container.appendChild(statusDiv);
     }
   },
 
   escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-  },
-
-  showStatus(message, type) {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-  },
+  }
 };
-
-console.log('✅ Tracks v8.1 loaded - ES6 Module with Design Config');

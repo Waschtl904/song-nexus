@@ -130,7 +130,7 @@
         "font_size": "@ref typography.font_sizes.lg"
       },
       "track_play": {
-        "image_url": "./assets/images/metal-play-button-optimized.webp",
+        "image_url": "../assets/images/metal-play-button-optimized.webp",
         "width": 140,
         "height": 70,
         "icon": "▶",

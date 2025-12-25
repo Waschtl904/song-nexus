@@ -1,10 +1,16 @@
 // ============================================================================
-// 🔐 WEBAUTHN.JS v6.0 - WebAuthn + Magic Link Implementation
-// ============================================================================
+// 🔐 WEBAUTHN.JS v6.1 - FIXED CONFIG DEPENDENCY
 // Handles biometric registration/authentication + Magic Link
+// ============================================================================
 
 import { APIClient } from './api-client.js';
-import { getAuthToken, setAuthToken, clearAuthToken } from './config.js';
+
+// HELPER (statt import aus config.js)
+// Wir speichern den Token einfach direkt im localStorage, 
+// damit wir keine zyklischen Abhängigkeiten zu auth.js oder config.js haben.
+function setAuthToken(token) {
+    if (token) localStorage.setItem('auth_token', token);
+}
 
 export const WebAuthn = {
 
@@ -16,7 +22,7 @@ export const WebAuthn = {
         try {
             console.log('📝 Getting WebAuthn registration options...');
 
-            // Get registration options from backend
+            // 1. Get options from backend
             const options = await APIClient.post('/auth/webauthn/register-options', {
                 username,
                 email
@@ -25,8 +31,9 @@ export const WebAuthn = {
             console.log('✅ Registration options received');
             console.log('   Challenge:', options.challenge.substring(0, 20) + '...');
 
-            // Create credential using WebAuthn API
+            // 2. Create credential using browser API
             console.log('👆 Waiting for biometric input...');
+
             const credential = await navigator.credentials.create({
                 publicKey: {
                     challenge: this._base64urlToBuffer(options.challenge),
@@ -53,8 +60,9 @@ export const WebAuthn = {
             console.log('✅ Credential created');
             console.log('   ID:', credential.id.substring(0, 20) + '...');
 
-            // Verify registration with backend
+            // 3. Verify with backend
             console.log('📡 Verifying credential with backend...');
+
             const response = await APIClient.post('/auth/webauthn/register-verify', {
                 id: credential.id,
                 rawId: credential.id,
@@ -70,9 +78,9 @@ export const WebAuthn = {
                 console.log('✅ Registration verified!');
                 setAuthToken(response.token);
                 return response;
+            } else {
+                throw new Error('Registration verification failed (no token received)');
             }
-
-            throw new Error('Registration verification failed');
 
         } catch (error) {
             console.error('❌ Biometric registration error:', error.message);
@@ -88,24 +96,25 @@ export const WebAuthn = {
         try {
             console.log('📝 Getting WebAuthn authentication options...');
 
-            // Get authentication options from backend
+            // 1. Get options
             const options = await APIClient.post('/auth/webauthn/authenticate-options', {});
 
             console.log('✅ Authentication options received');
             console.log('   Challenge:', options.challenge.substring(0, 20) + '...');
-            console.log('   Allow credentials:', options.allowCredentials.length);
+            console.log('   Allow credentials:', options.allowCredentials ? options.allowCredentials.length : 0);
 
-            // Get assertion using WebAuthn API
+            // 2. Get assertion
             console.log('👆 Waiting for biometric input...');
+
             const assertion = await navigator.credentials.get({
                 publicKey: {
                     challenge: this._base64urlToBuffer(options.challenge),
                     timeout: options.timeout,
                     rpId: options.rpId,
-                    allowCredentials: options.allowCredentials.map(cred => ({
+                    allowCredentials: options.allowCredentials ? options.allowCredentials.map(cred => ({
                         ...cred,
                         id: this._base64urlToBuffer(cred.id)
-                    })),
+                    })) : [],
                     userVerification: options.userVerification
                 }
             });
@@ -117,8 +126,9 @@ export const WebAuthn = {
             console.log('✅ Assertion created');
             console.log('   ID:', assertion.id.substring(0, 20) + '...');
 
-            // Verify authentication with backend
+            // 3. Verify
             console.log('📡 Verifying assertion with backend...');
+
             const response = await APIClient.post('/auth/webauthn/authenticate-verify', {
                 id: assertion.id,
                 rawId: assertion.id,
@@ -134,9 +144,9 @@ export const WebAuthn = {
                 console.log('✅ Authentication verified!');
                 setAuthToken(response.token);
                 return response;
+            } else {
+                throw new Error('Authentication verification failed (no token received)');
             }
-
-            throw new Error('Authentication verification failed');
 
         } catch (error) {
             console.error('❌ Biometric authentication error:', error.message);
@@ -152,7 +162,6 @@ export const WebAuthn = {
         try {
             console.log('📧 Requesting magic link...');
 
-            // This endpoint will send email with magic link
             const response = await APIClient.post('/auth/webauthn/login-magic-link', {
                 email
             });
@@ -182,9 +191,9 @@ export const WebAuthn = {
                 console.log('✅ Magic link verified!');
                 setAuthToken(response.token);
                 return response;
+            } else {
+                throw new Error('Magic link verification failed');
             }
-
-            throw new Error('Magic link verification failed');
 
         } catch (error) {
             console.error('❌ Magic link verification error:', error.message);
@@ -200,23 +209,30 @@ export const WebAuthn = {
         const base64 = base64url
             .replace(/-/g, '+')
             .replace(/_/g, '/');
+
         const padLength = (4 - (base64.length % 4)) % 4;
         const padded = base64 + '='.repeat(padLength);
+
         const binary = atob(padded);
         const bytes = new Uint8Array(binary.length);
+
         for (let i = 0; i < binary.length; i++) {
             bytes[i] = binary.charCodeAt(i);
         }
+
         return bytes.buffer;
     },
 
     _bufferToBase64url(buffer) {
         const bytes = new Uint8Array(buffer);
         let binary = '';
+
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
+
         const base64 = btoa(binary);
+
         return base64
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
@@ -224,4 +240,4 @@ export const WebAuthn = {
     }
 };
 
-console.log('✅ WebAuthn v6.0 loaded - Biometric + Magic Link');
+console.log('✅ WebAuthn v6.1 loaded - Biometric + Magic Link (Full)');

@@ -5,6 +5,8 @@
 // ✅ Proper middleware ordering
 // ✅ WebAuthn session handling fixed
 // ✅ Design-System API endpoints added
+// ✅ CSP FIXED - allows localhost:5500
+
 
 require('dotenv').config();
 
@@ -132,10 +134,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// ✅ FIXED CSP DIRECTIVES - allows localhost:5500
 const getCSPDirectives = () => {
     const connectSrc = [
         "'self'",
-        "https://localhost:*",
+        "https://localhost:*",        // ✅ Alle HTTPS localhost
+        "http://localhost:*",         // ✅ HTTP localhost (development)
+        "https://127.0.0.1:*",        // ✅ IP-Adresse HTTPS
+        "http://127.0.0.1:*",         // ✅ IP-Adresse HTTP
+        "wss://localhost:*",          // ✅ WebSocket Secure
+        "ws://localhost:*",           // ✅ WebSocket
         "https://api.paypal.com",
         "https://api.sandbox.paypal.com"
     ];
@@ -147,13 +155,13 @@ const getCSPDirectives = () => {
     }
 
     return {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        defaultSrc: ["'self'", "https:", "http:"],  // ✅ Erlaubt http/https
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        mediaSrc: ["'self'", "https://localhost:*"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: connectSrc,
+        mediaSrc: ["'self'", "https://localhost:*", "http://localhost:*"],
+        imgSrc: ["'self'", "data:", "https:", "http:"],
+        connectSrc: connectSrc,  // ✅ WICHTIG: Erlaubt 5500!
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
@@ -306,21 +314,36 @@ const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware')
 // 🎨 DESIGN-SYSTEM API ENDPOINTS (VOR anderen Routes!)
 // ============================================================================
 
-// GET design system settings (PUBLIC - anyone can read)
-app.get('/api/design-system', async (req, res) => {
+// GET design system settings (FILE BASED FIX)
+app.get('/api/design-system', (req, res) => {
     try {
-        const result = await pool.query(
-            'SELECT * FROM design_system WHERE is_active = true ORDER BY updated_at DESC LIMIT 1'
-        );
+        // 1. Suche im Backend-Config Ordner
+        let configPath = path.join(__dirname, 'config', 'design.config.json');
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'No design system found' });
+        // 2. Fallback: Suche direkt im Frontend-Ordner (spart das Kopieren)
+        if (!fs.existsSync(configPath)) {
+            configPath = path.join(__dirname, '../frontend/config/design.config.json');
         }
 
-        res.json(result.rows[0]);
+        if (fs.existsSync(configPath)) {
+            const configData = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(configData);
+
+            // Header setzen damit der Browser es frisst
+            res.setHeader('Content-Type', 'application/json');
+            res.json(config);
+        } else {
+            console.error('❌ Design config file not found in:', configPath);
+            // Notfall-Fallback damit die Seite nicht crasht
+            res.json({
+                color_primary: "#00ff9d",
+                color_background: "#0a0a0a",
+                font_family_base: "Rajdhani, sans-serif"
+            });
+        }
     } catch (err) {
-        console.error('❌ Error loading design system:', err);
-        res.status(500).json({ error: 'Database error' });
+        console.error('❌ Error loading design system file:', err);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

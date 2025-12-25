@@ -40,7 +40,7 @@ module.exports = function (source) {
     const finalCSS = `:root {\n${cssVars}${buttonVars}}\n\n${darkModeCss}`;
 
     // Write CSS file to disk
-    const outputPath = path.resolve(__dirname, '../styles/_design-tokens.css');
+    const outputPath = path.resolve(__dirname, 'styles', '_design-tokens.css');
     const outputDir = path.dirname(outputPath);
 
     if (!fs.existsSync(outputDir)) {

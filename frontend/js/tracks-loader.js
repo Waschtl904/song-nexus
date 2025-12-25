@@ -1,25 +1,39 @@
 // ============================================================================
-// 🎵 TRACKS-LOADER.JS v8.1 - ES6 CLASS
-// Pagination + Infinite Scroll für Track-Liste + Design Config
+// 🎵 TRACKS-LOADER.JS v8.5 - FIXED EVENTS & DESIGN
+// Pagination + Infinite Scroll + Event Dispatching
 // ============================================================================
 
 import { APIClient } from './api-client.js';
 
-// ← NEW: Design config loader
+// ← Design config storage
 let designConfig = null;
 
 async function loadDesignConfig() {
     try {
-        const response = await fetch('./design.config.json');
+        // ✅ DIREKT laden, nicht via API!
+        const response = await fetch('./config/design.config.json');
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Invalid content-type: ${contentType} (expected application/json)`);
+        }
+
         designConfig = await response.json();
-        console.log('✅ Design config loaded');
+        console.log(`✅ Design config loaded successfully`);
+
     } catch (err) {
-        console.warn('⚠️ Design config not found, using defaults:', err);
+        console.warn('⚠️ Design config load failed, using defaults:', err.message);
+
+        // FALLBACK DEFAULTS
         designConfig = {
             components: {
                 buttons: {
                     track_play: {
-                        image_url: './assets/images/metal-play-button-optimized.webp',
+                        image_url: '../assets/images/metal-play-button-optimized.webp',
                         width: 140,
                         height: 70,
                     }
@@ -32,7 +46,6 @@ async function loadDesignConfig() {
 export class TracksLoader {
     constructor(containerElement, itemsPerPage = 12) {
         console.log('🎵 TracksLoader initializing...');
-
         this.container = containerElement;
         this.itemsPerPage = itemsPerPage;
         this.currentPage = 1;
@@ -42,33 +55,14 @@ export class TracksLoader {
         this.searchQuery = '';
         this.selectedGenre = '';
         this.sortBy = 'created_at';
-
         this.init();
     }
 
     async init() {
         console.log('🔄 TracksLoader initializing infinite scroll...');
-        await loadDesignConfig(); // ← NEW: Load design config
+        await loadDesignConfig(); // ← Config laden bevor wir rendern
         this.setupInfiniteScroll();
         await this.loadTracks(false);
-    }
-
-    getPlayButtonStyles() {
-        // ← NEW: Holt Button-Styles aus design.config.json
-        if (!designConfig) {
-            return {
-                imageUrl: './assets/images/metal-play-button-optimized.webp',
-                width: 140,
-                height: 70,
-            };
-        }
-
-        const btnConfig = designConfig.components?.buttons?.track_play || {};
-        return {
-            imageUrl: btnConfig.image_url || './assets/images/metal-play-button-optimized.webp',
-            width: btnConfig.width || 140,
-            height: btnConfig.height || 70,
-        };
     }
 
     async loadTracks(append = false) {
@@ -107,13 +101,11 @@ export class TracksLoader {
             console.log(`📡 Fetching: ${url}`);
 
             const response = await fetch(url);
-
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const result = await response.json();
-
             if (!result.success) {
                 throw new Error(result.error || 'Unknown API error');
             }
@@ -131,6 +123,7 @@ export class TracksLoader {
 
             // Increment page for next load
             this.currentPage++;
+
         } catch (error) {
             console.error('❌ TracksLoader error:', error);
             this.hasError = true;
@@ -149,81 +142,91 @@ export class TracksLoader {
     addTracksToDOM(tracks) {
         if (tracks.length === 0) {
             if (this.currentPage === 1) {
-                this.container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;"><p>No tracks found.</p></div>';
+                this.container.innerHTML = '<div class="no-tracks">🎵 No tracks found.</div>';
             }
             return;
         }
 
-        tracks.forEach(track => {
-            const trackElement = this.createTrackElement(track);
-            this.container.appendChild(trackElement);
-        });
+        tracks.forEach((track, index) => {
+            const trackCard = document.createElement('div');
+            trackCard.className = 'track-card';
 
-        console.log(`✅ Added ${tracks.length} track elements to DOM`);
-    }
+            // HTML Struktur
+            trackCard.innerHTML = `
+                <div class="track-header">
+                    <div class="track-info">
+                        <h3 class="track-title">${this.escapeHtml(track.title)}</h3>
+                        <p class="track-artist">${this.escapeHtml(track.artist)}</p>
+                    </div>
+                    <button 
+                        class="play-button button-metal-play"
+                        data-track-id="${track.id}"
+                        aria-label="Play ${this.escapeHtml(track.title)}"
+                    ></button>
+                </div>
+            `;
 
-    createTrackElement(track) {
-        const div = document.createElement('div');
-        div.className = 'track-card glass-style';
-        div.setAttribute('data-track-id', track.id);
+            // 🔥 FIX: Event Listener & Styling
+            const playBtn = trackCard.querySelector('.play-button');
+            if (playBtn) {
+                // 1. Styling aus Config anwenden
+                if (designConfig && designConfig.components?.buttons?.track_play?.image_url) {
+                    playBtn.style.backgroundImage = `url('${designConfig.components.buttons.track_play.image_url}')`;
+                    // Falls nötig, Größe setzen:
+                    // playBtn.style.width = `${designConfig.components.buttons.track_play.width}px`;
+                    // playBtn.style.height = `${designConfig.components.buttons.track_play.height}px`;
+                }
 
-        const duration = this.formatDuration(track.duration_seconds || 0);
-        const price = track.price_eur ? parseFloat(track.price_eur).toFixed(2) : '0.99';
-        const priceDisplay = track.is_free ? 'FREE' : `€${price}`;
-        const playCount = track.play_count || 0;
-        const playCountText = playCount > 0 ? `${playCount} plays` : 'New';
+                // 2. Click Listener hinzufügen
+                playBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // Bubbling verhindern
 
-        // ← NEW: Hole Button-Styles
-        const buttonStyles = this.getPlayButtonStyles();
+                    console.log('▶️ Play clicked for:', track.id);
 
-        div.innerHTML = `
-      <div class="track-card-header">
-        <h3 class="track-card-title">${this.escapeHtml(track.name)}</h3>
-        <span class="track-card-plays">${playCountText}</span>
-      </div>
-      <div class="track-card-meta">
-        <span class="track-card-artist">${this.escapeHtml(track.artist || 'Unknown')}</span>
-        <span class="track-card-duration">${duration}</span>
-      </div>
-      <div class="track-card-price">${priceDisplay}</div>
-      <button
-        class="button-metal-play"
-        data-track-id="${track.id}" 
-        style="
-          background-image: url('${buttonStyles.imageUrl}') !important;
-          background-size: contain !important;
-          background-repeat: no-repeat !important;
-          background-position: center !important;
-          background-color: transparent !important;
-          width: ${buttonStyles.width}px !important;
-          height: ${buttonStyles.height}px !important;
-          border: none !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-          cursor: pointer !important;
-          font-size: 0 !important;
-          color: transparent !important;
-          margin-top: 12px;
-        " 
-        aria-label="Play ${this.escapeHtml(track.name)}"
-      ></button>
-        `;
-
-        // Add play button listener
-        const playBtn = div.querySelector('.button-metal-play');
-        playBtn.addEventListener('click', () => {
-            if (typeof window.Player !== 'undefined') {
-                window.Player.loadAndPlay(track, !window.Auth?.getToken() && track.is_premium);
+                    // Globales Event senden, auf das der Player (tracks.js) hören muss
+                    const playEvent = new CustomEvent('track-play-request', {
+                        detail: {
+                            trackId: track.id,
+                            trackData: track
+                        },
+                        bubbles: true
+                    });
+                    document.dispatchEvent(playEvent);
+                });
             }
+
+            this.container.appendChild(trackCard);
         });
 
-        return div;
+        console.log(`✅ Added ${tracks.length} track elements to DOM with Active Listeners`);
     }
 
-    formatDuration(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    setupInfiniteScroll() {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting && !this.isLoading && this.currentPage <= this.totalPages) {
+                        this.loadTracks(true);
+                    }
+                });
+            },
+            { rootMargin: '200px' }
+        );
+
+        // Create a sentinel element at the end
+        const sentinel = document.createElement('div');
+        sentinel.className = 'infinite-scroll-sentinel';
+        this.container.appendChild(sentinel);
+        observer.observe(sentinel);
+    }
+
+    showError(message) {
+        console.error('🚨 Error:', message);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = `❌ Error: ${message}`;
+        this.container.appendChild(errorDiv);
     }
 
     escapeHtml(text) {
@@ -231,61 +234,4 @@ export class TracksLoader {
         div.textContent = text;
         return div.innerHTML;
     }
-
-    setupInfiniteScroll() {
-        if (!('IntersectionObserver' in window)) {
-            console.warn('⚠️ IntersectionObserver not supported, infinite scroll disabled');
-            return;
-        }
-
-        // Create sentinel element
-        const sentinel = document.createElement('div');
-        sentinel.className = 'tracks-sentinel';
-        sentinel.style.height = '50px';
-        this.container.appendChild(sentinel);
-
-        // Observe sentinel
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && !this.isLoading && this.currentPage <= this.totalPages) {
-                    console.log('📡 Infinite scroll triggered, loading next page...');
-                    this.loadTracks(true);
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        observer.observe(sentinel);
-        console.log('✅ Infinite scroll observer attached');
-    }
-
-    showError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error-message';
-        errorDiv.textContent = `❌ ${message}`;
-        errorDiv.style.cssText = 'color: var(--error); padding: 16px; text-align: center; width: 100%;';
-        this.container.insertAdjacentElement('beforebegin', errorDiv);
-
-        setTimeout(() => errorDiv.remove(), 5000);
-    }
-
-    setSortBy(sortKey) {
-        this.sortBy = sortKey;
-        this.currentPage = 1;
-        this.loadTracks(false);
-    }
-
-    setGenre(genre) {
-        this.selectedGenre = genre;
-        this.currentPage = 1;
-        this.loadTracks(false);
-    }
-
-    search(query) {
-        this.searchQuery = query;
-        this.currentPage = 1;
-        this.loadTracks(false);
-    }
 }
-
-console.log('✅ TracksLoader v8.1 loaded - ES6 Class with Design Config');
