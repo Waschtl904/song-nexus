@@ -7,6 +7,7 @@
 // ✅ Design-System API endpoints added
 // ✅ CSP FIXED - allows localhost:5500
 
+
 require('dotenv').config();
 
 const express = require('express');
@@ -310,243 +311,111 @@ console.log('✅ Auth middleware loaded');
 const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware');
 
 // ============================================================================
-// 🎨 DESIGN-SYSTEM API ENDPOINTS - MAPPED TO REAL DATABASE SCHEMA!
+// 🎨 DESIGN-SYSTEM API ENDPOINTS (VOR anderen Routes!)
 // ============================================================================
 
-// GET design system settings from database (ID 1 = default/primary)
-app.get('/api/design-system', async (req, res) => {
+// GET design system settings (FILE BASED FIX)
+app.get('/api/design-system', (req, res) => {
     try {
-        console.log('📨 GET /api/design-system');
+        // 1. Suche im Backend-Config Ordner
+        let configPath = path.join(__dirname, 'config', 'design.config.json');
 
-        const query = `
-            SELECT 
-                id, color_primary, color_secondary, color_accent_teal, 
-                color_accent_green, color_accent_red, color_text_primary, 
-                color_background, background_image_url, logo_url, 
-                hero_image_url, font_family_base, font_size_base, 
-                font_weight_normal, font_weight_bold, spacing_unit, 
-                border_radius, button_background_color, button_text_color, 
-                button_border_radius, button_padding, player_background_image_url, 
-                player_button_color, player_button_size, is_active, updated_at, updated_by
-            FROM public.design_system 
-            WHERE is_active = true 
-            LIMIT 1
-        `;
-
-        const result = await pool.query(query);
-
-        if (result.rows.length === 0) {
-            console.warn('⚠️ No active design system found, returning defaults');
-            res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.status(200).json({
-                version: "1.0",
-                meta: { name: "Default", author: "System", lastUpdated: new Date().toISOString() },
-                colors: {
-                    primary: "#00CC77",
-                    secondary: "#5E5240",
-                    accent_teal: "#32B8C6",
-                    text_primary: "#00ffff",
-                    background: "#FCF8F9"
-                }
-            });
-            return;
+        // 2. Fallback: Suche direkt im Frontend-Ordner (spart das Kopieren)
+        if (!fs.existsSync(configPath)) {
+            configPath = path.join(__dirname, '../frontend/config/design.config.json');
         }
 
-        const row = result.rows[0];
-        console.log('✅ Design system found, ID:', row.id);
+        if (fs.existsSync(configPath)) {
+            const configData = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(configData);
 
-        // ✅ TRANSFORM DATABASE ROW TO JSON CONFIG FORMAT
-        const config = {
-            version: "1.0",
-            meta: {
-                name: "SONG-NEXUS Cyberpunk Theme",
-                author: row.updated_by || "System",
-                lastUpdated: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
-                description: "Design configuration from database"
-            },
-            colors: {
-                primary: row.color_primary || "#00CC77",
-                secondary: row.color_secondary || "#5E5240",
-                accent_teal: row.color_accent_teal || "#32B8C6",
-                accent_green: row.color_accent_green || "#22C55E",
-                accent_red: row.color_accent_red || "#FF5459",
-                text_primary: row.color_text_primary || "#00ffff",
-                background: row.color_background || "#FCF8F9"
-            },
-            typography: {
-                font_family_base: row.font_family_base || "Rajdhani, sans-serif",
-                font_sizes: {
-                    base: (row.font_size_base || 14) + "px"
-                },
-                font_weights: {
-                    normal: row.font_weight_normal || 400,
-                    bold: row.font_weight_bold || 600
-                }
-            },
-            spacing: {
-                "8": (row.spacing_unit || 8) + "px"
-            },
-            radius: {
-                base: (row.border_radius || 8) + "px"
-            },
-            components: {
-                buttons: {
-                    primary: {
-                        background: row.button_background_color || "#00CC77",
-                        text_color: row.button_text_color || "#FFFFFF",
-                        border_radius: (row.button_border_radius || 8) + "px",
-                        padding: row.button_padding || "8px 16px"
-                    }
-                },
-                player: {
-                    background_image_url: row.player_background_image_url || null,
-                    button_color: row.player_button_color || "#00CC77",
-                    button_size: (row.player_button_size || 70) + "px"
-                }
-            },
-            images: {
-                background: row.background_image_url || null,
-                logo: row.logo_url || null,
-                hero: row.hero_image_url || null
-            },
-            metadata: {
-                is_active: row.is_active,
-                updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
-                updated_by: row.updated_by || null
-            }
-        };
-
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.status(200).json(config);
-        return;
-
+            // Header setzen damit der Browser es frisst
+            res.setHeader('Content-Type', 'application/json');
+            res.json(config);
+        } else {
+            console.error('❌ Design config file not found in:', configPath);
+            // Notfall-Fallback damit die Seite nicht crasht
+            res.json({
+                color_primary: "#00ff9d",
+                color_background: "#0a0a0a",
+                font_family_base: "Rajdhani, sans-serif"
+            });
+        }
     } catch (err) {
-        console.error('❌ Error loading design system:', err.message);
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.status(500).json({
-            error: 'Internal server error',
-            message: err.message
-        });
-        return;
+        console.error('❌ Error loading design system file:', err);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// PUT update design system (saves to database)
+// PUT update design system (PROTECTED - only authenticated users)
 app.put('/api/design-system/:id', async (req, res) => {
     try {
         console.log('📝 PUT /api/design-system/:id received');
-        console.log('   ID:', req.params.id);
-        console.log('   Body keys:', Object.keys(req.body));
+        console.log('   Body:', Object.keys(req.body));
 
         const { id } = req.params;
-        const body = req.body;
+        const updates = req.body;
 
-        // ✅ MAP INCOMING FIELDS TO DATABASE COLUMNS
-        const updates = {
-            color_primary: body.colors?.primary,
-            color_secondary: body.colors?.secondary,
-            color_accent_teal: body.colors?.accent_teal,
-            color_accent_green: body.colors?.accent_green,
-            color_accent_red: body.colors?.accent_red,
-            color_text_primary: body.colors?.text_primary,
-            color_background: body.colors?.background,
-            background_image_url: body.images?.background,
-            logo_url: body.images?.logo,
-            hero_image_url: body.images?.hero,
-            font_family_base: body.typography?.font_family_base,
-            font_size_base: body.typography?.font_sizes?.base ? parseInt(body.typography.font_sizes.base) : null,
-            font_weight_normal: body.typography?.font_weights?.normal,
-            font_weight_bold: body.typography?.font_weights?.bold,
-            spacing_unit: body.spacing?.['8'] ? parseInt(body.spacing['8']) : null,
-            border_radius: body.radius?.base ? parseInt(body.radius.base) : null,
-            button_background_color: body.components?.buttons?.primary?.background,
-            button_text_color: body.components?.buttons?.primary?.text_color,
-            button_border_radius: body.components?.buttons?.primary?.border_radius ? parseInt(body.components.buttons.primary.border_radius) : null,
-            button_padding: body.components?.buttons?.primary?.padding,
-            player_background_image_url: body.components?.player?.background_image_url,
-            player_button_color: body.components?.player?.button_color,
-            player_button_size: body.components?.player?.button_size ? parseInt(body.components.player.button_size) : null,
-            updated_at: new Date(),
-            updated_by: req.session?.userId || req.body.updated_by || 'Designer'
-        };
+        // Allowed fields only
+        const allowedFields = [
+            'color_primary', 'color_secondary', 'color_accent_teal',
+            'color_text_primary', 'color_background',
+            'background_image_url', 'player_background_image_url', 'logo_url',
+            'font_family_base', 'font_size_base',
+            'button_padding', 'border_radius', 'spacing_unit'
+        ];
 
-        // ✅ FILTER OUT NULL/UNDEFINED VALUES
-        const setClause = [];
-        const values = [];
-        let paramCount = 1;
-
+        // Filter to allowed fields
+        const filteredUpdates = {};
         for (const [key, value] of Object.entries(updates)) {
-            if (value !== null && value !== undefined && value !== '') {
-                setClause.push(`${key} = $${paramCount}`);
-                values.push(value);
-                paramCount++;
+            if (allowedFields.includes(key)) {
+                filteredUpdates[key] = value;
             }
         }
 
-        if (setClause.length === 0) {
-            console.warn('⚠️ No valid fields to update');
-            res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.status(400).json({ error: 'No valid fields to update' });
-            return;
+        if (Object.keys(filteredUpdates).length === 0) {
+            return res.status(400).json({ error: 'No valid fields to update' });
         }
 
-        // ✅ ADD ID TO WHERE CLAUSE
-        values.push(id);
+        // Build SET clause
+        const setClause = Object.keys(filteredUpdates)
+            .map((key, index) => `${key} = $${index + 1}`)
+            .join(', ');
+
+        const values = Object.values(filteredUpdates);
+        values.push(id); // Add id for WHERE clause
 
         const query = `
-            UPDATE public.design_system 
-            SET ${setClause.join(', ')}
-            WHERE id = $${paramCount}
+            UPDATE design_system 
+            SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $${values.length}
             RETURNING *
         `;
 
-        console.log('🔧 SQL Update:', query.substring(0, 100) + '...');
-        console.log('📊 Values count:', values.length);
+        console.log('🔧 SQL:', query);
+        console.log('📊 Values:', values);
 
         const result = await pool.query(query, values);
 
         if (result.rows.length === 0) {
-            console.warn('⚠️ Design system ID not found:', id);
-            res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.status(404).json({ error: 'Design system not found' });
-            return;
+            return res.status(404).json({ error: 'Design system not found' });
         }
 
-        const updatedRow = result.rows[0];
-        console.log('✅ Design system updated successfully, ID:', updatedRow.id);
-
-        // ✅ TRANSFORM BACK TO JSON FORMAT FOR RESPONSE
-        const response = {
-            success: true,
-            message: 'Design config updated successfully',
-            metadata: {
-                id: updatedRow.id,
-                updated_at: updatedRow.updated_at,
-                updated_by: updatedRow.updated_by,
-                is_active: updatedRow.is_active
-            }
-        };
-
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.status(200).json(response);
-        return;
+        console.log('✅ Design system updated successfully');
+        res.json(result.rows[0]);
 
     } catch (err) {
         console.error('❌ Error in PUT /api/design-system/:id');
         console.error('   Message:', err.message);
         console.error('   Stack:', err.stack);
-
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.status(500).json({
-            error: 'Server error',
+            error: 'Database error',
             message: err.message
         });
-        return;
     }
 });
 
-console.log('✅ Design-System API endpoints registered (DATABASE SCHEMA MAPPED)');
-
+console.log('✅ Design-System API endpoints registered');
 
 // ============================================================================
 // 🌐 ROUTE REGISTRATION (AFTER Design-System!)
@@ -674,20 +543,15 @@ warmupDatabase().then(() => {
             console.log('');
         });
     } else {
-        const server = https.createServer(httpsOptions, app);
-        server.listen(PORT, HOST, () => {
+        app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
             console.log('║   🎵 SONG-NEXUS v6.3 Backend              ║');
             console.log('║      Secure • Ad-Free • Cookie-Free        ║');
             console.log('╚════════════════════════════════════════════╝');
-            console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
+            console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + Auth Middleware');
-            console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
-            console.log(`📁 Frontend: ${frontendPath}`);
-            console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
-            console.log('🔐 WebAuthn RP: localhost');
+            console.log('⚠️  WARNING: HTTPS disabled');
             console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT)');
             console.log('');
         });
