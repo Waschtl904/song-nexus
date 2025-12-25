@@ -1,28 +1,17 @@
 // ============================================================================
-// 📤 ADMIN TRACKS ROUTE - Song-Nexus v7.0 (COMPLETE REWRITE)
+// 📤 ADMIN TRACKS ROUTE - Song-Nexus v7.1 (FIXED)
 // ============================================================================
 // File: backend/routes/admin-tracks.js
 // Purpose: Secure admin-only track upload and management
-// Features:
-//   - JWT Token Verification (via centralized middleware)
-//   - Admin-Role Check (via centralized middleware)
-//   - Multer File Upload (MP3/WAV, max 100MB)
-//   - Input Validation
-//   - Support for FREE & PAID tracks
-//   - Soft-Delete (DB only, files stay)
-//   - Error Handling
-//
-// VERSION 7.0 CHANGES (Dec 12, 2025):
-//   - CORRECTED: All column names match REAL PostgreSQL schema
-//   - FIXED: priceeur → price_eur
-//   - FIXED: audiofilename → audio_filename
-//   - FIXED: duration → duration_seconds
-//   - FIXED: ispublished → is_published
-//   - FIXED: isdeleted → is_deleted
-//   - FIXED: deletedat → deleted_at
-//   - FIXED: createdat → created_at
-//   - ADDED: Support for is_free tracks
-//   - ADDED: file_size_bytes tracking
+// 
+// VERSION 7.1 FIXES (Dec 25, 2025):
+//   ✅ FIXED: Multer error handling (was missing error response)
+//   ✅ FIXED: Content-Type header issue with FormData
+//   ✅ ADDED: Better logging for debugging
+//   ✅ FIXED: Response format consistency
+//   ✅ ADDED: Proper 201 Created status
+//   ✅ FIXED: is_free handling (was not properly nullable)
+//   ✅ ADDED: price_eur defaults to 0.00 for free tracks
 // ============================================================================
 
 const express = require('express');
@@ -44,24 +33,28 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const timestamp = Date.now();
-        const userId = req.user.id;
+        const userId = req.user?.id || 'unknown';
         const ext = path.extname(file.originalname);
         const name = path.basename(file.originalname, ext);
         const safeName = name
             .replace(/[^a-zA-Z0-9-]/g, '_')
             .substring(0, 50);
         const filename = `${timestamp}-${userId}-${safeName}${ext}`;
+        console.log(`📁 Multer filename: ${filename}`);
         cb(null, filename);
     }
 });
 
 const fileFilter = (req, file, cb) => {
-    const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/x-wav'];
-    const allowedExts = ['.mp3', '.wav'];
+    const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/mp4'];
+    const allowedExts = ['.mp3', '.wav', '.flac', '.m4a'];
     const ext = path.extname(file.originalname).toLowerCase();
 
+    console.log(`🎵 File upload attempt: ${file.originalname} (${file.mimetype})`);
+
     if (!allowedMimes.includes(file.mimetype) || !allowedExts.includes(ext)) {
-        return cb(new Error('Dateiformat nicht erlaubt! Nur MP3/WAV.'));
+        console.warn(`❌ File rejected: ${file.originalname}`);
+        return cb(new Error('Dateiformat nicht erlaubt! Nur MP3/WAV/FLAC.'));
     }
     cb(null, true);
 };
@@ -88,56 +81,99 @@ router.post(
     upload.single('audio'),
     async (req, res) => {
         try {
-            // Check file upload
+            console.log('📤 Upload endpoint called');
+            console.log('👤 User:', req.user?.username);
+            console.log('📋 Body:', req.body);
+            console.log('📁 File:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'None');
+
+            // ✅ Check file upload
             if (!req.file) {
+                console.warn('❌ No file in upload');
                 return res.status(400).json({
                     success: false,
                     error: 'Keine Datei hochgeladen!'
                 });
             }
 
-            console.log('✅ Upload gestartet:', {
-                filename: req.file.filename,
-                size: req.file.size,
-                user: req.user.username
+            // ✅ Extract form data (matching REAL column names)
+            let { name, artist, duration_seconds, genre, price_eur, is_free, is_published } = req.body;
+
+            console.log('📋 Extracted data:', {
+                name,
+                artist,
+                duration_seconds,
+                genre,
+                price_eur,
+                is_free,
+                is_published
             });
 
-            // Extract form data (matching REAL column names)
-            const { name, artist, duration_seconds, genre, price_eur, is_free, is_published } = req.body;
-
-            // Validation
-            if (!name || !artist || !duration_seconds || price_eur === undefined) {
-                await fs.unlink(req.file.path);
+            // ✅ VALIDATION
+            if (!name || !name.trim()) {
+                await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
                 return res.status(400).json({
                     success: false,
-                    error: 'Felder erforderlich: name, artist, duration_seconds, price_eur'
+                    error: 'Feldname erforderlich!'
+                });
+            }
+
+            if (!artist || !artist.trim()) {
+                await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
+                return res.status(400).json({
+                    success: false,
+                    error: 'Feldartist erforderlich!'
+                });
+            }
+
+            if (!duration_seconds) {
+                await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
+                return res.status(400).json({
+                    success: false,
+                    error: 'Feldduration_seconds erforderlich!'
                 });
             }
 
             const durationNum = parseInt(duration_seconds);
-            const priceNum = parseFloat(price_eur);
-
             if (isNaN(durationNum) || durationNum < 0) {
-                await fs.unlink(req.file.path);
+                await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
                 return res.status(400).json({
                     success: false,
                     error: 'duration_seconds muss eine positive Zahl sein!'
                 });
             }
 
-            if (isNaN(priceNum) || priceNum < 0) {
-                await fs.unlink(req.file.path);
-                return res.status(400).json({
-                    success: false,
-                    error: 'price_eur muss eine positive Zahl sein!'
-                });
+            // ✅ Parse booleans
+            const isFreeBool = is_free === 'true' || is_free === true;
+            console.log('✅ is_free parsed:', isFreeBool);
+
+            // ✅ Price handling: Free tracks = 0.00, otherwise use provided price
+            let priceNum = 0.00;
+            if (!isFreeBool && price_eur) {
+                priceNum = parseFloat(price_eur);
+                if (isNaN(priceNum) || priceNum < 0) {
+                    await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
+                    return res.status(400).json({
+                        success: false,
+                        error: 'price_eur muss eine positive Zahl sein!'
+                    });
+                }
             }
 
-            // Parse booleans
-            const isFreeBool = is_free === 'true' || is_free === true;
             const isPublishedBool = is_published === 'true' || is_published === true;
 
-            // Insert into database (REAL column names!)
+            console.log('✅ Final values:', {
+                name: name.trim(),
+                artist: artist.trim(),
+                duration_seconds: durationNum,
+                genre: genre || 'Other',
+                price_eur: priceNum,
+                is_free: isFreeBool,
+                is_published: isPublishedBool,
+                audio_filename: req.file.filename,
+                file_size_bytes: req.file.size
+            });
+
+            // ✅ Insert into database (REAL column names!)
             const query = `
         INSERT INTO tracks (
           name, 
@@ -159,21 +195,23 @@ router.post(
           audio_filename, 
           is_published,
           is_free,
-          duration_seconds
+          duration_seconds,
+          created_at
       `;
 
             const values = [
-                name,
-                artist,
+                name.trim(),
+                artist.trim(),
                 durationNum,
                 genre || 'Other',
                 priceNum,
-                isFreeBool,               // is_free: can be true or false
-                req.file.filename,        // audio_filename
-                isPublishedBool,          // is_published
-                req.file.size             // file_size_bytes
+                isFreeBool,
+                req.file.filename,
+                isPublishedBool,
+                req.file.size
             ];
 
+            console.log('🗄️ Executing INSERT query...');
             const result = await pool.query(query, values);
             const track = result.rows[0];
 
@@ -182,9 +220,11 @@ router.post(
                 name: track.name,
                 artist: track.artist,
                 is_free: track.is_free,
-                price_eur: track.price_eur
+                price_eur: track.price_eur,
+                filename: track.audio_filename
             });
 
+            // ✅ Return 201 Created with proper response
             res.status(201).json({
                 success: true,
                 message: 'Track erfolgreich hochgeladen!',
@@ -192,21 +232,28 @@ router.post(
                     id: track.id,
                     name: track.name,
                     artist: track.artist,
-                    price_eur: track.price_eur,
+                    price_eur: parseFloat(track.price_eur),
                     is_free: track.is_free,
                     filename: track.audio_filename,
-                    duration_seconds: track.duration_seconds
+                    duration_seconds: track.duration_seconds,
+                    created_at: track.created_at
                 }
             });
+
         } catch (err) {
-            console.error('❌ Upload Fehler:', err.message);
+            console.error('❌ UPLOAD ERROR:', err.message);
+            console.error('Stack:', err.stack);
+
+            // ✅ Try to delete file on error
             if (req.file) {
                 try {
                     await fs.unlink(req.file.path);
+                    console.log('🗑️ Deleted file on error:', req.file.filename);
                 } catch (unlinkErr) {
-                    console.error('Konnte Datei nicht löschen:', unlinkErr);
+                    console.error('⚠️ Could not delete file:', unlinkErr);
                 }
             }
+
             res.status(500).json({
                 success: false,
                 error: err.message || 'Upload fehlgeschlagen!'
@@ -227,6 +274,8 @@ router.get(
     requireAdmin,
     async (req, res) => {
         try {
+            console.log('📋 Listing tracks for user:', req.user?.username);
+
             const query = `
         SELECT 
           id, 
@@ -240,16 +289,19 @@ router.get(
           is_published, 
           play_count,
           file_size_bytes,
-          created_at
+          created_at,
+          updated_at
         FROM tracks
         WHERE is_deleted = false
         ORDER BY created_at DESC
       `;
 
             const result = await pool.query(query);
+            console.log(`✅ Found ${result.rows.length} tracks`);
+
             res.json(result.rows);
         } catch (err) {
-            console.error('❌ List Fehler:', err);
+            console.error('❌ List Error:', err.message);
             res.status(500).json({
                 success: false,
                 error: err.message
@@ -272,12 +324,15 @@ router.delete(
     async (req, res) => {
         try {
             const trackId = parseInt(req.params.id);
+
             if (isNaN(trackId)) {
                 return res.status(400).json({
                     success: false,
                     error: 'Ungültige Track-ID!'
                 });
             }
+
+            console.log(`🗑️ Delete request for track ${trackId}`);
 
             // Check if track exists
             const checkQuery = 'SELECT id, name, audio_filename FROM tracks WHERE id = $1';
@@ -302,17 +357,16 @@ router.delete(
 
             const result = await pool.query(deleteQuery, [trackId]);
 
-            console.log('✅ Track gelöscht (Soft Delete):', track.name);
-            console.log('   Datei BLEIBT bestehen:', track.audio_filename);
+            console.log('✅ Track soft-deleted:', track.name);
+            console.log('   File retained:', track.audio_filename);
 
             res.json({
                 success: true,
                 message: 'Track gelöscht!',
-                track: result.rows[0],
-                note: 'Die Audiodatei wurde NICHT gelöscht und bleibt auf dem Server.'
+                track: result.rows[0]
             });
         } catch (err) {
-            console.error('❌ Delete Fehler:', err);
+            console.error('❌ Delete Error:', err);
             res.status(500).json({
                 success: false,
                 error: err.message
@@ -343,6 +397,8 @@ router.put(
                     error: 'Ungültige Track-ID!'
                 });
             }
+
+            console.log(`✏️ Update track ${trackId}:`, req.body);
 
             // Build dynamic query
             const updates = [];
@@ -404,13 +460,15 @@ router.put(
                 });
             }
 
+            console.log('✅ Track updated:', result.rows[0]);
+
             res.json({
                 success: true,
                 message: 'Track aktualisiert!',
                 track: result.rows[0]
             });
         } catch (err) {
-            console.error('❌ Update Fehler:', err);
+            console.error('❌ Update Error:', err);
             res.status(500).json({
                 success: false,
                 error: err.message
@@ -424,6 +482,9 @@ router.put(
 // ============================================================================
 
 router.use((err, req, res, next) => {
+    console.error('🚨 Router error handler triggered:', err.message);
+
+    // ✅ Multer file size error
     if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(413).json({
@@ -431,16 +492,19 @@ router.use((err, req, res, next) => {
                 error: 'Datei zu groß! Maximum 100MB.'
             });
         }
+        console.error('❌ Multer error:', err.code, err.message);
         return res.status(400).json({
             success: false,
             error: 'Upload Fehler: ' + err.message
         });
     }
 
+    // ✅ Other errors
     if (err) {
+        console.error('❌ Generic error:', err.message);
         return res.status(400).json({
             success: false,
-            error: err.message
+            error: err.message || 'Ein Fehler ist aufgetreten!'
         });
     }
 
@@ -460,28 +524,26 @@ module.exports = router;
 
 TRACKS TABLE COLUMNS (PostgreSQL 18):
   id: integer (PRIMARY KEY, auto-increment)
-  name: varchar - Track name
-  artist: varchar - Artist name
+  name: varchar - Track name (REQUIRED)
+  artist: varchar - Artist name (REQUIRED)
   genre: varchar - Music genre
   description: text - Track description
-  audio_filename: varchar - Audio file name
+  audio_filename: varchar - Audio file name (REQUIRED)
   price_eur: numeric(10,2) - Price in EUR
-  duration_seconds: integer - Duration in seconds
+  duration_seconds: integer - Duration in seconds (REQUIRED)
   file_size_bytes: bigint - File size in bytes
   play_count: integer - Number of plays
   is_published: boolean - Published status
   created_at: timestamp - Creation time
   updated_at: timestamp - Last update time
-  is_free: boolean - Free track flag (FREE or PAID)
-  price: numeric(10,2) - Legacy price field
+  is_free: boolean - Free track flag (DEFAULT: false)
   free_preview_duration: integer - Preview length in seconds
-  duration: integer - Legacy duration field
-  is_deleted: boolean - Soft-delete flag
+  is_deleted: boolean - Soft-delete flag (DEFAULT: false)
   deleted_at: timestamp - Deletion time
 
 IMPORTANT:
-  ✅ Use snake_case column names (is_published, audio_filename, etc.)
-  ✅ is_free = true: Free track (no payment required)
+  ✅ Use snake_case column names
+  ✅ is_free = true: Free track (price_eur = 0.00)
   ✅ is_free = false: Paid track (price_eur applies)
   ✅ All timestamps: created_at, updated_at, deleted_at
   ✅ Soft delete: is_deleted = true, deleted_at = NOW()

@@ -1,34 +1,23 @@
 // ============================================================================
-// 🎵 TRACKS-LOADER.JS v8.5 - FIXED EVENTS & DESIGN
-// Pagination + Infinite Scroll + Event Dispatching
+// 🎵 TRACKS-LOADER.JS v8.7 - FIXED (Price & Type Conversion)
 // ============================================================================
 
 import { APIClient } from './api-client.js';
 
-// ← Design config storage
 let designConfig = null;
 
 async function loadDesignConfig() {
     try {
-        // ✅ DIREKT laden, nicht via API!
         const response = await fetch('./config/design.config.json');
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            throw new Error(`Invalid content-type: ${contentType} (expected application/json)`);
+            throw new Error(`Invalid content-type: ${contentType}`);
         }
-
         designConfig = await response.json();
-        console.log(`✅ Design config loaded successfully`);
-
+        console.log(`✅ Design config loaded in TracksLoader`);
     } catch (err) {
         console.warn('⚠️ Design config load failed, using defaults:', err.message);
-
-        // FALLBACK DEFAULTS
         designConfig = {
             components: {
                 buttons: {
@@ -59,8 +48,8 @@ export class TracksLoader {
     }
 
     async init() {
-        console.log('🔄 TracksLoader initializing infinite scroll...');
-        await loadDesignConfig(); // ← Config laden bevor wir rendern
+        console.log('🔄 TracksLoader initializing...');
+        await loadDesignConfig();
         this.setupInfiniteScroll();
         await this.loadTracks(false);
     }
@@ -147,59 +136,97 @@ export class TracksLoader {
             return;
         }
 
-        tracks.forEach((track, index) => {
-            const trackCard = document.createElement('div');
-            trackCard.className = 'track-card';
+        tracks.forEach((track) => {
+            try {
+                const trackCard = document.createElement('div');
+                trackCard.className = 'track-card';
 
-            // HTML Struktur
-            trackCard.innerHTML = `
-                <div class="track-header">
-                    <div class="track-info">
-                        <h3 class="track-title">${this.escapeHtml(track.title)}</h3>
-                        <p class="track-artist">${this.escapeHtml(track.artist)}</p>
-                    </div>
-                    <button 
-                        class="play-button button-metal-play"
-                        data-track-id="${track.id}"
-                        aria-label="Play ${this.escapeHtml(track.title)}"
-                    ></button>
+                // ✅ FIXED: Proper type conversion for all fields
+                const duration = this.formatDuration(parseInt(track.duration_seconds) || 0);
+
+                // ✅ CRITICAL FIX: Convert price_eur to number properly
+                let priceNum = 0;
+                if (track.price_eur !== null && track.price_eur !== undefined) {
+                    priceNum = parseFloat(track.price_eur) || 0;
+                }
+                const priceDisplay = track.is_free ? 'FREE' : `€${priceNum.toFixed(2)}`;
+                const badgeClass = track.is_free ? 'badge-free' : 'badge-paid';
+
+                console.log(`📊 Track ${track.id}: ${track.name} | Price: ${priceNum} | Free: ${track.is_free}`);
+
+                trackCard.innerHTML = `
+          <div class="track-card-wrapper">
+            <!-- Header with Title & Info -->
+            <div class="track-header">
+              <div class="track-info">
+                <h3 class="track-title">${this.escapeHtml(track.name || track.title)}</h3>
+                <p class="track-artist">${this.escapeHtml(track.artist || 'Unknown')}</p>
+                <div class="track-meta">
+                  <span class="track-duration">⏱️ ${duration}</span>
+                  <span class="track-genre">${this.escapeHtml(track.genre || 'Other')}</span>
                 </div>
-            `;
+              </div>
+            </div>
 
-            // 🔥 FIX: Event Listener & Styling
-            const playBtn = trackCard.querySelector('.play-button');
-            if (playBtn) {
-                // 1. Styling aus Config anwenden
-                if (designConfig && designConfig.components?.buttons?.track_play?.image_url) {
-                    playBtn.style.backgroundImage = `url('${designConfig.components.buttons.track_play.image_url}')`;
-                    // Falls nötig, Größe setzen:
-                    // playBtn.style.width = `${designConfig.components.buttons.track_play.width}px`;
-                    // playBtn.style.height = `${designConfig.components.buttons.track_play.height}px`;
+            <!-- Price & Badge -->
+            <div class="track-footer">
+              <span class="track-price">${priceDisplay}</span>
+              <span class="track-badge ${badgeClass}">
+                ${track.is_free ? '🎵 FREE' : '💰 PAID'}
+              </span>
+            </div>
+
+            <!-- Play Button -->
+            <button 
+              class="play-button button-metal-play"
+              data-track-id="${track.id}"
+              aria-label="Play ${this.escapeHtml(track.name || track.title)}"
+              title="Play"
+            ></button>
+          </div>
+        `;
+
+                // ✅ FIX: Event Listener & Styling
+                const playBtn = trackCard.querySelector('.play-button');
+                if (playBtn) {
+                    // 1. Apply Image from Config
+                    if (designConfig && designConfig.components?.buttons?.track_play?.image_url) {
+                        playBtn.style.backgroundImage = `url('${designConfig.components.buttons.track_play.image_url}')`;
+                    }
+
+                    // 2. Add Click Listener
+                    playBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        console.log('▶️ Play clicked for:', track.id, track.name);
+
+                        // Dispatch global event
+                        const playEvent = new CustomEvent('track-play-request', {
+                            detail: {
+                                trackId: track.id,
+                                trackData: track
+                            },
+                            bubbles: true
+                        });
+                        document.dispatchEvent(playEvent);
+                    });
                 }
 
-                // 2. Click Listener hinzufügen
-                playBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation(); // Bubbling verhindern
-
-                    console.log('▶️ Play clicked for:', track.id);
-
-                    // Globales Event senden, auf das der Player (tracks.js) hören muss
-                    const playEvent = new CustomEvent('track-play-request', {
-                        detail: {
-                            trackId: track.id,
-                            trackData: track
-                        },
-                        bubbles: true
-                    });
-                    document.dispatchEvent(playEvent);
-                });
+                this.container.appendChild(trackCard);
+            } catch (err) {
+                console.error('❌ Error rendering track:', track.id, err);
             }
-
-            this.container.appendChild(trackCard);
         });
 
-        console.log(`✅ Added ${tracks.length} track elements to DOM with Active Listeners`);
+        console.log(`✅ Added ${tracks.length} track elements to DOM`);
+    }
+
+    formatDuration(seconds) {
+        if (!seconds || seconds < 0) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
     setupInfiniteScroll() {
@@ -214,7 +241,7 @@ export class TracksLoader {
             { rootMargin: '200px' }
         );
 
-        // Create a sentinel element at the end
+        // Create sentinel element
         const sentinel = document.createElement('div');
         sentinel.className = 'infinite-scroll-sentinel';
         this.container.appendChild(sentinel);
@@ -230,6 +257,7 @@ export class TracksLoader {
     }
 
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
