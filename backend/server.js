@@ -7,7 +7,9 @@
 // ✅ Design-System API endpoints added
 // ✅ CSP FIXED - allows localhost:5500
 
+
 require('dotenv').config();
+
 
 const express = require('express');
 const helmet = require('helmet');
@@ -21,11 +23,14 @@ const rfs = require('rotating-file-stream');
 const crypto = require('crypto');
 const session = require('express-session');
 
+
 const app = express();
+
 
 // ============================================================================
 // 🔒 HTTPS CERTIFICATE SETUP (mkcert for Development)
 // ============================================================================
+
 
 let httpsOptions = null;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -34,9 +39,11 @@ const certDir = path.join(__dirname, 'certs');
 const mkcertKeyPath = path.join(certDir, 'localhost-key.pem');
 const mkcertCertPath = path.join(certDir, 'localhost.pem');
 
+
 console.log('🔐 Checking SSL certificates...');
 console.log(`   NODE_ENV: ${NODE_ENV}`);
 console.log(`   USE_HTTPS: ${USE_HTTPS}`);
+
 
 if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
     httpsOptions = {
@@ -51,9 +58,11 @@ if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
     }
 }
 
+
 // ============================================================================
 // 📦 DATABASE CONNECTION (Early - needed for app.db)
 // ============================================================================
+
 
 const { Pool } = require('pg');
 const pool = new Pool({
@@ -65,22 +74,28 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+
 pool.on('error', (err) => {
     console.error('❌ Database connection error:', err);
 });
+
 
 pool.on('connect', () => {
     console.log('✅ Database connected');
 });
 
+
 module.exports.pool = pool;
+
 
 // ✅ CRITICAL FIX: ATTACH DATABASE TO EXPRESS APP (FOR WEBAUTHN!)
 app.db = pool;
 
+
 // ============================================================================
 // ✅ DYNAMIC ORIGIN DETECTION (for ngrok + localhost)
 // ============================================================================
+
 
 function getOriginsList() {
     const origins = [
@@ -92,6 +107,7 @@ function getOriginsList() {
         'https://localhost:3000',
     ];
 
+
     if (process.env.ALLOWED_ORIGINS) {
         const allowedOrigins = process.env.ALLOWED_ORIGINS
             .split(',')
@@ -101,18 +117,23 @@ function getOriginsList() {
         console.log(`✅ Added ALLOWED_ORIGINS from .env:`, allowedOrigins);
     }
 
+
     return origins;
 }
+
 
 const corsOrigins = NODE_ENV === 'production'
     ? ['https://yourdomain.com']
     : getOriginsList();
 
+
 console.log('🌐 CORS Origins:', corsOrigins);
+
 
 // ============================================================================
 // ✅ CORS CONFIGURATION (BEFORE everything!)
 // ============================================================================
+
 
 const corsOptions = {
     origin: corsOrigins,
@@ -124,14 +145,17 @@ const corsOptions = {
     maxAge: 86400
 };
 
+
 // ============================================================================
 // 🛡️ SECURITY MIDDLEWARE
 // ============================================================================
+
 
 app.use((req, res, next) => {
     res.locals.nonce = crypto.randomBytes(16).toString('hex');
     next();
 });
+
 
 // ✅ FIXED CSP DIRECTIVES - allows localhost:5500
 const getCSPDirectives = () => {
@@ -147,11 +171,13 @@ const getCSPDirectives = () => {
         "https://api.sandbox.paypal.com"
     ];
 
+
     if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
         const ngrokOrigin = process.env.ALLOWED_ORIGINS.split(',')[0].trim();
         connectSrc.push(ngrokOrigin);
         console.log(`✅ Added ngrok to CSP connectSrc: ${ngrokOrigin}`);
     }
+
 
     return {
         defaultSrc: ["'self'", "https:", "http:"],  // ✅ Erlaubt http/https
@@ -167,6 +193,7 @@ const getCSPDirectives = () => {
     };
 };
 
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: getCSPDirectives(),
@@ -179,9 +206,11 @@ app.use(helmet({
     hidePoweredBy: true,
 }));
 
+
 // ✅ JSON PARSER
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 
 // ✅ GZIP COMPRESSION
 app.use(compression({
@@ -193,13 +222,16 @@ app.use(compression({
     }
 }));
 
+
 // ✅ CORS (BEFORE routes!)
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
+
 // ============================================================================
 // 🔐 SESSION MIDDLEWARE - CRITICAL: MUST BE BEFORE ROUTES!
 // ============================================================================
+
 
 app.use(session({
     secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-secret-change-in-prod',
@@ -215,16 +247,20 @@ app.use(session({
     name: 'connect.sid'
 }));
 
+
 console.log('✅ Session middleware configured');
+
 
 // ============================================================================
 // 📊 LOGGING
 // ============================================================================
 
+
 const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
 }
+
 
 const rotatingLogStream = rfs.createStream('app.log', {
     interval: '1d',
@@ -234,19 +270,25 @@ const rotatingLogStream = rfs.createStream('app.log', {
     compress: 'gzip'
 });
 
+
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: rotatingLogStream }));
+
 
 if (NODE_ENV !== 'production') {
     app.use(morgan('dev'));
 }
 
+
 console.log('✅ Logging enabled');
+
 
 // ============================================================================
 // 🛡️ RATE LIMITING
 // ============================================================================
 
+
 const rateLimitStore = new Map();
+
 
 setInterval(() => {
     const now = Date.now();
@@ -257,15 +299,18 @@ setInterval(() => {
     }
 }, 15 * 60 * 1000);
 
+
 const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
     return (req, res, next) => {
         const ip = req.ip || req.connection.remoteAddress;
         const now = Date.now();
 
+
         if (!rateLimitStore.has(ip)) {
             rateLimitStore.set(ip, { count: 1, lastReset: now });
             return next();
         }
+
 
         const clientData = rateLimitStore.get(ip);
         if (now - clientData.lastReset > windowMs) {
@@ -273,6 +318,7 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
             clientData.lastReset = now;
             return next();
         }
+
 
         clientData.count++;
         if (clientData.count > maxRequests) {
@@ -282,41 +328,52 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
             });
         }
 
+
         next();
     };
 };
+
 
 app.use('/api/', rateLimit(30, 60 * 1000));
 app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));
 app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000));
 app.use('/public/audio/', rateLimit(20, 60 * 1000));
 
+
 console.log('✅ Rate limiting enabled');
+
 
 // ============================================================================
 // 🔐 AUTH MIDDLEWARE
 // ============================================================================
 
+
 const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
+
 
 app.use('/api/', (req, res, next) => {
     console.log(`📨 ${req.method} ${req.path}`);
     next();
 });
 
+
 console.log('✅ Auth middleware loaded');
+
 
 // ✅ CACHE MIDDLEWARE
 const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware');
+
 
 // ============================================================================
 // 🎨 DESIGN-SYSTEM API ENDPOINTS - MAPPED TO REAL DATABASE SCHEMA!
 // ============================================================================
 
+
 // GET design system settings from database (ID 1 = default/primary)
 app.get('/api/design-system', async (req, res) => {
     try {
         console.log('📨 GET /api/design-system');
+
 
         const query = `
             SELECT 
@@ -333,7 +390,9 @@ app.get('/api/design-system', async (req, res) => {
             LIMIT 1
         `;
 
+
         const result = await pool.query(query);
+
 
         if (result.rows.length === 0) {
             console.warn('⚠️ No active design system found, returning defaults');
@@ -352,8 +411,10 @@ app.get('/api/design-system', async (req, res) => {
             return;
         }
 
+
         const row = result.rows[0];
         console.log('✅ Design system found, ID:', row.id);
+
 
         // ✅ TRANSFORM DATABASE ROW TO JSON CONFIG FORMAT
         const config = {
@@ -416,9 +477,11 @@ app.get('/api/design-system', async (req, res) => {
             }
         };
 
+
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.status(200).json(config);
         return;
+
 
     } catch (err) {
         console.error('❌ Error loading design system:', err.message);
@@ -431,20 +494,35 @@ app.get('/api/design-system', async (req, res) => {
     }
 });
 
+
 // PUT update design system (saves to database)
 app.put('/api/design-system/:id', async (req, res) => {
     try {
         console.log('📝 PUT /api/design-system/:id received');
         console.log('   ID:', req.params.id);
-        console.log('   Body keys:', Object.keys(req.body));
+
+        // DEBUGGING (direkt in server.js einfügen, vor updates = ...)
+        console.log('DEBUG DUMP req.body:', JSON.stringify(req.body, null, 2));
+        console.log('DEBUG ACCESS check:', req.body.colors ? 'Colors exists' : 'Colors missing');
+        if (req.body.colors) console.log('DEBUG PRIMARY:', req.body.colors.primary);
 
         const { id } = req.params;
         const body = req.body;
 
+        const colors = body.colors || {};
+        const images = body.images || {};
+        const typography = body.typography || {};
+        const spacing = body.spacing || {};
+        const radius = body.radius || {};
+        const components = body.components || {};
+
+        // helper: akzeptiert mehrere Varianten
+        const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== '');
+
         // ✅ MAP INCOMING FIELDS TO DATABASE COLUMNS
         const updates = {
-            color_primary: body.colors?.primary,
-            color_secondary: body.colors?.secondary,
+            color_primary: pick(colors.primary, colors.color_primary, body.color_primary),
+            color_secondary: pick(colors.secondary, colors.color_secondary, body.color_secondary),
             color_accent_teal: body.colors?.accent_teal,
             color_accent_green: body.colors?.accent_green,
             color_accent_red: body.colors?.accent_red,
@@ -470,10 +548,12 @@ app.put('/api/design-system/:id', async (req, res) => {
             updated_by: req.session?.userId || req.body.updated_by || 'Designer'
         };
 
+
         // ✅ FILTER OUT NULL/UNDEFINED VALUES
         const setClause = [];
         const values = [];
         let paramCount = 1;
+
 
         for (const [key, value] of Object.entries(updates)) {
             if (value !== null && value !== undefined && value !== '') {
@@ -483,6 +563,7 @@ app.put('/api/design-system/:id', async (req, res) => {
             }
         }
 
+
         if (setClause.length === 0) {
             console.warn('⚠️ No valid fields to update');
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -490,8 +571,10 @@ app.put('/api/design-system/:id', async (req, res) => {
             return;
         }
 
+
         // ✅ ADD ID TO WHERE CLAUSE
         values.push(id);
+
 
         const query = `
             UPDATE public.design_system 
@@ -500,10 +583,13 @@ app.put('/api/design-system/:id', async (req, res) => {
             RETURNING *
         `;
 
+
         console.log('🔧 SQL Update:', query.substring(0, 100) + '...');
         console.log('📊 Values count:', values.length);
 
+
         const result = await pool.query(query, values);
+
 
         if (result.rows.length === 0) {
             console.warn('⚠️ Design system ID not found:', id);
@@ -512,8 +598,10 @@ app.put('/api/design-system/:id', async (req, res) => {
             return;
         }
 
+
         const updatedRow = result.rows[0];
         console.log('✅ Design system updated successfully, ID:', updatedRow.id);
+
 
         // ✅ TRANSFORM BACK TO JSON FORMAT FOR RESPONSE
         const response = {
@@ -527,14 +615,17 @@ app.put('/api/design-system/:id', async (req, res) => {
             }
         };
 
+
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.status(200).json(response);
         return;
+
 
     } catch (err) {
         console.error('❌ Error in PUT /api/design-system/:id');
         console.error('   Message:', err.message);
         console.error('   Stack:', err.stack);
+
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.status(500).json({
@@ -545,17 +636,22 @@ app.put('/api/design-system/:id', async (req, res) => {
     }
 });
 
+
 console.log('✅ Design-System API endpoints registered (DATABASE SCHEMA MAPPED)');
+
 
 
 // ============================================================================
 // 🌐 ROUTE REGISTRATION (AFTER Design-System!)
 // ============================================================================
 
+
 console.log('🔧 Registering API routes...');
+
 
 // ✅ GET /api/tracks WITH CACHE
 app.get('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
+
 
 // ✅ GET /api/blog/posts.json WITH CACHE
 app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
@@ -572,13 +668,17 @@ app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
     }
 });
 
+
 // ============================================================================
 // 🔐 WEBAUTHN ROUTES - CRITICAL: Session middleware is ACTIVE here!
 // ============================================================================
 
+
 app.use('/api/auth/webauthn', require('./routes/webauthn'));
 
+
 console.log('✅ WebAuthn routes registered');
+
 
 // ✅ ALL OTHER ROUTES
 app.use('/api/auth', require('./routes/auth'));
@@ -588,16 +688,20 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/play-history', require('./routes/play-history'));
 app.use('/api/admin/tracks', require('./routes/admin-tracks'));
 
+
 app.post('/api/csp-report', (req, res) => {
     console.warn('⚠️ CSP Violation:', JSON.stringify(req.body, null, 2));
     res.status(204).send();
 });
 
+
 console.log('✅ API routes registered');
+
 
 // ============================================================================
 // 🎵 STATIC AUDIO DIRECTORY
 // ============================================================================
+
 
 app.use('/public/audio', (req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -609,20 +713,25 @@ app.use('/public/audio', (req, res, next) => {
     next();
 });
 
+
 app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
 console.log('✅ Static audio directory enabled');
+
 
 // ============================================================================
 // 📄 SERVE STATIC FRONTEND FILES
 // ============================================================================
 
+
 const frontendPath = path.join(__dirname, '../frontend');
 app.use(express.static(frontendPath));
 console.log('✅ Static frontend files enabled');
 
+
 // ============================================================================
 // 🐛 ERROR HANDLING
 // ============================================================================
+
 
 app.use((err, req, res, next) => {
     console.error('❌ Error:', err.message);
@@ -633,9 +742,11 @@ app.use((err, req, res, next) => {
     res.status(err.status || 500).json(errorResponse);
 });
 
+
 // ============================================================================
 // ✅ WARM UP DATABASE
 // ============================================================================
+
 
 async function warmupDatabase() {
     try {
@@ -647,14 +758,30 @@ async function warmupDatabase() {
     }
 }
 
+// DEBUG: Check DB content on startup
+async function debugDatabaseContent() {
+    try {
+        console.log("🕵️ DEBUG: Prüfe Datenbank-Inhalt...");
+        const res = await pool.query('SELECT id, is_active, color_primary FROM public.design_system');
+        console.log("📊 DB Rows gefunden:", res.rows.length);
+        console.table(res.rows);
+    } catch (e) {
+        console.error("❌ DB Check failed:", e);
+    }
+}
+
+
 // ============================================================================
 // 🚀 START SERVER
 // ============================================================================
 
+
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
-warmupDatabase().then(() => {
+
+warmupDatabase().then(async () => {
+    await debugDatabaseContent(); // <--- DEBUG CHECK AKTIVIERT
     if (httpsOptions && USE_HTTPS) {
         const server = https.createServer(httpsOptions, app);
         server.listen(PORT, HOST, () => {

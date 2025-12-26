@@ -379,15 +379,28 @@
     </footer>
 
     <!-- ========================================================================
-         🎨 DESIGN-SYSTEM LOADER (Runs BEFORE bundle!)
+         🎨 DESIGN-SYSTEM RUNTIME LOADER v3.0 (API + Webpack Fallback)
          ======================================================================== -->
     <script>
-        async function loadDesignSystem() {
-            try {
-                console.log('🎨 Loading design system...');
+        /**
+         * DESIGN-SYSTEM RUNTIME LOADER v3.0
+         * 
+         * Hybrid approach:
+         * 1. Try to load from API (PostgreSQL - has latest changes from Design-Editor)
+         * 2. Fallback to webpack-generated _design-tokens.css (build-time defaults)
+         * 
+         * This way:
+         * - Design-Editor changes are reflected immediately (API)
+         * - If API fails, CSS still works (Webpack fallback)
+         */
 
-                const apiUrl = '/api/design-system';
-                console.log('🌐 Fetching from:', apiUrl);
+        async function loadDesignSystemFromAPI() {
+            try {
+                console.log('🎨 Design System Runtime Loader v3.0 starting...');
+
+                // ✅ CRITICAL: Use absolute URL to backend API
+                const apiUrl = 'https://localhost:3000/api/design-system';
+                console.log('🌐 Attempting to load from API:', apiUrl);
 
                 const response = await fetch(apiUrl, {
                     method: 'GET',
@@ -395,88 +408,134 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    credentials: 'include'
+                    credentials: 'include',
+                    timeout: 5000
                 });
 
-                console.log('📊 Response status:', response.status);
+                console.log('📊 API Response Status:', response.status);
 
                 if (!response.ok) {
-                    throw new Error(`Design system API error: ${response.status} ${response.statusText}`);
+                    console.log(`⚠️ API returned ${response.status}`);
+                    console.log('💾 Using webpack-generated _design-tokens.css instead');
+                    return false; // Fallback to webpack CSS
                 }
 
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('⚠️ Response was not JSON:', text.substring(0, 200));
-                    throw new Error(`Expected JSON, got ${contentType}`);
+                // ✅ Parse the API response
+                const designSystem = await response.json();
+                console.log('✅ Design System loaded from API:', designSystem);
+
+                // ✅ Extract nested structures CORRECTLY
+                const colors = designSystem.colors || {};
+                const typography = designSystem.typography || {};
+                const spacing = designSystem.spacing || {};
+                const radius = designSystem.radius || {};
+                const components = designSystem.components || {};
+
+                console.log('   ✅ Colors:', colors);
+                console.log('   ✅ Typography:', typography);
+                console.log('   ✅ Spacing:', spacing);
+                console.log('   ✅ Radius:', radius);
+
+                // ✅ Generate CSS Variables (matching webpack loader output format)
+                let cssVariables = ':root {\n';
+
+                // ✅ COLORS (aus colors-Objekt!)
+                cssVariables += '  /* Colors from PostgreSQL API */\n';
+                if (colors.primary) cssVariables += `  --color-primary: ${colors.primary};\n`;
+                if (colors.secondary) cssVariables += `  --color-secondary: ${colors.secondary};\n`;
+                if (colors.accent_teal) cssVariables += `  --color-accent-teal: ${colors.accent_teal};\n`;
+                if (colors.accent_green) cssVariables += `  --color-accent-green: ${colors.accent_green};\n`;
+                if (colors.accent_red) cssVariables += `  --color-accent-red: ${colors.accent_red};\n`;
+                if (colors.text_primary) cssVariables += `  --color-text-primary: ${colors.text_primary};\n`;
+                if (colors.background) cssVariables += `  --color-background: ${colors.background};\n`;
+
+                // ✅ TYPOGRAPHY (aus typography-Objekt!)
+                cssVariables += '  /* Typography from PostgreSQL API */\n';
+                if (typography.font_family_base) {
+                    cssVariables += `  --font-family-base: ${typography.font_family_base};\n`;
+                }
+                if (typography.font_sizes?.base) {
+                    cssVariables += `  --font-size-base: ${typography.font_sizes.base};\n`;
+                }
+                if (typography.font_weights?.normal) {
+                    cssVariables += `  --font-weight-normal: ${typography.font_weights.normal};\n`;
+                }
+                if (typography.font_weights?.bold) {
+                    cssVariables += `  --font-weight-bold: ${typography.font_weights.bold};\n`;
                 }
 
-                const ds = await response.json();
-                console.log('✅ Design system loaded:', ds);
+                // ✅ LAYOUT (aus spacing/radius-Objekten!)
+                cssVariables += '  /* Layout from PostgreSQL API */\n';
+                if (spacing['8']) {
+                    cssVariables += `  --space-8: ${spacing['8']};\n`;
+                }
+                if (radius.base) {
+                    cssVariables += `  --radius-base: ${radius.base};\n`;
+                }
 
-                const cssVariables = `
-                    :root {
-                        --color-primary: ${ds.color_primary || '#00CC77'};
-                        --color-secondary: ${ds.color_secondary || '#5E5240'};
-                        --color-accent-teal: ${ds.color_accent_teal || '#32B8C6'};
-                        --color-accent-green: ${ds.color_accent_green || '#22C55E'};
-                        --color-accent-red: ${ds.color_accent_red || '#FF5459'};
-                        --color-text-primary: ${ds.color_text_primary || '#1A1F2E'};
-                        --color-text-secondary: ${ds.color_text_secondary || '#666666'};
-                        --color-background: ${ds.color_background || '#FCF8F9'};
-                        --font-family-base: ${ds.font_family_base || 'Inter, sans-serif'};
-                        --font-size-base: ${ds.font_size_base || 14}px;
-                        --button-padding: ${ds.button_padding || '10px 20px'};
-                        --border-radius: ${ds.border_radius || 8}px;
-                        --spacing-unit: ${ds.spacing_unit || 8}px;
-                    }
-                    
-                    #heroBackground {
-                        ${ds.background_image_url ? `
-                            background-image: url('${ds.background_image_url}');
-                            background-size: cover;
-                            background-position: center;
-                            background-attachment: fixed;
-                        ` : ''}
-                    }
-                    
-                    #stickyPlayer {
-                        ${ds.player_background_image_url ? `
-                            background-image: url('${ds.player_background_image_url}');
-                            background-size: cover;
-                            background-position: center;
-                        ` : ''}
-                    }
-                    
-                    #neonSign {
-                        ${ds.logo_url ? `
-                            background-image: url('${ds.logo_url}');
-                            background-size: contain;
-                            background-repeat: no-repeat;
-                        ` : ''}
-                    }
-                `;
+                // ✅ BUTTONS (aus components!)
+                cssVariables += '  /* Buttons from PostgreSQL API */\n';
+                if (components.buttons?.primary?.background) {
+                    cssVariables += `  --button-primary-background: ${components.buttons.primary.background};\n`;
+                }
+                if (components.buttons?.primary?.padding) {
+                    cssVariables += `  --button-primary-padding: ${components.buttons.primary.padding};\n`;
+                }
+                if (components.buttons?.primary?.border_radius) {
+                    cssVariables += `  --button-primary-border-radius: ${components.buttons.primary.border_radius};\n`;
+                }
 
+                cssVariables += '}\n';
+
+                // ✅ Inject into <style> tag (OVERWRITES webpack defaults)
                 const styleElement = document.getElementById('design-system-styles');
                 if (styleElement) {
                     styleElement.textContent = cssVariables;
-                    console.log('✅ Design system CSS injected');
+                    console.log('✅ Design System CSS injected from API');
+                    console.log('   Primary Color:', colors.primary);
+                    console.log('   Secondary Color:', colors.secondary);
+                    return true;
                 } else {
-                    console.error('❌ Design system style element not found!');
+                    console.error('❌ design-system-styles element not found!');
+                    return false;
                 }
 
             } catch (err) {
-                console.error('❌ Error loading design system:', err);
-                console.warn('⚠️ Using default colors (CSS fallback)');
+                console.error('❌ Design System API Error:', err.message);
+                console.log('💾 Falling back to webpack-generated _design-tokens.css');
+                return false;
             }
         }
 
+        // ============================================================================
+        // EXECUTE LOADER
+        // ============================================================================
+
+        console.log('');
+        console.log('╔════════════════════════════════════════════╗');
+        console.log('║  🎨 DESIGN-SYSTEM LOADER ACTIVE            ║');
+        console.log('║  Trying API → Fallback to Webpack CSS     ║');
+        console.log('╚════════════════════════════════════════════╝');
+        console.log('');
+
+        // Load immediately if DOM is ready, otherwise wait
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', loadDesignSystem);
+            document.addEventListener('DOMContentLoaded', async () => {
+                const success = await loadDesignSystemFromAPI();
+                if (!success) {
+                    console.log('💾 Using webpack-generated CSS from _design-tokens.css');
+                }
+            });
         } else {
-            loadDesignSystem();
+            // DOM already loaded
+            loadDesignSystemFromAPI().then(success => {
+                if (!success) {
+                    console.log('💾 Using webpack-generated CSS from _design-tokens.css');
+                }
+            });
         }
     </script>
+
 
     <!-- ========================================================================
          ✅ WEBPACK BUNDLE (All modules: Auth, WebAuthn, Player, Tracks, etc.)

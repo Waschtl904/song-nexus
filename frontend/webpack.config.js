@@ -64,7 +64,7 @@ function runDesignSystemLoader() {
 }
 
 // Run loader
-runDesignSystemLoader();
+// runDesignSystemLoader();
 
 module.exports = {
     mode: 'production', // oder 'development' zum Debuggen
