@@ -1,4 +1,75 @@
-/* @import '../styles/_design-tokens.css'; */
+/* ============================================================================
+   🎨 SONG-NEXUS CYBERPUNK THEME - DESIGN SYSTEM TOKENS
+   ============================================================================ */
+
+:root {
+    /* --- COLOR PALETTE --- */
+    --color-primary: #00CC77;
+    --color-secondary: #5E5240;
+    --color-accent-teal: #32B8C6;
+    --color-accent-green: #22C55E;
+    --color-accent-red: #FF5459;
+    --color-accent-orange: #FFAA00;
+
+    /* --- TEXT COLORS --- */
+    --color-text-primary: #00ffff;
+    /* Standard Neon-Cyan Text */
+    --color-text-secondary: rgba(255, 255, 255, 0.6);
+    --color-text-muted: rgba(255, 255, 255, 0.4);
+
+    /* --- BACKGROUNDS --- */
+    --color-background: #0a0a0a;
+    /* Fallback Dark BG */
+    --color-surface: rgba(10, 14, 26, 0.35);
+    --color-surface-hover: rgba(10, 14, 26, 0.5);
+
+    /* --- TYPOGRAPHY --- */
+    --font-family-base: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+    --font-size-base: 14px;
+    --font-size-lg: 1rem;
+    --font-size-xl: 1.2rem;
+    --font-size-2xl: 1.6rem;
+    --font-size-3xl: 2.2rem;
+
+    /* --- LAYOUT & SHAPE --- */
+    --border-radius: 8px;
+    --spacing-unit: 8px;
+    --button-padding: 12px 24px;
+
+    /* --- ANIMATIONS --- */
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* --- PLAY BUTTON CONFIGURATION (Linked to Design Editor) --- */
+    --button-track-play-width: 140px;
+    --button-track-play-height: 70px;
+    --button-track-play-image-url: url('../assets/images/metal-play-button-optimized.webp');
+
+    /* Default State */
+    --button-track-play-opacity: 1;
+    --button-track-play-transform: scale(1);
+    --button-track-play-filter: none;
+
+    /* Hover State */
+    --button-track-play-opacity-hover: 0.95;
+    --button-track-play-transform-hover: scale(1.05);
+    --button-track-play-hover-offset-y: -2px;
+    --button-track-play-filter-hover: brightness(1.08) drop-shadow(0 0 12px rgba(0, 204, 119, 0.5));
+    --button-track-play-box-shadow-hover: 0 0 20px rgba(0, 204, 119, 0.4), 0 8px 16px rgba(0, 0, 0, 0.3);
+
+    /* Active State */
+    --button-track-play-opacity-active: 0.9;
+    --button-track-play-transform-active: scale(0.98);
+    --button-track-play-filter-active: brightness(0.95);
+    --button-track-play-box-shadow-active: 0 2px 6px rgba(0, 0, 0, 0.3);
+
+    /* Disabled State */
+    --button-track-play-opacity-disabled: 0.5;
+    --button-track-play-filter-disabled: grayscale(0.8) opacity(0.6);
+}
+
+/* ============================================================================
+   🛠 GLOBAL RESET & BASE STYLES
+   ============================================================================ */
 
 * {
     margin: 0;
@@ -7,9 +78,8 @@
 }
 
 html {
-    font-family: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
-    /* Kein Background hier, das macht unser Pseudo-Element */
-    color: var(--color-text_primary);
+    font-family: var(--font-family-base);
+    color: var(--color-text-primary);
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     height: 100%;
@@ -21,43 +91,35 @@ body {
     flex-direction: column;
     margin: 0;
     position: relative;
-    /* Hintergrundfarbe als Fallback */
     background-color: var(--color-background);
 }
 
-/* 🔥 FIX: Das HTML-Bild (#heroBackground) fixieren! */
-/* Damit nimmt es keinen Platz mehr im Scroll-Flow weg */
+/* ============================================================================
+   🌃 BACKGROUND & EFFECTS
+   ============================================================================ */
+
+/* Fixed Background Image */
 .hero-background-container,
 #heroBackground {
     position: fixed !important;
-    /* Bleibt stehen */
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
     z-index: -10;
-    /* GANZ nach hinten */
     pointer-events: none;
-    /* Klicks gehen durch */
     overflow: hidden;
 }
 
-/* Das Bild selbst soll alles abdecken */
 .hero-background-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* Kein Verzerren, füllt alles aus */
     object-position: center;
     filter: brightness(0.6) contrast(1.1);
-    /* Lesbarkeit verbessern */
 }
 
-/* Das CSS-Pseudo-Element brauchen wir nicht mehr, da wir das HTML-Bild nutzen */
-body::before {
-    display: none !important;
-}
-
+/* Scanlines Animation */
 @keyframes scanlines {
     0% {
         transform: translateY(0);
@@ -68,7 +130,6 @@ body::before {
     }
 }
 
-/* Scanlines liegen ÜBER dem Bild (z-index -5), aber HINTER dem Text (z-index 1) */
 body::after {
     content: '';
     position: fixed;
@@ -77,7 +138,11 @@ body::after {
     right: 0;
     bottom: 0;
     z-index: -5;
-    background: repeating-linear-gradient(0deg, rgba(0, 204, 119, 0.008), rgba(0, 204, 119, 0.008) 1px, transparent 1px, transparent 2px);
+    background: repeating-linear-gradient(0deg,
+            rgba(0, 204, 119, 0.008),
+            rgba(0, 204, 119, 0.008) 1px,
+            transparent 1px,
+            transparent 2px);
     pointer-events: none;
     animation: scanlines 8s linear infinite;
     opacity: 0.5;
@@ -89,16 +154,18 @@ body::after {
     padding: 40px 20px;
     position: relative;
     z-index: 1;
-    /* Inhalt ist wichtig und liegt oben */
 }
 
-/* --- Components & Rest der Datei --- */
+/* ============================================================================
+   🎛 UI COMPONENTS
+   ============================================================================ */
 
+/* Theme Toggle */
 .theme-toggle {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-accent_orange));
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent-orange));
     border: none;
     border-radius: 50%;
     width: 50px;
@@ -115,6 +182,7 @@ body::after {
     box-shadow: 0 0 25px rgba(0, 204, 119, 0.5);
 }
 
+/* Header */
 header {
     text-align: center;
     margin-bottom: 30px;
@@ -124,6 +192,11 @@ header {
     background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(4px);
     box-shadow: 0 0 20px rgba(0, 204, 119, 0.15), inset 0 0 15px rgba(0, 204, 119, 0.05);
+
+    /* Z-Index Fix */
+    position: relative !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
 }
 
 h1 {
@@ -135,6 +208,7 @@ h1 {
     color: var(--color-primary);
     text-shadow: 0 0 15px var(--color-primary), 0 0 30px rgba(0, 204, 119, 0.3);
     filter: brightness(1.2) contrast(1.3);
+    font-family: var(--font-family-base);
 }
 
 h2 {
@@ -147,19 +221,23 @@ h2 {
 }
 
 .subtitle {
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
     font-size: 0.8rem;
     letter-spacing: 1px;
 }
+
+/* ============================================================================
+   📦 CARDS & SECTIONS
+   ============================================================================ */
 
 .auth-section,
 .user-section,
 .card,
 .blog-section {
-    background: rgba(10, 14, 26, 0.35);
+    background: var(--color-surface);
     backdrop-filter: blur(12px);
     border: 1.5px solid rgba(0, 204, 119, 0.4);
-    border-radius: 6px;
+    border-radius: var(--border-radius);
     padding: 24px;
     margin-bottom: 30px;
     box-shadow: 0 0 20px rgba(0, 204, 119, 0.12), inset 0 0 20px rgba(0, 204, 119, 0.04);
@@ -167,32 +245,28 @@ h2 {
     position: relative;
 }
 
-.auth-section {
-    display: none;
-}
-
-.auth-section.active {
-    display: block;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 25px rgba(0, 204, 119, 0.2), inset 0 0 20px rgba(0, 204, 119, 0.08);
-}
-
+.auth-section,
 .user-section {
     display: none;
 }
 
+.auth-section.active,
 .user-section.active {
     display: block;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 25px rgba(0, 204, 119, 0.2), inset 0 0 20px rgba(0, 204, 119, 0.08);
 }
 
+.auth-section.active,
+.user-section.active,
 .card:hover,
 .blog-section:hover {
     border-color: var(--color-primary);
-    box-shadow: 0 0 30px rgba(0, 204, 119, 0.2), inset 0 0 25px rgba(0, 204, 119, 0.08);
-    background: rgba(10, 14, 26, 0.5);
+    box-shadow: 0 0 25px rgba(0, 204, 119, 0.2), inset 0 0 20px rgba(0, 204, 119, 0.08);
+    background: var(--color-surface-hover);
 }
+
+/* ============================================================================
+   📝 FORMS & BUTTONS
+   ============================================================================ */
 
 .form-group {
     margin-bottom: 16px;
@@ -203,7 +277,7 @@ h2 {
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
     font-size: 0.9rem;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -215,16 +289,11 @@ h2 {
     padding: 12px;
     border: 1px solid rgba(0, 204, 119, 0.3);
     background: rgba(0, 0, 0, 0.4);
-    color: var(--color-text_primary);
+    color: var(--color-text-primary);
     border-radius: 4px;
     font-family: inherit;
     font-size: 0.9rem;
     transition: var(--transition);
-}
-
-.form-group input::placeholder,
-.form-control::placeholder {
-    color: rgba(0, 204, 119, 0.4);
 }
 
 .form-group input:focus,
@@ -235,9 +304,10 @@ h2 {
     box-shadow: 0 0 12px rgba(0, 204, 119, 0.25), inset 0 0 8px rgba(0, 204, 119, 0.08);
 }
 
+/* Buttons */
 .button {
-    padding: 12px 24px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-accent_orange));
+    padding: var(--button-padding);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent-orange));
     color: #000;
     border: none;
     border-radius: 4px;
@@ -279,12 +349,9 @@ h2 {
     box-shadow: 0 0 20px rgba(0, 204, 119, 0.2);
 }
 
-.button-sm {
-    margin-top: 18px;
-    margin-bottom: -5px;
-    padding: 8px 16px;
-    font-size: 0.8rem;
-}
+/* ============================================================================
+   👤 USER INFO & GRID
+   ============================================================================ */
 
 .user-info {
     display: grid;
@@ -309,22 +376,16 @@ h2 {
     box-shadow: 0 0 12px rgba(0, 204, 119, 0.12);
 }
 
-.user-card-label {
-    font-size: 0.75rem;
-    color: var(--color-text_secondary);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-}
-
 .user-card-value {
     font-size: 1.4rem;
     font-weight: 900;
     color: var(--color-primary);
     text-shadow: 0 0 12px rgba(0, 204, 119, 0.3);
-    filter: brightness(1.15) contrast(1.2);
 }
+
+/* ============================================================================
+   🎵 TRACK CARD & GRID
+   ============================================================================ */
 
 .track-grid {
     display: grid;
@@ -340,6 +401,7 @@ h2 {
     z-index: 2;
 }
 
+/* Scrollbar Styling */
 .track-grid::-webkit-scrollbar {
     width: 8px;
 }
@@ -350,85 +412,148 @@ h2 {
 }
 
 .track-grid::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-accent_orange));
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent-orange));
     border-radius: 4px;
     box-shadow: 0 0 10px rgba(0, 204, 119, 0.3);
 }
 
+/* Card Styling */
 .track-card {
-    background: rgba(10, 14, 26, 0.4);
-    backdrop-filter: blur(5px);
-    border: 1.5px solid rgba(0, 204, 119, 0.35);
-    border-radius: 6px;
-    padding: 16px;
-    max-height: 190px;
+    background: linear-gradient(135deg,
+            rgba(255, 20, 147, 0.08) 0%,
+            rgba(0, 204, 119, 0.06) 50%,
+            rgba(50, 184, 198, 0.08) 100%);
+    backdrop-filter: blur(8px);
+    border: 2px solid rgba(0, 204, 119, 0.4);
+    border-radius: var(--border-radius);
+    padding: 18px;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 0 20px rgba(0, 204, 119, 0.1), inset 0 0 15px rgba(0, 204, 119, 0.04);
+    box-shadow: 0 0 15px rgba(0, 204, 119, 0.15), inset 0 0 20px rgba(0, 204, 119, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 220px;
 }
 
 .track-card:hover {
     border-color: var(--color-primary);
-    background: rgba(10, 14, 26, 0.6);
-    backdrop-filter: blur(0px);
-    box-shadow: 0 0 30px rgba(0, 204, 119, 0.25), inset 0 0 20px rgba(0, 204, 119, 0.08);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg,
+            rgba(255, 20, 147, 0.15) 0%,
+            rgba(0, 204, 119, 0.12) 50%,
+            rgba(50, 184, 198, 0.15) 100%);
+    box-shadow: 0 0 30px rgba(0, 204, 119, 0.4), inset 0 0 25px rgba(0, 204, 119, 0.1);
+    transform: translateY(-4px) scale(1.02);
 }
 
 .track-title {
     color: var(--color-primary);
     font-weight: 700;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 10px rgba(0, 204, 119, 0.15);
+    margin-bottom: 6px;
+    font-size: 1rem;
+    text-shadow: 0 0 10px rgba(0, 204, 119, 0.2);
 }
 
 .track-artist {
-    color: var(--color-text_secondary);
-    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
     margin-bottom: 8px;
-}
-
-.track-meta {
-    color: var(--color-text_secondary);
-    font-size: 0.8rem;
-    margin-bottom: 12px;
-    display: flex;
-    gap: 12px;
 }
 
 .track-price {
     font-weight: 700;
-    margin-top: 8px;
-    font-size: 1rem;
+    font-size: 1.1rem;
     color: var(--color-primary);
     text-shadow: 0 0 10px rgba(0, 204, 119, 0.2);
 }
 
+/* Badges */
 .track-badge {
     display: inline-block;
-    background: rgba(0, 204, 119, 0.15);
-    color: var(--color-primary);
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 0.7rem;
-    margin-top: 8px;
-    border: 1px solid rgba(0, 204, 119, 0.2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    font-weight: 600;
+    font-weight: 700;
+    border: 1.5px solid;
+    transition: all 0.2s ease;
 }
 
-.track-badge.purchased {
-    background: rgba(183, 65, 14, 0.15);
-    color: #e09040;
-    border: 1px solid rgba(183, 65, 14, 0.3);
+.track-badge.badge-free {
+    background: linear-gradient(135deg, rgba(0, 204, 119, 0.2), rgba(34, 197, 94, 0.15));
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
 }
 
-/* --- STICKY PLAYER --- */
+.track-badge.badge-paid {
+    background: linear-gradient(135deg, rgba(255, 170, 0, 0.2), rgba(255, 150, 0, 0.15));
+    color: var(--color-accent-orange);
+    border-color: var(--color-accent-orange);
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.3);
+}
+
+/* ============================================================================
+   🎬 HEAVY METAL PLAY BUTTON - FULLY CONFIGURABLE
+   ============================================================================ */
+
+.play-button,
+button.button-metal-play {
+    /* Base Properties from Variables */
+    background-image: var(--button-track-play-image-url) !important;
+    width: var(--button-track-play-width) !important;
+    height: var(--button-track-play-height) !important;
+    opacity: var(--button-track-play-opacity) !important;
+    filter: var(--button-track-play-filter) !important;
+    transform: var(--button-track-play-transform) !important;
+
+    /* Hard overrides to ensure image-only look */
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    cursor: pointer !important;
+    transition: all 150ms ease !important;
+    position: relative !important;
+    display: inline-block !important;
+    margin: 12px auto 0 auto !important;
+}
+
+/* Hover State */
+button.button-metal-play:hover:not(:disabled) {
+    opacity: var(--button-track-play-opacity-hover) !important;
+    filter: var(--button-track-play-filter-hover) !important;
+    transform: var(--button-track-play-transform-hover) translateY(var(--button-track-play-hover-offset-y)) !important;
+    box-shadow: var(--button-track-play-box-shadow-hover) !important;
+}
+
+/* Active State */
+button.button-metal-play:active:not(:disabled) {
+    opacity: var(--button-track-play-opacity-active) !important;
+    filter: var(--button-track-play-filter-active) !important;
+    transform: var(--button-track-play-transform-active) translateY(0) !important;
+    box-shadow: var(--button-track-play-box-shadow-active) !important;
+}
+
+/* Disabled State */
+button.button-metal-play:disabled {
+    opacity: var(--button-track-play-opacity-disabled) !important;
+    cursor: not-allowed !important;
+    filter: var(--button-track-play-filter-disabled) !important;
+}
+
+/* ============================================================================
+   🎵 STICKY PLAYER
+   ============================================================================ */
+
 .sticky-player {
     position: fixed;
     bottom: 20px;
@@ -437,7 +562,7 @@ h2 {
     max-width: 90vw;
     background: rgba(10, 14, 26, 0.4);
     border: 1.5px solid rgba(0, 204, 119, 0.35);
-    border-radius: 6px;
+    border-radius: var(--border-radius);
     box-shadow: 0 0 20px rgba(0, 204, 119, 0.1), inset 0 0 15px rgba(0, 204, 119, 0.04);
     backdrop-filter: blur(12px);
     z-index: 400;
@@ -455,18 +580,7 @@ h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
     cursor: pointer;
-    transition: background var(--transition);
-}
-
-.player-header:hover {
-    background: rgba(0, 204, 119, 0.12);
-}
-
-.now-playing {
-    flex: 1;
-    min-width: 0;
 }
 
 .track-name {
@@ -474,72 +588,18 @@ h2 {
     font-weight: 700;
     font-size: 0.9rem;
     text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    letter-spacing: 0.5px;
     text-shadow: 0 0 8px rgba(0, 204, 119, 0.15);
-}
-
-.track-artist {
-    color: var(--color-text_secondary);
-    font-size: 0.75rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 2px;
-}
-
-.player-btn {
-    background: transparent;
-    border: none;
-    color: var(--color-primary);
-    cursor: pointer;
-    font-size: 1.2rem;
-    transition: var(--transition);
-    padding: 4px 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.player-btn:hover {
-    color: var(--color-accent_orange);
-    transform: scale(1.1);
 }
 
 .player-content {
     padding: 16px;
 }
 
-.waveform {
-    width: 100%;
-    height: 40px;
-    display: block;
-    margin-bottom: 12px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    border: 1px solid rgba(0, 204, 119, 0.15);
-}
-
-.time-display {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    font-size: 0.75rem;
-    color: var(--color-text_secondary);
-    font-family: inherit;
-    font-weight: 600;
-}
-
 .seek-bar {
-    flex: 1;
     height: 6px;
     background: rgba(0, 204, 119, 0.1);
     border-radius: 4px;
     cursor: pointer;
-    transition: height var(--transition);
     position: relative;
     border: 1px solid rgba(0, 204, 119, 0.15);
 }
@@ -548,133 +608,45 @@ h2 {
     height: 8px;
 }
 
-.seek-bar::after {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: 0;
-    height: 10px;
-    background: var(--color-primary);
-    border-radius: 9999px;
-    box-shadow: 0 0 10px rgba(0, 204, 119, 0.4);
-    transition: box-shadow var(--transition);
-}
-
-.preview-badge {
-    background: rgba(183, 65, 14, 0.15);
-    border: 1px solid rgba(183, 65, 14, 0.3);
-    color: #e09040;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    text-align: center;
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    font-weight: 600;
-}
-
-.player-controls {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-}
-
 .btn-control {
     background: rgba(0, 204, 119, 0.08);
     border: 1px solid rgba(0, 204, 119, 0.15);
     color: var(--color-primary);
-    cursor: pointer;
     padding: 10px 16px;
     border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    cursor: pointer;
     transition: var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 40px;
 }
 
-.btn-control:hover:not(:disabled) {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-accent_orange));
+.btn-control:hover {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent-orange));
     color: var(--color-background);
-    border-color: var(--color-primary);
     box-shadow: 0 0 15px rgba(0, 204, 119, 0.2);
-    transform: translateY(-2px);
-}
-
-.btn-control:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.volume-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    background: rgba(0, 204, 119, 0.06);
-    border-radius: 4px;
-    border: 1px solid rgba(0, 204, 119, 0.15);
-}
-
-.volume-label {
-    color: var(--color-text_secondary);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    min-width: 32px;
 }
 
 .volume-slider {
-    flex: 1;
-    height: 4px;
     -webkit-appearance: none;
     appearance: none;
+    height: 4px;
     background: rgba(0, 204, 119, 0.15);
     border-radius: 9999px;
-    outline: none;
     cursor: pointer;
 }
 
 .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
     width: 14px;
     height: 14px;
     background: var(--color-primary);
-    border-radius: 9999px;
+    border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
-    transition: var(--transition);
 }
 
-.volume-slider::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
-    transform: scale(1.15);
-}
+/* ============================================================================
+   🔲 MODALS
+   ============================================================================ */
 
-.volume-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    background: var(--color-primary);
-    border-radius: 9999px;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
-    transition: var(--transition);
-}
-
-.volume-slider::-moz-range-thumb:hover {
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
-    transform: scale(1.15);
-}
-
-/* --- MODALS --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -689,72 +661,22 @@ h2 {
     animation: fadeIn 0.3s ease-in-out;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
 .modal-content {
     background: var(--color-charcoal-700);
     border: 2px solid var(--color-primary);
-    border-radius: 8px;
+    border-radius: var(--border-radius);
     padding: 32px;
-    max-width: 420px;
     width: 100%;
+    max-width: 420px;
     box-shadow: 0 0 30px rgba(0, 204, 119, 0.3);
-    animation: slideUp 0.3s ease-out;
     backdrop-filter: blur(8px);
-}
-
-@keyframes slideUp {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
 }
 
 .modal-content h2 {
     color: var(--color-primary);
-    margin: 0 0 16px 0;
+    margin-bottom: 16px;
     font-size: 1.6rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.modal-content p {
-    color: var(--color-text_secondary);
-    margin: 12px 0;
-    line-height: 1.6;
-    font-size: 0.95rem;
-}
-
-.modal-buttons {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-}
-
-.btn {
-    flex: 1;
-    padding: 12px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    transition: var(--transition);
-    letter-spacing: 0.5px;
 }
 
 .btn-danger {
@@ -762,357 +684,55 @@ h2 {
     color: white;
 }
 
-.btn-danger:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 15px rgba(255, 84, 89, 0.4);
-}
+/* ============================================================================
+   📱 RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
 
-.btn-secondary {
-    background: rgba(0, 204, 119, 0.1);
-    border: 1px solid var(--color-primary);
-    color: var(--color-primary);
-}
-
-.btn-secondary:hover {
-    background: rgba(0, 204, 119, 0.2);
-    transform: translateY(-2px);
-}
-
-.status-message {
-    padding: 12px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-    display: none;
-    border: 1px solid;
-    position: relative;
-    z-index: 2;
-}
-
-.status-message.success {
-    background: rgba(0, 204, 119, 0.1);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    display: block;
-}
-
-.status-message.error {
-    background: rgba(255, 84, 89, 0.1);
-    border-color: #ff5459;
-    color: #ff5459;
-    display: block;
-}
-
-.status-message.loading {
-    background: rgba(0, 204, 119, 0.1);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    display: block;
-}
-
-.tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid rgba(0, 204, 119, 0.15);
-    position: relative;
-    z-index: 2;
-}
-
-.tab-btn {
-    padding: 10px 16px;
-    background: transparent;
-    border: none;
-    color: var(--color-text_secondary);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: var(--transition);
-    font-weight: 600;
-    letter-spacing: 0.3px;
-}
-
-.tab-btn.active {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
-    text-shadow: 0 0 8px rgba(0, 204, 119, 0.2);
-}
-
-.tab-content {
-    display: none;
-    position: relative;
-    z-index: 2;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.history-item {
-    background: rgba(0, 204, 119, 0.06);
-    border: 1px solid rgba(0, 204, 119, 0.12);
-    padding: 12px;
-    border-radius: 4px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: var(--transition);
-}
-
-.history-item:hover {
-    background: rgba(0, 204, 119, 0.12);
-    border-color: rgba(0, 204, 119, 0.25);
-}
-
-.history-track {
-    color: var(--color-primary);
-    font-weight: 600;
-}
-
-.history-time {
-    color: var(--color-text_secondary);
-    font-size: 0.85rem;
-}
-
-.loading-spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(0, 204, 119, 0.3);
-    border-top-color: var(--color-primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-footer {
-    margin-top: 30px;
-    padding: 24px 20px;
-    text-align: center;
-    border-top: 1px solid var(--color-primary);
-    background: rgba(0, 204, 119, 0.01);
-    position: relative;
-    z-index: 1;
-}
-
-footer p {
-    color: var(--color-text_secondary);
-    font-size: 0.75rem;
-}
-
-/* --- RESPONSIVE --- */
 @media (max-width: 768px) {
     .track-grid {
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        max-height: 500px;
     }
 
     h1 {
         font-size: 1.6rem;
-        letter-spacing: 1px;
-    }
-
-    .container {
-        padding: 20px 15px;
-    }
-
-    .modal-content {
-        padding: 24px;
-        max-width: 90%;
-    }
-
-    .modal-buttons {
-        flex-direction: column;
-    }
-
-    .user-info {
-        grid-template-columns: 1fr;
     }
 
     .sticky-player {
         width: calc(100vw - 32px);
-        bottom: 16px;
         right: 16px;
+        bottom: 16px;
     }
 }
 
 @media (max-width: 480px) {
     .track-grid {
         grid-template-columns: 1fr;
-        max-height: 400px;
         gap: 12px;
-        padding: 8px;
-    }
-
-    h1 {
-        font-size: 1.4rem;
-        letter-spacing: 1px;
-    }
-
-    h2 {
-        font-size: 1.1rem;
-    }
-
-    .container {
-        padding: 15px 12px;
-    }
-
-    .auth-section,
-    .user-section,
-    .card,
-    .blog-section {
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-
-    .theme-toggle {
-        width: 44px;
-        height: 44px;
-        font-size: 1.2rem;
-        top: 12px;
-        right: 12px;
     }
 
     .track-card {
         padding: 12px;
     }
 
-    .button {
-        padding: 10px 16px;
-        font-size: 0.8rem;
-    }
-
-    .form-group input,
-    .form-control {
-        padding: 10px;
-        font-size: 0.85rem;
-    }
-
     .sticky-player {
         width: calc(100vw - 16px);
-        bottom: 12px;
         right: 8px;
         left: 8px;
-        max-width: none;
     }
 
-    .player-header {
-        padding: 8px;
-        gap: 8px;
-    }
-
-    .track-name {
-        font-size: 0.8rem;
-    }
-
-    .player-content {
-        padding: 12px;
-    }
-
-    .btn-control {
-        padding: 8px 12px;
-        font-size: 0.8rem;
-        min-width: 32px;
+    .play-button {
+        width: 100px !important;
+        height: 50px !important;
     }
 }
 
-/* 🎮 HEAVY METAL PLAY BUTTON - FIXED - WITH CSS VARIABLES & EVENTS */
-.button-metal-play,
-button.button-metal-play {
-    /* ← NUTZE CSS-VARIABLE statt Hardcode! */
-    background-image: var(--button-track-play-image-url, url('../assets/images/metal-play-button-optimized.webp')) !important;
-    background-size: contain !important;
-    background-repeat: no-repeat !important;
-    background-position: center !important;
-    background-color: transparent !important;
-
-    width: var(--button-track-play-width, 140px) !important;
-    height: var(--button-track-play-height, 70px) !important;
-    padding: 0 !important;
-
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-
-    color: transparent !important;
-    font-size: 0 !important;
-    text-transform: none !important;
-
-    cursor: pointer !important;
-    opacity: 1 !important;
-    filter: none !important;
-    transform: scale(1) !important;
-    transform-origin: center !important;
-
-    transition: all 150ms ease !important;
-    position: relative;
-    display: inline-block;
-    margin-top: 12px !important;
-    margin: 0 !important;
-}
-
-/* ← HOVER STATE - Nutzt CSS-Variablen für Effects */
-button.button-metal-play:hover:not(:disabled) {
-    opacity: var(--button-track-play-opacity-hover, 0.95) !important;
-    filter: var(--button-track-play-filter-hover, brightness(1.05) drop-shadow(0 0 8px rgba(0, 0, 0, 0.3))) !important;
-    transform: scale(var(--button-track-play-transform-hover, 1.02)) translateY(var(--button-track-play-hover-offset-y, -2px)) !important;
-    box-shadow: var(--button-track-play-box-shadow-hover, 0 6px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4)) !important;
-}
-
-/* ← ACTIVE STATE */
-button.button-metal-play:active:not(:disabled) {
-    opacity: var(--button-track-play-opacity-active, 0.9) !important;
-    filter: var(--button-track-play-filter-active, brightness(0.95)) !important;
-    transform: scale(var(--button-track-play-transform-active, 0.98)) translateY(0) !important;
-    box-shadow: var(--button-track-play-box-shadow-active, 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3)) !important;
-}
-
-/* ← FOCUS VISIBLE STATE (Accessibility) */
-button.button-metal-play:focus-visible {
-    outline: var(--button-track-play-outline-focus, 2px solid #00CC77) !important;
-    outline-offset: var(--button-track-play-outline-focus-offset, 2px) !important;
-    box-shadow: var(--button-track-play-box-shadow-focus, 0 0 0 3px rgba(0, 204, 119, 0.2), 0 4px 6px rgba(0, 0, 0, 0.2)) !important;
-}
-
-/* ← DISABLED STATE */
-button.button-metal-play:disabled {
-    opacity: var(--button-track-play-opacity-disabled, 0.5) !important;
-    cursor: var(--button-track-play-disabled-cursor, not-allowed) !important;
-    filter: var(--button-track-play-filter-disabled, grayscale(0.5) opacity(0.6)) !important;
-}
-
-
-/* 🔥 RETTUNG: Header nach GANZ oben holen */
-header {
-    position: relative;
-    /* Oder sticky/fixed, je nach Design */
-    z-index: 1000 !important;
-    /* Über allem anderen */
-    pointer-events: auto !important;
-    /* Klicks erlauben */
-}
-
-.header-actions {
-    position: relative;
-    z-index: 1001 !important;
-}
-
-#authButton {
-    position: relative;
-    z-index: 1002 !important;
-    cursor: pointer !important;
-}
-
-/* 🔥 Z-INDEX RETTUNGSPAKET - Fix für nicht klickbaren Header */
+/* ============================================================================
+   🚨 Z-INDEX & INTERACTION FIXES
+   ============================================================================ */
 
 header {
     position: relative !important;
     z-index: 9999 !important;
-    /* Extrem hoch */
     pointer-events: auto !important;
 }
 
@@ -1123,419 +743,14 @@ header {
     pointer-events: auto !important;
 }
 
-/* Spezifisch für den Auth Button */
 #authButton {
     position: relative !important;
     z-index: 10001 !important;
-    /* Höher als alles andere */
     pointer-events: auto !important;
     cursor: pointer !important;
-    /* Visuelles Feedback erzwingen */
-    border: 2px solid red !important;
-    /* DEBUG: Roter Rand = Fix aktiv */
 }
 
-/* Verhindern, dass Neon-Grime Klicks klaut */
 .neon-grime {
     pointer-events: none !important;
     z-index: -1 !important;
-}
-
-/* Verhindern, dass Hintergrund Klicks klaut */
-#heroBackground,
-.hero-background-container {
-    z-index: -999 !important;
-    pointer-events: none !important;
-}
-
-/* ============================================================================
-   🎨 TRACK CARD STYLING - PURE CSS (No Design System)
-   ============================================================================ */
-
-.track-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 16px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    min-height: 400px;
-    max-height: 600px;
-    overflow-y: auto;
-    padding: 10px;
-    position: relative;
-    z-index: 2;
-}
-
-.track-grid::-webkit-scrollbar {
-    width: 8px;
-}
-
-.track-grid::-webkit-scrollbar-track {
-    background: rgba(0, 204, 119, 0.05);
-    border-radius: 4px;
-}
-
-.track-grid::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #00CC77, #FFAA00);
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(0, 204, 119, 0.3);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* TRACK CARD - MAIN */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-.track-card {
-    background: linear-gradient(135deg,
-            rgba(255, 20, 147, 0.08) 0%,
-            rgba(0, 204, 119, 0.06) 50%,
-            rgba(50, 184, 198, 0.08) 100%);
-    backdrop-filter: blur(8px);
-    border: 2px solid rgba(0, 204, 119, 0.4);
-    border-radius: 8px;
-    padding: 18px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    box-shadow:
-        0 0 15px rgba(0, 204, 119, 0.15),
-        inset 0 0 20px rgba(0, 204, 119, 0.05),
-        0 0 30px rgba(255, 20, 147, 0.1);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 220px;
-}
-
-.track-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg,
-            transparent,
-            rgba(0, 204, 119, 0.1),
-            transparent);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-.track-card:hover {
-    border-color: #00CC77;
-    background: linear-gradient(135deg,
-            rgba(255, 20, 147, 0.15) 0%,
-            rgba(0, 204, 119, 0.12) 50%,
-            rgba(50, 184, 198, 0.15) 100%);
-    box-shadow:
-        0 0 30px rgba(0, 204, 119, 0.4),
-        0 0 40px rgba(255, 20, 147, 0.25),
-        0 0 20px rgba(50, 184, 198, 0.3),
-        inset 0 0 25px rgba(0, 204, 119, 0.1),
-        0 8px 24px rgba(0, 0, 0, 0.4);
-    transform: translateY(-4px) scale(1.02);
-}
-
-.track-card:hover::before {
-    left: 100%;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* INNER STRUCTURE */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-.track-card-wrapper {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    gap: 12px;
-    position: relative;
-    z-index: 1;
-}
-
-.track-header {
-    flex: 1;
-}
-
-.track-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* TITLE, ARTIST, META */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-.track-title {
-    color: #00CC77;
-    font-weight: 700;
-    margin-bottom: 6px;
-    font-size: 1rem;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 10px rgba(0, 204, 119, 0.2);
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.track-artist {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.85rem;
-    margin-bottom: 8px;
-    opacity: 0.9;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.track-meta {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.75rem;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 6px;
-}
-
-.track-duration,
-.track-genre {
-    display: inline-block;
-    background: rgba(0, 204, 119, 0.08);
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid rgba(0, 204, 119, 0.15);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* PRICE & BADGES */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-.track-price {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #00CC77;
-    text-shadow: 0 0 10px rgba(0, 204, 119, 0.2);
-    letter-spacing: 0.3px;
-}
-
-.track-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    border: 1.5px solid;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-}
-
-.track-badge.badge-free {
-    background: linear-gradient(135deg, rgba(0, 204, 119, 0.2), rgba(34, 197, 94, 0.15));
-    color: #00CC77;
-    border-color: #00CC77;
-    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
-}
-
-.track-badge.badge-free:hover {
-    background: linear-gradient(135deg, rgba(0, 204, 119, 0.3), rgba(34, 197, 94, 0.25));
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
-}
-
-.track-badge.badge-paid {
-    background: linear-gradient(135deg, rgba(255, 170, 0, 0.2), rgba(255, 150, 0, 0.15));
-    color: #FFAA00;
-    border-color: #FFAA00;
-    box-shadow: 0 0 8px rgba(255, 170, 0, 0.3);
-}
-
-.track-badge.badge-paid:hover {
-    background: linear-gradient(135deg, rgba(255, 170, 0, 0.3), rgba(255, 150, 0, 0.25));
-    box-shadow: 0 0 12px rgba(255, 170, 0, 0.5);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* PLAY BUTTON */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-.play-button,
-button.button-metal-play {
-    background-image: url('../assets/images/metal-play-button-optimized.webp');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-color: transparent;
-    width: 120px;
-    height: 60px;
-    padding: 0;
-    border: none;
-    outline: none;
-    box-shadow: none;
-    color: transparent;
-    font-size: 0;
-    cursor: pointer;
-    opacity: 1;
-    filter: none;
-    transform: scale(1);
-    transition: all 150ms ease;
-    position: relative;
-    display: inline-block;
-    margin: 0 auto;
-    margin-top: 8px;
-}
-
-button.button-metal-play:hover:not(:disabled) {
-    opacity: 0.95;
-    filter: brightness(1.08) drop-shadow(0 0 12px rgba(0, 204, 119, 0.5));
-    transform: scale(1.05) translateY(-2px);
-    box-shadow: 0 0 20px rgba(0, 204, 119, 0.4), 0 8px 16px rgba(0, 0, 0, 0.3);
-}
-
-button.button-metal-play:active:not(:disabled) {
-    opacity: 0.9;
-    filter: brightness(0.95);
-    transform: scale(0.98) translateY(0);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-button.button-metal-play:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    filter: grayscale(0.8) opacity(0.6);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* EMPTY/ERROR STATES */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-.no-tracks {
-    grid-column: 1/-1;
-    text-align: center;
-    padding: 40px 20px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1.2rem;
-}
-
-.error-message {
-    grid-column: 1/-1;
-    background: rgba(255, 84, 89, 0.15);
-    border: 1px solid #FF5459;
-    color: #FF5459;
-    padding: 16px;
-    border-radius: 6px;
-    text-align: center;
-}
-
-.infinite-scroll-sentinel {
-    grid-column: 1/-1;
-    height: 20px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* RESPONSIVE */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-@media (max-width: 768px) {
-    .track-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
-        max-height: 600px;
-    }
-
-    .track-card {
-        padding: 14px;
-        min-height: 200px;
-    }
-
-    .track-title {
-        font-size: 0.95rem;
-    }
-
-    .play-button {
-        width: 100px;
-        height: 50px;
-    }
-}
-
-@media (max-width: 480px) {
-    .track-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-        max-height: 400px;
-    }
-
-    .track-card {
-        padding: 12px;
-        min-height: 180px;
-    }
-
-    .track-title {
-        font-size: 0.9rem;
-    }
-
-    .play-button {
-        width: 90px;
-        height: 45px;
-        margin-top: 6px;
-    }
-}
-
-/* ============================================================================
-   🔥 PLAY BUTTON - FINAL FIX (Override ALL previous styles)
-   ============================================================================ */
-
-.play-button,
-button.button-metal-play {
-    background-image: url('../assets/images/metal-play-button-optimized.webp') !important;
-    background-size: contain !important;
-    background-repeat: no-repeat !important;
-    background-position: center !important;
-    background-color: transparent !important;
-    width: 140px !important;
-    height: 70px !important;
-    padding: 0 !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    color: transparent !important;
-    font-size: 0 !important;
-    cursor: pointer !important;
-    opacity: 1 !important;
-    filter: none !important;
-    transform: scale(1) !important;
-    transition: all 150ms ease !important;
-    position: relative !important;
-    display: inline-block !important;
-    margin: 0 auto !important;
-    margin-top: 12px !important;
-}
-
-button.button-metal-play:hover:not(:disabled) {
-    opacity: 0.95 !important;
-    filter: brightness(1.08) drop-shadow(0 0 12px rgba(0, 204, 119, 0.5)) !important;
-    transform: scale(1.05) translateY(-2px) !important;
-    box-shadow: 0 0 20px rgba(0, 204, 119, 0.4), 0 8px 16px rgba(0, 0, 0, 0.3) !important;
-}
-
-button.button-metal-play:active:not(:disabled) {
-    opacity: 0.9 !important;
-    filter: brightness(0.95) !important;
-    transform: scale(0.98) translateY(0) !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
-}
-
-button.button-metal-play:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
-    filter: grayscale(0.8) opacity(0.6) !important;
 }

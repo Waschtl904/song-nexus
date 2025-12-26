@@ -1,29 +1,24 @@
 /* ========================================
-   DESIGN SYSTEM - Main CSS Entry Point
+   1. DESIGN TOKENS (Base Variables)
    ======================================== */
-
-
-/* ✅ ENTFERNT: @import '_design-tokens.css'; */
-/* Grund: Design-Tokens werden jetzt zur Runtime von der API geladen! */
-/* Falls API fehlschlägt, fallback zur webpack-generierten CSS (aber nicht importieren!) */
-
+@import '../_design-tokens-DEFAULT.css';
+/* ← NEU: Fallback Defaults */
 
 /* ========================================
-   2. MODULAR STYLES (Falls vorhanden)
-   ======================================= */
-/* Wenn diese Dateien noch leer sind oder fehlen, macht das nichts */
+   2. THEME OVERRIDES (Cyberpunk)
+   ======================================== */
+/* Das überschreibt Defaults mit dem Cyberpunk-Look */
+@import '../css/styles-cyberpunk.css';
+
+/* ========================================
+   3. MODULAR STYLES (Components)
+   ======================================== */
+/* Jetzt sind alle Variablen definiert! */
 @import 'base/_base.css';
 @import 'components/_components.css';
 @import 'layout/_layout.css';
 
-
 /* ========================================
-   3. THEME & LEGACY STYLES
+   4. LEGACY / SPECIFIC STYLES
    ======================================== */
-/* Das ist unser gefixtes Cyberpunk-Theme */
-@import '../css/styles-cyberpunk.css';
-
-
-/* Falls player.css Redundanzen hat, überschreibt styles-cyberpunk.css diese meist, 
-   da es im Theme enthalten ist. Wir lassen es drin, falls dort spezifische Logik liegt. */
 @import '../css/player.css';

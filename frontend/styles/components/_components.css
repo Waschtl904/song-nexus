@@ -1,18 +1,11 @@
 /**
  * SONG-NEXUS Design System - Component Styles
  * Buttons, Forms, Cards, Modals, Player Controls
- * Phase 6 Implementation - 23.12.2025 UPDATED
- * 
- * This module provides:
- * - Button component styles (all variants, sizes, states)
- * - Form component styles (inputs, labels, validation)
- * - Card component styles (layout, spacing, effects)
- * - Modal/Dialog styles
- * - Player control styles
- * - All components use design tokens from design.config.json
+ * Phase 6 Implementation - REFACTORED
  */
 
-@import '../_design-tokens.css';
+/* ❌ ENTFERNT: @import '../_design-tokens.css'; */
+/* Grund: Wird zentral über index.css geladen! */
 
 /* ========================================================================
    BUTTONS
@@ -22,7 +15,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-8) var(--space-16);
+    padding: var(--button-padding, 12px 24px);
+    /* Fallback added */
     border-radius: var(--radius-base);
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
@@ -61,7 +55,7 @@
 
 .btn--secondary {
     background-color: var(--color-secondary);
-    color: var(--color-text_primary);
+    color: var(--color-text-primary);
 }
 
 .btn--secondary:hover:not(:disabled) {
@@ -77,7 +71,7 @@
 .btn--outline {
     background-color: transparent;
     border: 1px solid rgba(0, 204, 119, 0.3);
-    color: var(--color-text_primary);
+    color: var(--color-text-primary);
 }
 
 .btn--outline:hover:not(:disabled) {
@@ -133,7 +127,7 @@
     margin-bottom: var(--space-8);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
 }
 
 .form-control {
@@ -142,7 +136,7 @@
     padding: var(--space-8) var(--space-12);
     font-size: var(--font-size-base);
     line-height: var(--line-height-normal);
-    color: var(--color-text_primary);
+    color: var(--color-text-primary);
     background-color: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(0, 204, 119, 0.3);
     border-radius: var(--radius-base);
@@ -191,22 +185,12 @@ textarea.form-control {
     font-family: var(--font-family-base);
 }
 
-/* Select */
-select.form-control {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300ccff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right var(--space-12) center;
-    background-size: 16px;
-    padding-right: var(--space-32);
-}
-
 /* Form help text */
 .form-help {
     display: block;
     margin-top: var(--space-4);
     font-size: var(--font-size-sm);
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
 }
 
 .form-error {
@@ -236,15 +220,6 @@ select.form-control {
     background: rgba(10, 14, 26, 0.5);
 }
 
-.card--flat {
-    box-shadow: none;
-    border: 1px solid rgba(0, 204, 119, 0.2);
-}
-
-.card--elevated {
-    box-shadow: 0 0 30px rgba(0, 204, 119, 0.25);
-}
-
 /* Card sections */
 .card__header {
     padding: var(--space-16);
@@ -265,17 +240,8 @@ select.form-control {
     gap: var(--space-8);
 }
 
-/* Card utilities */
-.card--clickable {
-    cursor: pointer;
-}
-
-.card--clickable:hover {
-    background-color: rgba(0, 204, 119, 0.15);
-}
-
 /* ========================================================================
-   MODALS & DIALOGS
+   MODALS
    ======================================================================== */
 
 .modal {
@@ -300,7 +266,7 @@ select.form-control {
 }
 
 .modal__content {
-    background-color: var(--color-charcoal-700);
+    background-color: var(--color-background, #1a1a1a);
     border: 2px solid var(--color-primary);
     border-radius: var(--radius-lg);
     box-shadow: 0 0 30px rgba(0, 204, 119, 0.3);
@@ -345,7 +311,7 @@ select.form-control {
     background: none;
     border: none;
     font-size: var(--font-size-2xl);
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
     cursor: pointer;
     padding: 0;
     width: 32px;
@@ -362,7 +328,7 @@ select.form-control {
 
 .modal__body {
     padding: var(--space-24);
-    color: var(--color-text_secondary);
+    color: var(--color-text-secondary);
 }
 
 .modal__footer {
@@ -457,33 +423,6 @@ select.form-control {
     box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
 }
 
-.volume-slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    background-color: var(--color-primary);
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    transition: background-color var(--transition);
-    box-shadow: 0 0 8px rgba(0, 204, 119, 0.3);
-}
-
-.volume-slider::-moz-range-thumb:hover {
-    background-color: var(--color-accent_orange);
-    box-shadow: 0 0 12px rgba(0, 204, 119, 0.5);
-}
-
-.volume-slider::-moz-range-track {
-    background: transparent;
-    border: none;
-}
-
-.volume-slider::-moz-range-progress {
-    background: var(--color-primary);
-    height: 4px;
-    border-radius: var(--radius-full);
-}
-
 /* Waveform visualization */
 .waveform {
     width: 100%;
@@ -517,20 +456,17 @@ select.form-control {
    UTILITY COMPONENT CLASSES
    ======================================================================== */
 
-/* Loading states */
 .is-loading {
     opacity: 0.6;
     pointer-events: none;
 }
 
-/* Disabled states */
 .is-disabled {
     opacity: 0.5;
     pointer-events: none;
     cursor: not-allowed;
 }
 
-/* Hidden states */
 .is-hidden {
     display: none;
 }
@@ -572,80 +508,4 @@ select.form-control {
     background-color: rgba(50, 184, 198, 0.15);
     color: #32b8c6;
     border: 1px solid rgba(50, 184, 198, 0.3);
-}
-
-/* ========================================================================
-   DARK MODE SUPPORT
-   ======================================================================== */
-
-@media (prefers-color-scheme: dark) {
-    .card {
-        background-color: rgba(10, 14, 26, 0.4);
-    }
-
-    .card__header,
-    .card__footer {
-        background-color: rgba(0, 204, 119, 0.1);
-    }
-
-    .modal__content {
-        background-color: var(--color-charcoal-800);
-    }
-
-    .modal__header,
-    .modal__footer {
-        background-color: rgba(0, 204, 119, 0.08);
-    }
-
-    .form-control {
-        background-color: rgba(0, 0, 0, 0.5);
-        color: var(--color-text_primary);
-        border-color: rgba(0, 204, 119, 0.3);
-    }
-}
-
-/* ========================================================================
-   RESPONSIVE ADJUSTMENTS
-   ======================================================================== */
-
-@media (max-width: 768px) {
-    .btn--lg {
-        padding: var(--space-10) var(--space-16);
-        font-size: var(--font-size-base);
-    }
-
-    .modal__content {
-        width: 95%;
-        max-height: 95vh;
-    }
-
-    .modal__header,
-    .modal__body,
-    .modal__footer {
-        padding: var(--space-16);
-    }
-
-    .card__header,
-    .card__body,
-    .card__footer {
-        padding: var(--space-12);
-    }
-}
-
-@media (max-width: 480px) {
-    .btn {
-        padding: var(--space-6) var(--space-12);
-        font-size: var(--font-size-sm);
-    }
-
-    .modal__content {
-        width: 100%;
-        max-height: 100vh;
-        border-radius: 0;
-    }
-
-    .form-control {
-        font-size: 16px;
-        /* Prevents zoom on iOS */
-    }
 }
