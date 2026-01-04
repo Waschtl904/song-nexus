@@ -6,6 +6,8 @@
 // ✅ Same mkcert logic as backend
 // ✅ Same CORS handling as backend
 // ✅ Same middleware ordering as backend
+// ✅ scriptSrcAttr ADDED - allows inline event handlers
+
 
 require('dotenv').config();
 const express = require('express');
@@ -17,11 +19,14 @@ const helmet = require('helmet');
 const cors = require('cors');
 const crypto = require('crypto');
 
+
 const app = express();
+
 
 // ============================================================================
 // 🔒 HTTPS CERTIFICATE SETUP - EXACTLY LIKE BACKEND!
 // ============================================================================
+
 
 let httpsOptions = null;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -29,17 +34,21 @@ const USE_HTTPS = process.env.USE_HTTPS === 'true' || true;
 const PORT = process.env.PORT || 5500;
 const HOST = process.env.HOST || 'localhost';
 
+
 // Try mkcert certificates FIRST (preferred)
 const mkcertKeyPath = path.join(__dirname, 'certs/localhost-key.pem');
 const mkcertCertPath = path.join(__dirname, 'certs/localhost.pem');
+
 
 // Fallback to self-signed from backend
 const selfSignedKeyPath = path.join(__dirname, '../backend/certs/localhost-key.pem');
 const selfSignedCertPath = path.join(__dirname, '../backend/certs/localhost.pem');
 
+
 console.log('🔐 Checking SSL certificates...');
-console.log(` NODE_ENV: ${NODE_ENV}`);
-console.log(` USE_HTTPS: ${USE_HTTPS}`);
+console.log(`   NODE_ENV: ${NODE_ENV}`);
+console.log(`   USE_HTTPS: ${USE_HTTPS}`);
+
 
 // Try mkcert first
 if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
@@ -54,6 +63,7 @@ if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
     }
 }
 
+
 // Fallback to self-signed from backend
 if (!httpsOptions && fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSignedCertPath)) {
     try {
@@ -67,29 +77,32 @@ if (!httpsOptions && fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSigne
     }
 }
 
+
 // No certificates found - CRITICAL ERROR
 if (!httpsOptions) {
     console.error('\n❌ CRITICAL ERROR: HTTPS Certificates not found!');
     console.error('\n📍 Checked paths:');
-    console.error(` 1. ${mkcertCertPath}`);
-    console.error(` 2. ${selfSignedCertPath}`);
+    console.error(`   1. ${mkcertCertPath}`);
+    console.error(`   2. ${selfSignedCertPath}`);
     console.error('\n📝 SOLUTION - Generate mkcert certificates:');
-    console.error(' 1. mkdir -p frontend/certs');
-    console.error(' 2. cd frontend/certs');
-    console.error(' 3. mkcert localhost');
-    console.error(' 4. You will get: localhost-key.pem + localhost.pem');
-    console.error(' 5. Go back to project root: cd ../.');
-    console.error(' 6. npm start');
-    console.error('\n Or if you want to use backend certs:');
-    console.error(' 1. Copy backend/certs/*.pem to frontend/certs/');
-    console.error(' 2. npm start');
+    console.error('   1. mkdir -p frontend/certs');
+    console.error('   2. cd frontend/certs');
+    console.error('   3. mkcert localhost');
+    console.error('   4. You will get: localhost-key.pem + localhost.pem');
+    console.error('   5. Go back to project root: cd ../.');
+    console.error('   6. npm start');
+    console.error('\n   Or if you want to use backend certs:');
+    console.error('   1. Copy backend/certs/*.pem to frontend/certs/');
+    console.error('   2. npm start');
     console.error('');
     process.exit(1);
 }
 
+
 // ============================================================================
 // ✅ DYNAMIC ORIGIN DETECTION - SAME AS BACKEND
 // ============================================================================
+
 
 function getOriginsList() {
     const origins = [
@@ -102,6 +115,7 @@ function getOriginsList() {
         'https://localhost:*',
     ];
 
+
     if (process.env.ALLOWED_ORIGINS) {
         const allowedOrigins = process.env.ALLOWED_ORIGINS
             .split(',')
@@ -111,25 +125,31 @@ function getOriginsList() {
         console.log(`✅ Added ALLOWED_ORIGINS from .env:`, allowedOrigins);
     }
 
+
     return origins;
 }
+
 
 const corsOrigins = NODE_ENV === 'production'
     ? ['https://yourdomain.com']
     : getOriginsList();
 
+
 console.log('🌐 CORS Origins:', corsOrigins);
 
+
 // ============================================================================
-// ✅ SECURITY HEADERS - FIXED CSP
+// ✅ SECURITY HEADERS - FIXED CSP with scriptSrcAttr
 // ============================================================================
+
 
 app.use((req, res, next) => {
     res.locals.nonce = crypto.randomBytes(16).toString('hex');
     next();
 });
 
-// ✅ FIXED CSP DIRECTIVES - allows localhost:3000 + self-origin resources
+
+// ✅ FIXED CSP DIRECTIVES - allows localhost:3000 + self-origin resources + scriptSrcAttr
 const getCSPDirectives = () => {
     const connectSrc = [
         "'self'", // ✅ Same-origin (localhost:5500)
@@ -147,14 +167,17 @@ const getCSPDirectives = () => {
         "ws://localhost:5500", // ✅ WebSocket Self
     ];
 
+
     if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
         const ngrokOrigin = process.env.ALLOWED_ORIGINS.split(',')[0].trim();
         connectSrc.push(ngrokOrigin);
     }
 
+
     return {
         defaultSrc: ["'self'", "https:", "http:"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrcAttr: ["'self'", "'unsafe-inline'"],  // ✅ NEUE ZEILE - allows inline event handlers!
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         mediaSrc: [
@@ -174,6 +197,7 @@ const getCSPDirectives = () => {
     };
 };
 
+
 const corsOptions = {
     origin: corsOrigins,
     credentials: true,
@@ -183,6 +207,7 @@ const corsOptions = {
     optionsSuccessStatus: 200,
     maxAge: 86400
 };
+
 
 // ✅ FIXED: Helmet mit korrekter CSP + alle anderen Headers
 app.use(helmet({
@@ -197,13 +222,16 @@ app.use(helmet({
     hidePoweredBy: true,
 }));
 
+
 // ============================================================================
 // 📦 MIDDLEWARE - SAME ORDER AS BACKEND
 // ============================================================================
 
+
 // JSON Parser
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 
 // GZIP Compression
 app.use(compression({
@@ -215,15 +243,19 @@ app.use(compression({
     }
 }));
 
+
 console.log('✅ Compression middleware enabled (GZIP)');
+
 
 // CORS (BEFORE routes!)
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
+
 // ============================================================================
 // 📦 SERVE STATIC FILES - MUST BE BEFORE FALLBACK
 // ============================================================================
+
 
 app.use(express.static(path.join(__dirname), {
     maxAge: '1d',
@@ -235,10 +267,12 @@ app.use(express.static(path.join(__dirname), {
             res.setHeader('Content-Type', 'text/css; charset=utf-8');
         }
 
+
         // JavaScript files
         if (filePath.endsWith('.js')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
+
 
         // WebP images
         if (filePath.endsWith('.webp')) {
@@ -246,17 +280,20 @@ app.use(express.static(path.join(__dirname), {
             res.setHeader('Cache-Control', 'public, max-age=31536000');
         }
 
+
         // JPEG images
         if (filePath.endsWith('.jpeg') || filePath.endsWith('.jpg')) {
             res.setHeader('Content-Type', 'image/jpeg');
             res.setHeader('Cache-Control', 'public, max-age=31536000');
         }
 
+
         // Design Config JSON
         if (filePath.endsWith('design.config.json')) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.setHeader('Cache-Control', 'no-cache');
         }
+
 
         // All JSON files
         if (filePath.endsWith('.json')) {
@@ -265,14 +302,18 @@ app.use(express.static(path.join(__dirname), {
     }
 }));
 
+
 console.log('📁 Static files directory:', path.join(__dirname));
+
 
 // ============================================================================
 // ✅ NEW: DESIGN SYSTEM API ROUTE (VOR dem Fallback!)
 // ============================================================================
 
+
 app.get('/api/design-system', (req, res) => {
     const configPath = path.join(__dirname, 'config', 'design.config.json');
+
 
     if (!fs.existsSync(configPath)) {
         console.warn(`⚠️ Design config not found: ${configPath}`);
@@ -282,13 +323,16 @@ app.get('/api/design-system', (req, res) => {
         });
     }
 
+
     try {
         const configData = fs.readFileSync(configPath, 'utf-8');
         const config = JSON.parse(configData); // ← Parse & validate JSON!
 
+
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache');
         res.json(config);
+
 
         console.log('✅ Served /api/design-system');
     } catch (err) {
@@ -300,9 +344,11 @@ app.get('/api/design-system', (req, res) => {
     }
 });
 
+
 // ============================================================================
 // ✅ EXPLICIT CONFIG ROUTE (Direct serving of design.config.json)
 // ============================================================================
+
 
 app.get('/config/design.config.json', (req, res) => {
     const configPath = path.join(__dirname, 'config', 'design.config.json');
@@ -310,6 +356,7 @@ app.get('/config/design.config.json', (req, res) => {
         console.warn(`⚠️ Config file not found: ${configPath}`);
         return res.status(404).json({ error: 'Config not found', requested: configPath });
     }
+
 
     try {
         const configData = fs.readFileSync(configPath, 'utf-8');
@@ -323,9 +370,11 @@ app.get('/config/design.config.json', (req, res) => {
     }
 });
 
+
 // ============================================================================
 // ✅ EXPLICIT ASSET ROUTES (Fallback if static fails)
 // ============================================================================
+
 
 app.get('/assets/*', (req, res) => {
     const filePath = path.join(__dirname, req.path);
@@ -338,6 +387,7 @@ app.get('/assets/*', (req, res) => {
             res.setHeader('Content-Type', 'text/css');
         }
 
+
         res.sendFile(filePath);
     } else {
         console.warn(`⚠️ Asset not found: ${req.path}`);
@@ -345,9 +395,11 @@ app.get('/assets/*', (req, res) => {
     }
 });
 
+
 // ============================================================================
 // 🎯 FALLBACK TO index.html (SPA SUPPORT) - MUST BE LAST!
 // ============================================================================
+
 
 app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
@@ -361,12 +413,15 @@ app.get('*', (req, res) => {
         });
     }
 
+
     res.sendFile(indexPath);
 });
+
 
 // ============================================================================
 // 🐛 ERROR HANDLING
 // ============================================================================
+
 
 app.use((err, req, res, next) => {
     console.error('❌ Server Error:', err.message);
@@ -375,32 +430,38 @@ app.use((err, req, res, next) => {
         errorResponse.stack = err.stack;
     }
 
+
     res.status(err.status || 500).json(errorResponse);
 });
+
 
 // ============================================================================
 // 🚀 START HTTPS SERVER
 // ============================================================================
+
 
 try {
     const server = https.createServer(httpsOptions, app);
     server.listen(PORT, HOST, () => {
         console.log('');
         console.log('╔════════════════════════════════════════════════════╗');
-        console.log('║ 🎵 SONG-NEXUS FRONTEND - HTTPS SERVER ║');
+        console.log('║ 🎵 SONG-NEXUS FRONTEND - HTTPS SERVER              ║');
         console.log('╠════════════════════════════════════════════════════╣');
         console.log(`║ 🔐 URL: https://${HOST}:${PORT}${' '.repeat(18 - String(PORT).length)}║`);
-        console.log('║ ✅ HTTPS Enabled ║');
+        console.log('║ ✅ HTTPS Enabled (mkcert)                          ║');
         console.log(`║ 📁 Static: ${path.basename(__dirname)}${' '.repeat(36 - path.basename(__dirname).length)}║`);
-        console.log('║ 🔄 CORS: Enabled for Backend ║');
-        console.log('║ 🌍 Environment: ' + NODE_ENV + ' '.repeat(29 - NODE_ENV.length) + '║');
+        console.log('║ 🔄 CORS: Enabled for Backend (port 3000)          ║');
+        console.log(`║ 🌍 Environment: ${NODE_ENV}${' '.repeat(29 - NODE_ENV.length)}║`);
+        console.log('║ 🛡️  CSP: scriptSrcAttr enabled for handlers       ║');
         console.log('╚════════════════════════════════════════════════════╝');
         console.log('');
     });
 
+
     // ============================================================================
     // 🛑 GRACEFUL SHUTDOWN
     // ============================================================================
+
 
     process.on('SIGINT', () => {
         console.log('\n🛑 Frontend server shutting down gracefully...');
@@ -414,6 +475,7 @@ try {
         }, 5000);
     });
 
+
     process.on('SIGTERM', () => {
         console.log('\n🛑 SIGTERM received. Shutting down...');
         server.close(() => {
@@ -422,7 +484,9 @@ try {
         });
     });
 
+
     module.exports = server;
+
 
 } catch (err) {
     console.error('❌ Failed to start HTTPS server:', err.message);

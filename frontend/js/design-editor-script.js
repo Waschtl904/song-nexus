@@ -11,7 +11,7 @@
 
 let designConfig = {};
 let originalConfig = {};
-const apiBaseUrl = 'http://localhost:3000/api'; // ⚠️ HTTPS entfernt für lokalen Test, falls kein SSL läuft
+const apiBaseUrl = 'https://localhost:3000/api'; 
 
 // CSS Variable mapping
 const cssVariableMap = {
