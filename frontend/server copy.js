@@ -1,8 +1,13 @@
-/**
- * Frontend HTTPS Server - FIXED VERSION
- * Port: 5500
- * WICHTIG: _design-tokens.css Route MUSS VOR dem Wildcard kommen!
- */
+// ============================================================================
+// 🎵 SONG-NEXUS FRONTEND SERVER - ALIGNED WITH BACKEND
+// Express HTTPS Server für Frontend (port 5500)
+// ============================================================================
+// CRITICAL: Mirrored Backend Cert Handling + HTTPS Setup
+// ✅ Same mkcert logic as backend
+// ✅ Same CORS handling as backend
+// ✅ Same middleware ordering as backend
+// ✅ scriptSrcAttr ADDED - allows inline event handlers
+
 
 require('dotenv').config();
 const express = require('express');
@@ -14,26 +19,36 @@ const helmet = require('helmet');
 const cors = require('cors');
 const crypto = require('crypto');
 
+
 const app = express();
 
-// ===== HTTPS CERTIFICATE SETUP =====
+
+// ============================================================================
+// 🔒 HTTPS CERTIFICATE SETUP - EXACTLY LIKE BACKEND!
+// ============================================================================
+
+
 let httpsOptions = null;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const USE_HTTPS = process.env.USE_HTTPS === 'true' || true;
 const PORT = process.env.PORT || 5500;
 const HOST = process.env.HOST || 'localhost';
 
+
 // Try mkcert certificates FIRST (preferred)
 const mkcertKeyPath = path.join(__dirname, 'certs/localhost-key.pem');
 const mkcertCertPath = path.join(__dirname, 'certs/localhost.pem');
+
 
 // Fallback to self-signed from backend
 const selfSignedKeyPath = path.join(__dirname, '../backend/certs/localhost-key.pem');
 const selfSignedCertPath = path.join(__dirname, '../backend/certs/localhost.pem');
 
+
 console.log('🔐 Checking SSL certificates...');
 console.log(`   NODE_ENV: ${NODE_ENV}`);
 console.log(`   USE_HTTPS: ${USE_HTTPS}`);
+
 
 // Try mkcert first
 if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
@@ -48,6 +63,7 @@ if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
     }
 }
 
+
 // Fallback to self-signed from backend
 if (!httpsOptions && fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSignedCertPath)) {
     try {
@@ -61,16 +77,33 @@ if (!httpsOptions && fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSigne
     }
 }
 
+
 // No certificates found - CRITICAL ERROR
 if (!httpsOptions) {
     console.error('\n❌ CRITICAL ERROR: HTTPS Certificates not found!');
     console.error('\n📍 Checked paths:');
     console.error(`   1. ${mkcertCertPath}`);
     console.error(`   2. ${selfSignedCertPath}`);
+    console.error('\n📝 SOLUTION - Generate mkcert certificates:');
+    console.error('   1. mkdir -p frontend/certs');
+    console.error('   2. cd frontend/certs');
+    console.error('   3. mkcert localhost');
+    console.error('   4. You will get: localhost-key.pem + localhost.pem');
+    console.error('   5. Go back to project root: cd ../.');
+    console.error('   6. npm start');
+    console.error('\n   Or if you want to use backend certs:');
+    console.error('   1. Copy backend/certs/*.pem to frontend/certs/');
+    console.error('   2. npm start');
+    console.error('');
     process.exit(1);
 }
 
-// ===== CORS CONFIGURATION =====
+
+// ============================================================================
+// ✅ DYNAMIC ORIGIN DETECTION - SAME AS BACKEND
+// ============================================================================
+
+
 function getOriginsList() {
     const origins = [
         'http://localhost:5500',
@@ -82,6 +115,7 @@ function getOriginsList() {
         'https://localhost:*',
     ];
 
+
     if (process.env.ALLOWED_ORIGINS) {
         const allowedOrigins = process.env.ALLOWED_ORIGINS
             .split(',')
@@ -91,47 +125,59 @@ function getOriginsList() {
         console.log(`✅ Added ALLOWED_ORIGINS from .env:`, allowedOrigins);
     }
 
+
     return origins;
 }
+
 
 const corsOrigins = NODE_ENV === 'production'
     ? ['https://yourdomain.com']
     : getOriginsList();
 
+
 console.log('🌐 CORS Origins:', corsOrigins);
 
-// ===== SECURITY HEADERS =====
+
+// ============================================================================
+// ✅ SECURITY HEADERS - FIXED CSP with scriptSrcAttr
+// ============================================================================
+
+
 app.use((req, res, next) => {
     res.locals.nonce = crypto.randomBytes(16).toString('hex');
     next();
 });
 
+
+// ✅ FIXED CSP DIRECTIVES - allows localhost:3000 + self-origin resources + scriptSrcAttr
 const getCSPDirectives = () => {
     const connectSrc = [
-        "'self'",
-        "https://localhost:3000",
-        "https://localhost:5500",
-        "http://localhost:3000",
-        "http://localhost:5500",
-        "https://127.0.0.1:3000",
-        "https://127.0.0.1:5500",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5500",
-        "wss://localhost:3000",
-        "wss://localhost:5500",
-        "ws://localhost:3000",
-        "ws://localhost:5500",
+        "'self'", // ✅ Same-origin (localhost:5500)
+        "https://localhost:3000", // ✅ Backend API
+        "https://localhost:5500", // ✅ Self explicit
+        "http://localhost:3000", // ✅ Fallback HTTP Backend
+        "http://localhost:5500", // ✅ Fallback HTTP Self
+        "https://127.0.0.1:3000", // ✅ IP Backend
+        "https://127.0.0.1:5500", // ✅ IP Self
+        "http://127.0.0.1:3000", // ✅ IP HTTP Backend
+        "http://127.0.0.1:5500", // ✅ IP HTTP Self
+        "wss://localhost:3000", // ✅ WebSocket Secure Backend
+        "wss://localhost:5500", // ✅ WebSocket Secure Self
+        "ws://localhost:3000", // ✅ WebSocket Backend
+        "ws://localhost:5500", // ✅ WebSocket Self
     ];
+
 
     if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
         const ngrokOrigin = process.env.ALLOWED_ORIGINS.split(',')[0].trim();
         connectSrc.push(ngrokOrigin);
     }
 
+
     return {
         defaultSrc: ["'self'", "https:", "http:"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        scriptSrcAttr: ["'self'", "'unsafe-inline'"],  // ✅ NEUE ZEILE - allows inline event handlers!
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         mediaSrc: [
@@ -144,12 +190,13 @@ const getCSPDirectives = () => {
             "https://127.0.0.1:5500",
         ],
         imgSrc: ["'self'", "data:", "https:", "http:"],
-        connectSrc: connectSrc,
+        connectSrc: connectSrc, // ✅ Erlaubt Backend + Self + fetch() zu Config
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
     };
 };
+
 
 const corsOptions = {
     origin: corsOrigins,
@@ -161,6 +208,8 @@ const corsOptions = {
     maxAge: 86400
 };
 
+
+// ✅ FIXED: Helmet mit korrekter CSP + alle anderen Headers
 app.use(helmet({
     contentSecurityPolicy: {
         directives: getCSPDirectives(),
@@ -173,77 +222,47 @@ app.use(helmet({
     hidePoweredBy: true,
 }));
 
-// ===== MIDDLEWARE =====
+
+// ============================================================================
+// 📦 MIDDLEWARE - SAME ORDER AS BACKEND
+// ============================================================================
+
+
+// JSON Parser
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+
+// GZIP Compression - CSS EXCLUDED (fixes corruption!)
 app.use(compression({
     level: 6,
     threshold: 1024,
     filter: (req, res) => {
+        // ❌ WICHTIG: CSS NICHT komprimieren - verursacht Corruption!
         if (req.path && (req.path.endsWith('.css') || req.path.includes('design-tokens'))) {
             console.log(`⏭️  Skipping compression for CSS: ${req.path}`);
             return false;
         }
+
         if (req.headers['x-no-compression']) return false;
         return compression.filter(req, res);
     }
 }));
 
+
 console.log('✅ Compression middleware enabled (GZIP - CSS excluded)');
 
+
+// CORS (BEFORE routes!)
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-// ===== 🔥 EXPLICIT CSS ROUTES - BEFORE static files! =====
 
-// _design-tokens.css (generiert vom Webpack Loader)
-app.get('/_design-tokens.css', (req, res) => {
-    const cssPath = path.join(__dirname, 'dist', '_design-tokens.css');
+// ============================================================================
+// 📦 SERVE STATIC FILES - MUST BE BEFORE FALLBACK
+// ============================================================================
 
-    console.log(`📥 Request: /_design-tokens.css`);
-    console.log(`   File: ${cssPath}`);
-    console.log(`   Exists? ${fs.existsSync(cssPath) ? '✅' : '❌'}`);
 
-    if (!fs.existsSync(cssPath)) {
-        console.error(`❌ File not found: ${cssPath}`);
-        res.setHeader('Content-Type', 'text/css');
-        res.status(404).send('/* Error: _design-tokens.css not found */');
-        return;
-    }
-
-    res.setHeader('Content-Type', 'text/css; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-
-    try {
-        const css = fs.readFileSync(cssPath, 'utf-8');
-        console.log(`✅ Served _design-tokens.css (${css.length} bytes)`);
-        res.send(css);
-    } catch (err) {
-        console.error(`❌ Error reading file: ${err.message}`);
-        res.status(500).send(`/* Error: ${err.message} */`);
-    }
-});
-
-// _design-tokens-DEFAULT.css (Fallback)
-app.get('/_design-tokens-DEFAULT.css', (req, res) => {
-    const cssPath = path.join(__dirname, '_design-tokens-DEFAULT.css');
-
-    console.log(`📥 Request: /_design-tokens-DEFAULT.css`);
-
-    if (!fs.existsSync(cssPath)) {
-        res.status(404).send('/* Fallback not found */');
-        return;
-    }
-
-    res.setHeader('Content-Type', 'text/css; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.sendFile(cssPath);
-});
-
-// ===== STATIC FILES =====
 app.use(express.static(path.join(__dirname), {
     maxAge: '1d',
     etag: true,
@@ -258,10 +277,12 @@ app.use(express.static(path.join(__dirname), {
             res.setHeader('Expires', '0');
         }
 
+
         // JavaScript files
         if (filePath.endsWith('.js')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
+
 
         // WebP images
         if (filePath.endsWith('.webp')) {
@@ -269,17 +290,20 @@ app.use(express.static(path.join(__dirname), {
             res.setHeader('Cache-Control', 'public, max-age=31536000');
         }
 
+
         // JPEG images
         if (filePath.endsWith('.jpeg') || filePath.endsWith('.jpg')) {
             res.setHeader('Content-Type', 'image/jpeg');
             res.setHeader('Cache-Control', 'public, max-age=31536000');
         }
 
+
         // Design Config JSON
         if (filePath.endsWith('design.config.json')) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.setHeader('Cache-Control', 'no-cache');
         }
+
 
         // All JSON files
         if (filePath.endsWith('.json')) {
@@ -288,13 +312,18 @@ app.use(express.static(path.join(__dirname), {
     }
 }));
 
+
 console.log('📁 Static files directory:', path.join(__dirname));
 
-// ===== API ROUTES =====
 
-// Design System API
+// ============================================================================
+// ✅ NEW: DESIGN SYSTEM API ROUTE (VOR dem Fallback!)
+// ============================================================================
+
+
 app.get('/api/design-system', (req, res) => {
     const configPath = path.join(__dirname, 'config', 'design.config.json');
+
 
     if (!fs.existsSync(configPath)) {
         console.warn(`⚠️ Design config not found: ${configPath}`);
@@ -304,13 +333,16 @@ app.get('/api/design-system', (req, res) => {
         });
     }
 
+
     try {
         const configData = fs.readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(configData);
+        const config = JSON.parse(configData); // ← Parse & validate JSON!
+
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache');
         res.json(config);
+
 
         console.log('✅ Served /api/design-system');
     } catch (err) {
@@ -322,13 +354,19 @@ app.get('/api/design-system', (req, res) => {
     }
 });
 
-// Config Route
+
+// ============================================================================
+// ✅ EXPLICIT CONFIG ROUTE (Direct serving of design.config.json)
+// ============================================================================
+
+
 app.get('/config/design.config.json', (req, res) => {
     const configPath = path.join(__dirname, 'config', 'design.config.json');
     if (!fs.existsSync(configPath)) {
         console.warn(`⚠️ Config file not found: ${configPath}`);
         return res.status(404).json({ error: 'Config not found', requested: configPath });
     }
+
 
     try {
         const configData = fs.readFileSync(configPath, 'utf-8');
@@ -342,7 +380,12 @@ app.get('/config/design.config.json', (req, res) => {
     }
 });
 
-// Assets Route
+
+// ============================================================================
+// ✅ EXPLICIT ASSET ROUTES (Fallback if static fails)
+// ============================================================================
+
+
 app.get('/assets/*', (req, res) => {
     const filePath = path.join(__dirname, req.path);
     if (fs.existsSync(filePath)) {
@@ -354,6 +397,7 @@ app.get('/assets/*', (req, res) => {
             res.setHeader('Content-Type', 'text/css');
         }
 
+
         res.sendFile(filePath);
     } else {
         console.warn(`⚠️ Asset not found: ${req.path}`);
@@ -361,21 +405,34 @@ app.get('/assets/*', (req, res) => {
     }
 });
 
-// ===== FALLBACK TO index.html (SPA SUPPORT) - MUST BE LAST! =====
+
+// ============================================================================
+// 🎯 FALLBACK TO index.html (SPA SUPPORT) - MUST BE LAST!
+// ============================================================================
+
+
 app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
     if (!fs.existsSync(indexPath)) {
         console.error(`❌ index.html not found at: ${indexPath}`);
         return res.status(404).json({
             error: 'index.html not found',
-            path: indexPath
+            path: indexPath,
+            cwd: __dirname,
+            files: fs.readdirSync(__dirname).slice(0, 20)
         });
     }
+
 
     res.sendFile(indexPath);
 });
 
-// ===== ERROR HANDLING =====
+
+// ============================================================================
+// 🐛 ERROR HANDLING
+// ============================================================================
+
+
 app.use((err, req, res, next) => {
     console.error('❌ Server Error:', err.message);
     const errorResponse = { error: err.message };
@@ -383,10 +440,16 @@ app.use((err, req, res, next) => {
         errorResponse.stack = err.stack;
     }
 
+
     res.status(err.status || 500).json(errorResponse);
 });
 
-// ===== START HTTPS SERVER =====
+
+// ============================================================================
+// 🚀 START HTTPS SERVER
+// ============================================================================
+
+
 try {
     const server = https.createServer(httpsOptions, app);
     server.listen(PORT, HOST, () => {
@@ -404,6 +467,12 @@ try {
         console.log('');
     });
 
+
+    // ============================================================================
+    // 🛑 GRACEFUL SHUTDOWN
+    // ============================================================================
+
+
     process.on('SIGINT', () => {
         console.log('\n🛑 Frontend server shutting down gracefully...');
         server.close(() => {
@@ -416,6 +485,7 @@ try {
         }, 5000);
     });
 
+
     process.on('SIGTERM', () => {
         console.log('\n🛑 SIGTERM received. Shutting down...');
         server.close(() => {
@@ -424,7 +494,9 @@ try {
         });
     });
 
+
     module.exports = server;
+
 
 } catch (err) {
     console.error('❌ Failed to start HTTPS server:', err.message);

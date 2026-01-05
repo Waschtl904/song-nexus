@@ -1,0 +1,79 @@
+/* ========================================
+   🎨 SONG-NEXUS Design Tokens (DEFAULT FALLBACK)
+   This file provides default CSS variables for the build process.
+   These will be OVERWRITTEN by the Design System API at runtime.
+   ======================================== */
+
+:root {
+    /* --- COLOR PALETTE --- */
+    --color-primary: #00CC77;
+    --color-secondary: #5E5240;
+    --color-accent-teal: #32B8C6;
+    --color-accent-green: #22C55E;
+    --color-accent-red: #FF5459;
+    --color-accent-orange: #FFAA00;
+
+    /* --- TEXT COLORS --- */
+    --color-text-primary: #00ffff;
+    /* Neon Cyan */
+    --color-text-secondary: rgba(255, 255, 255, 0.6);
+    --color-text-muted: rgba(255, 255, 255, 0.4);
+
+    /* --- BACKGROUNDS --- */
+    --color-background: #0a0a0a;
+    --color-surface: rgba(10, 14, 26, 0.35);
+    --color-surface-hover: rgba(10, 14, 26, 0.5);
+    --color-border: rgba(0, 204, 119, 0.3);
+
+    /* --- TYPOGRAPHY --- */
+    --font-family-base: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+    --font-size-base: 14px;
+    --font-size-sm: 0.875rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* --- SPACING --- */
+    --space-2: 2px;
+    --space-4: 4px;
+    --space-8: 8px;
+    --space-12: 12px;
+    --space-16: 16px;
+    --space-20: 20px;
+    --space-24: 24px;
+    --space-32: 32px;
+    --space-48: 48px;
+    --space-64: 64px;
+
+    /* --- LAYOUT & RADIUS --- */
+    --container-sm: 640px;
+    --container-md: 768px;
+    --container-lg: 1024px;
+    --container-xl: 1280px;
+
+    --radius-sm: 4px;
+    --radius-base: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+
+    /* --- COMPONENT DEFAULTS --- */
+    --button-padding: 12px 24px;
+    --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* --- PLAY BUTTON --- */
+    --button-track-play-image-url: url('../assets/images/metal-play-button-optimized.webp');
+    --button-track-play-width: 140px;
+    --button-track-play-height: 70px;
+}
