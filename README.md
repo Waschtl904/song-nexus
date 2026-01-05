@@ -23,11 +23,30 @@
 
 ---
 
+## 📖 IMPORTANT: Read This First!
+
+### 🎯 For Every Development Session:
+
+**👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
+
+This file contains:
+- ✅ Current project status (updated Jan 5, 2026)
+- ✅ Known issues & workarounds
+- ✅ Protected code sections (don't touch!)
+- ✅ Safe-to-modify code sections
+- ✅ Windows 11 PowerShell commands
+- ✅ Next steps & priorities
+
+**TL;DR:** Copy the content of `MASTER-PROMPT-2026-AKTUELL.md` into your Claude chat at the start of each session. This prevents regression bugs and redundancy problems.
+
+---
+
 ## 📋 Table of Contents
 
+- [Master Prompt](#important-read-this-first)
+- [Quick Start](#quick-start)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
 - [Database Schema](#database-schema)
 - [API Documentation](#api-documentation)
@@ -110,6 +129,8 @@
 
 ## 🚀 Quick Start
 
+**⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
+
 ### Prerequisites
 - **Node.js** 18+ ([Download](https://nodejs.org))
 - **PostgreSQL** 12+ ([Download](https://www.postgresql.org))
@@ -147,8 +168,8 @@ psql -U postgres
 CREATE DATABASE song_nexus_dev;
 \q
 
-# Apply schema
-psql -U postgres -d song_nexus_dev -f schema.sql
+# Apply schema (single source of truth)
+psql -U postgres -d song_nexus_dev -f backend/db/schema.sql
 ```
 
 5. **Generate SSL certificates (development)**
@@ -179,7 +200,8 @@ API:       https://localhost:3000/api
 SONG-NEXUS/
 ├── backend/
 │   ├── certs/                      # SSL certificates
-│   ├── db/                         # Database files
+│   ├── db/
+│   │   └── schema.sql              # ✅ DATABASE SCHEMA (single source of truth, 10 tables)
 │   ├── middleware/
 │   │   ├── auth-middleware.js      # JWT verification
 │   │   └── cache-middleware.js     # Response caching
@@ -222,11 +244,14 @@ SONG-NEXUS/
 ├── assets/
 │   └── images/                     # Project branding
 │
-├── schema.sql                      # ✅ Database schema (10 tables, 22 indexes)
-├── DATABASE.md                     # ✅ Detailed database documentation
-├── PRODUCTION-DEPLOYMENT.md        # ✅ Complete deployment guide
-├── MASTER-CONTEXT-PROMPT.md        # ✅ Project context for new sessions
+├── docs/
+│   ├── DATABASE.md                 # ✅ Detailed schema documentation
+│   ├── API-Documentation-v1.md     # ✅ API endpoint reference
+│   ├── PRODUCTION-DEPLOYMENT.md    # ✅ Deployment guide
+│   └── MASTER-PROMPT-2026-AKTUELL.md # ✅ USE THIS FOR EVERY SESSION!
+│
 ├── package.json                    # Root package
+├── .env.example                    # Environment template
 └── README.md                       # This file
 ```
 
@@ -251,15 +276,17 @@ SONG-NEXUS/
 
 **Full documentation:** See [DATABASE.md](./DATABASE.md)
 
-**Schema file:** [schema.sql](./schema.sql) (10 tables, 22 optimized indexes)
+**Schema file:** [backend/db/schema.sql](./backend/db/schema.sql) (✅ Single source of truth, 10 tables, 22 optimized indexes)
 
 ---
 
 ## 📚 API Documentation
 
-Full API documentation available in `API-Documentation-v1.md`
+Full API documentation available in [API-Documentation-v1.md](./API-Documentation-v1.md)
 
 ### Quick Reference
+
+**Total: 35 endpoints** ✅
 
 #### **Authentication (7 endpoints)**
 ```
@@ -323,8 +350,6 @@ GET    /api/play-history/user/:userId  # Get user play history
 DELETE /api/play-history/user/:userId  # Clear play history
 GET    /api/play-history/stats/user/:userId # Get play statistics
 ```
-
-**Total: 35 endpoints** ✅
 
 ---
 
@@ -461,7 +486,7 @@ git push origin main
 
 2. **Database**
    - Create PostgreSQL database on VPS/RDS
-   - Apply `schema.sql` to production database
+   - Apply `backend/db/schema.sql` to production database
    - Setup automated backups
 
 3. **Backend**
@@ -577,10 +602,10 @@ git push origin feature/your-feature-name
 
 ## 📚 Documentation
 
+- **[MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!**
 - **[DATABASE.md](./DATABASE.md)** - Complete database schema with diagrams
-- **[MASTER-CONTEXT-PROMPT.md](./MASTER-CONTEXT-PROMPT.md)** - Project context for new chat sessions
 - **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Full deployment guide
-- **API-Documentation-v1.md** - Detailed API endpoint reference
+- **[API-Documentation-v1.md](./API-Documentation-v1.md)** - Detailed API endpoint reference
 
 ---
 
@@ -649,15 +674,15 @@ See `LICENSE` file for details.
 ## 👤 Author
 
 **Sebastian** - Full-stack Developer
-- 🌍 Vienna, Austria
-- 💻 WebAuthn & Full-Stack Specialist
+- 🌍 Gloggnitz, Lower Austria
+- 💻 Tool-maker turned Web Developer
 - 🎵 Music Technology Enthusiast
 
 ---
 
 ## 📞 Support
 
-- 📧 Email: [your-email@example.com]
+- 📧 Email: sebastian.schmalnauer@gmx.at
 - 🐛 Issues: [GitHub Issues](https://github.com/Waschtl904/song-nexus/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/Waschtl904/song-nexus/discussions)
 
