@@ -1,9 +1,10 @@
-# 🎵 SONG-NEXUS - MASTER CONTEXT PROMPT (v2)
+# 🎵 SONG-NEXUS - MASTER CONTEXT PROMPT (v3 - ACTUAL DB)
 
 > **Verwendbar für neue Chat-Sessions um aktuellen Projekt-Status zu verstehen**
 
-**Letztes Update:** 5. Januar 2026  
+**Letztes Update:** 5. Januar 2026 (14:42 CET)  
 **Status:** ✅ Production-Ready (nach Fixes)  
+**DB Schema:** ✅ VERIFIED aus pgAdmin 4 (10 Tabellen)  
 **Nächster Step:** Design-System stabilisieren → WebAuthn härten → Production deployen
 
 ---
@@ -14,14 +15,17 @@
 - ✅ Backend API komplett (35 Endpoints)
 - ✅ Audio Streaming mit Player
 - ✅ PayPal Integration (Sandbox getestet)
-- ✅ PostgreSQL Schema (schema.sql)
+- ✅ PostgreSQL Schema mit 10 Tabellen (VERIFIZIERT)
 - ✅ JWT Authentication (7 Tage TTL)
 - ✅ Express Server mit HTTPS support (mkcert)
 - ✅ Frontend Webpack Bundle (83.5 KiB)
-- ✅ Design-System API Endpoints (GET /api/design-system, PUT /api/design-system/:id)
+- ✅ Magic Link Authentication
+- ✅ WebAuthn Credentials Table
+- ✅ Play Stats & Analytics
+- ✅ Design System API Endpoints
 - ✅ `.env.example` Dateien (backend + frontend)
-- ✅ PRODUCTION-DEPLOYMENT.md Guide
-- ✅ Master-Context-Prompt für neue Sessions
+- ✅ `PRODUCTION-DEPLOYMENT.md` Guide
+- ✅ Master-Context-Prompt mit echtem Schema
 
 ### 🚧 Was IN ARBEIT ist:
 - 🚧 WebAuthn biometric implementation (fragil, siehe Probleme)
@@ -29,18 +33,23 @@
 - 🚧 Color/Theme Panel (nur Primärfarbe + Text funktionieren)
 - 🚧 WebAuthn Button-Integration (anfällig für Bruch bei Code-Änderungen)
 
-### 📊 Datenbank-Schema (Real):
-**Tables in PostgreSQL:**
+### 📊 Datenbank-Schema (10 Tabellen - REAL):
+
+**Tables in PostgreSQL (song_nexus_dev) - aus pgAdmin 4:**
 ```
-users              - User accounts & credentials
-tracks             - Music metadata & files
-orders             - PayPal transactions
-play_history       - Track play events for analytics
-audit_log          - Security audit logging
-design_system      - Theme/Design configuration (NEW)
+✅ design_system           - Theme/Design-Token Speicherung
+✅ magic_link_tokens       - Alte Magic-Link Tokens (Archiv/Migration)
+✅ magic_links             - Email-basiertes Login (Magic Links)
+✅ orders                  - PayPal Transaktionen
+✅ play_history            - Track Play Events für Analytics
+✅ play_stats              - Erweiterte Player-Statistiken
+✅ purchases               - Gekaufte Tracks pro User
+✅ tracks                  - Music Metadata & Files
+✅ users                   - User Accounts & Credentials
+✅ webauthn_credentials    - Biometric Auth (Fingerprint/Face)
 ```
 
-**Achtung:** Tabellennamen sind NICHT design_system sondern die echten Namen oben!
+**Schema Source:** pgAdmin 4 Direct Verification ✅ (5.1.2026)
 
 ---
 
@@ -51,8 +60,8 @@ design_system      - Theme/Design configuration (NEW)
 **Ursache:** Color-Tokens nicht richtig in allen Komponenten implementiert  
 **Impact:** **KANN NICHT AN DESIGN ARBEITEN BIS GELÖST**
 
-**Workaround:** Screenshots vergleichen, Fehler identifizieren, dann CSS fixen  
-**Dateien:** `frontend/css/design-system.css`
+**Workaround:** Screenshots vergleichen, Fehler identifizieren, CSS fixen  
+**Files:** `frontend/css/design-system.css`
 
 ### Problem 2: WebAuthn-Implementierung fragil
 **Symptom:** Button-Listener verschwinden wenn andere Bugs gefixt werden  
@@ -60,7 +69,7 @@ design_system      - Theme/Design configuration (NEW)
 **Impact:** **KANN NICHT SICHER AN OTHER FEATURES ARBEITEN**
 
 **Lösung:** WebAuthn in separates Module isolieren, explizit Event-Listener registrieren  
-**Dateien:** `frontend/js/webauthn.js`, `frontend/js/auth.js`
+**Files:** `frontend/js/webauthn.js`, `frontend/js/auth.js`
 
 ### Problem 3: Design-Verlust bei Code-Changes
 **Symptom:** Originales Design sieht anders aus als jetzt  
@@ -89,7 +98,7 @@ design_system      - Theme/Design configuration (NEW)
 **Ziel:** WebAuthn vollständig entkoppelt, nicht betroffen von Code-Changes
 
 **Schritte:**
-1. Refactor: WebAuthn Module isolieren (separate file, kein DOM-zugriff in Logik)
+1. Refactor: WebAuthn Module isolieren (separate file)
 2. Init: Event-Listener explizit in init-Function registrieren
 3. Error-Handle: Missing elements gracefully (log warning, nicht crash)
 4. Test: Manuell Button-Clicks durchspielen nach Code-Changes
@@ -118,207 +127,145 @@ design_system      - Theme/Design configuration (NEW)
 
 ---
 
+## 📊 DATENBANK DETAILS (10 Tabellen - VERIFIZIERT)
+
+### 1. **users**
+User Accounts & Authentication
+```
+id, email (UNIQUE), username (UNIQUE), password_hash, 
+webauthn_credential (JSONB?), created_at, updated_at
+```
+
+### 2. **tracks**
+Music Metadata & File Information
+```
+id, name, artist, genre, description, price, is_free, 
+audio_filename, duration_seconds, created_at, deleted_at
+```
+
+### 3. **orders**
+PayPal Transactions
+```
+id, user_id (FK→users), paypal_order_id (UNIQUE), amount, 
+description, status, currency, transaction_id, created_at, completed_at, updated_at
+```
+
+### 4. **purchases**
+Kauf-History (Track pro User)
+```
+id, user_id (FK→users), track_id (FK→tracks), price, 
+license_type, expires_at, purchased_at, UNIQUE(user_id, track_id)
+```
+
+### 5. **play_history**
+Track Play Events
+```
+id, user_id (FK→users), track_id (FK→tracks), 
+played_at, duration_played_seconds, session_id
+```
+
+### 6. **play_stats**
+Erweiterte Player-Statistiken
+```
+id, user_id (FK→users), track_id (FK→tracks), 
+is_paid, device_type, duration_played_seconds, played_at, session_id
+```
+
+### 7. **webauthn_credentials**
+Biometric Auth (Fingerprint/Face/Pin)
+```
+id, user_id (FK→users), credential_id (UNIQUE), 
+public_key (BYTEA), counter, transports (TEXT[]), 
+created_at, last_used
+```
+
+### 8. **magic_links**
+Email-basiertes Login
+```
+id, user_id (FK→users), token (UNIQUE), 
+expires_at, used_at, created_at, ip_address, user_agent
+```
+
+### 9. **magic_link_tokens**
+Altere Magic-Link Implementation (Archiv)
+```
+id, user_id (FK→users), token (UNIQUE), 
+expires_at, created_at, cmax, cmin, tableid
+```
+
+### 10. **design_system**
+Theme/Design-Token Speicherung
+```
+id, background_image_url, border_radius, button_background_color,
+button_border_radius, button_padding, button_text_color,
+color_accent_green, color_accent_red, color_background,
+color_primary, color_secondary, ... (70+ color/style tokens),
+created_at, updated_at
+```
+
+---
+
 ## 📁 WICHTIGE DATEIEN REFERENCE
 
 ### Backend
 ```
 backend/
-├── server.js                    # Express server (HTTPS, Design-System API)
-├── .env.example                 # ✅ NEU - Template für alle Variablen
-├── schema.sql                   # PostgreSQL schema
+├── server.js                    # Express server (HTTPS, 35 Endpoints)
+├── .env.example                 # ✅ Template mit allen Variablen
+├── db/
+│   ├── schema.sql               # ✅ CURRENT (10 tables, verified)
+│   └── add_webauthn.sql         # WebAuthn extension
 ├── routes/
-│   ├── webauthn.js             # Biometric auth (FRAGIL!)
-│   ├── auth.js                 # Email/Password auth
-│   ├── tracks.js               # Track endpoints
-│   ├── payments.js             # PayPal integration
-│   └── ...
+│   ├── auth.js                  # Email/Password
+│   ├── magic-links.js           # Magic Link routes
+│   ├── webauthn.js              # Biometric (FRAGIL!)
+│   ├── tracks.js                # Track CRUD
+│   ├── payments.js              # PayPal
+│   ├── purchases.js             # Purchase tracking
+│   ├── design-system.js         # Theme API
+│   └── analytics.js             # Play stats
 └── middleware/
-    ├── auth-middleware.js      # JWT verification
-    └── cache-middleware.js     # Response caching
+    ├── auth-middleware.js       # JWT verification
+    ├── cache-middleware.js      # Response caching
+    └── error-handler.js         # Error handling
 ```
 
 ### Frontend
 ```
 frontend/
-├── webpack.config.js           # Build configuration
-├── .env.example                # ✅ NEU - Template für alle Variablen
+├── webpack.config.js            # Build configuration
+├── .env.example                 # ✅ Template mit allen Variablen
 ├── js/
-│   ├── webauthn.js            # Biometric frontend (FRAGIL!)
-│   ├── auth.js                # Auth flows
-│   ├── player.js              # Audio player
-│   ├── api-client.js          # API wrapper
-│   └── main.js                # Webpack entry
+│   ├── webauthn.js              # Biometric (FRAGIL!)
+│   ├── auth.js                  # Auth flows
+│   ├── magic-links.js           # Magic link handler
+│   ├── player.js                # Audio player
+│   ├── api-client.js            # API wrapper
+│   └── main.js                  # Webpack entry
 ├── css/
-│   └── design-system.css      # Theme system (UNSTABLE!)
+│   └── design-system.css        # Theme (UNSTABLE!)
 └── html/
-    ├── index.html             # Main entry
-    └── auth.html              # Login/signup
+    ├── index.html               # Main entry
+    ├── auth.html                # Login/signup
+    └── player.html              # Player page
 ```
 
 ### Root
 ```
 .
-├── README.md                   # Project overview (ok)
-├── schema.sql                  # Database schema (ok)
-├── .env.production             # ✅ REAL config (DO NOT COMMIT!)
-├── PRODUCTION-DEPLOYMENT.md    # ✅ NEU - Full deployment guide
-├── MASTER-CONTEXT-PROMPT.md    # ✅ NEU - Dieses File (always aktuell halten)
-├── package.json                # Root package
-└── .gitignore                  # (needs .env.production added)
+├── README.md                    # Project overview
+├── schema.sql                   # ⚠️ OUTDATED (use backend/db/schema.sql)
+├── .env.production              # 🔐 REAL config (DO NOT COMMIT!)
+├── MASTER-CONTEXT-PROMPT.md     # ✅ This file (v3 - with 10 tables)
+├── PRODUCTION-DEPLOYMENT.md     # ✅ Full deployment guide
+├── backend/db/schema.sql        # ✅ CURRENT Schema (10 tables verified)
+├── package.json                 # Root package
+└── .gitignore                   # (should ignore .env files)
 ```
 
 ---
 
-## 🔧 ENV-VARIABLEN KURZ-REFERENZ
-
-### Backend (.env.production) - KEY VARIABLES
-```env
-NODE_ENV=production
-DB_HOST=localhost
-DB_NAME=song_nexus_prod
-DB_USER=song_nexus_user
-DB_PASSWORD=xxxxx (32+ chars)
-
-JWT_SECRET=xxxxx (32+ chars)
-SESSION_SECRET=xxxxx (32+ chars)
-
-FRONTEND_URL=https://yourdomain.com
-WEBAUTHN_RP_ID=yourdomain.com
-WEBAUTHN_ORIGIN=https://yourdomain.com
-
-PAYPAL_MODE=live (or sandbox)
-PAYPAL_CLIENT_ID=xxxxx
-PAYPAL_CLIENT_SECRET=xxxxx
-```
-
-### Frontend (.env.production) - KEY VARIABLES
-```env
-VITE_API_URL=https://yourdomain.com
-VITE_ENVIRONMENT=production
-VITE_WEBAUTHN_RP_ID=yourdomain.com
-VITE_WEBAUTHN_ORIGIN=https://yourdomain.com
-VITE_PAYPAL_MODE=live
-VITE_PAYPAL_CLIENT_ID=xxxxx
-```
-
-**🔐 NEVER commit .env.production to git!**
-
----
-
-## 📊 DATENBANK DETAILS
-
-### Tabellen (Exact Names aus schema.sql):
-1. **users**
-   - id (PRIMARY KEY)
-   - email (UNIQUE)
-   - username (UNIQUE)
-   - password_hash
-   - created_at
-   - updated_at
-
-2. **tracks**
-   - id (PRIMARY KEY)
-   - name
-   - artist
-   - genre
-   - description
-   - created_at
-
-3. **orders**
-   - id (PRIMARY KEY)
-   - user_id (FK → users)
-   - paypal_order_id (UNIQUE)
-   - amount
-   - description
-   - status
-   - created_at
-   - completed_at
-
-4. **play_history**
-   - id (PRIMARY KEY)
-   - user_id (FK → users)
-   - track_id (FK → tracks)
-   - played_at
-   - duration_seconds
-
-5. **audit_log**
-   - id (PRIMARY KEY)
-   - user_id
-   - action
-   - resource
-   - resource_id
-   - details (JSONB)
-   - ip_address
-   - user_agent
-   - created_at
-
-### Indexes für Performance:
-- users(email)
-- orders(user_id)
-- orders(paypal_order_id)
-- play_history(user_id)
-- play_history(track_id)
-
----
-
-## 🚀 SCHNELL-DEPLOYMENT NACH FIXES
-
-**Wenn Phase 1-3 fertig:**
-
-```bash
-# 1. Local test
-npm start
-# Test auf https://localhost:5500
-
-# 2. Build
-cd frontend && npm run build && cd ..
-
-# 3. Push
-git add -A
-git commit -m "fix: stabilize design system and webauthn"
-git push origin main
-
-# 4. Deploy (siehe PRODUCTION-DEPLOYMENT.md)
-ssh user@your-server.com
-cd song-nexus
-git pull origin main
-cd backend && npm install --production && cd ..
-pm2 restart song-nexus-backend
-cd frontend && npm run build && cd ..
-sudo systemctl restart nginx
-
-# 5. Verify
-curl https://yourdomain.com/api/health
-```
-
----
-
-## 💡 TIPPS FÜR ZUKÜNFTIGE ENTWICKLUNG
-
-### Zur Design-Stabilität:
-1. **Immer** CSS-Variablen für Colors nutzen
-2. **Tests** für Theme-Panel schreiben
-3. **Snapshot-Tests** nach Design-Changes
-4. **Never** hardcoded Colors
-5. **Documentation** für neue Colors
-
-### Zur WebAuthn-Stabilität:
-1. WebAuthn Module **vollständig entkoppelt**
-2. Event-Listener **explizit** im init-Hook
-3. Error-handling für **missing elements**
-4. **Defensive programming** - assume DOM könnte anders sein
-5. **Unit-Tests** für WebAuthn-Logik
-
-### Zur Code-Qualität:
-1. **Branches für Features** (nicht direkt auf main)
-2. **Selbst-Review** vor Merge (catch bugs früher)
-3. **Automated Tests** (Jest, Vitest)
-4. **Git Hooks** (pre-commit Tests)
-5. **Docs aktuell** (besser als Memory)
-
----
-
-## 🧹 CLEANUP PENDING
+## 🔧 CLEANUP PENDING
 
 **Status:** ✅ READY zu cleanen
 
@@ -333,7 +280,7 @@ Gelöschte Dateien die noch in Git sind:
 - frontend/server copy.js
 - frontend/webpack.config copy.js
 
-**Cleanup Command:**
+**Cleanup Command (wenn bereit):**
 ```bash
 git rm PHASE-*.md PROGRESS-*.md LIVE-*.md MASTER-ENTRY-PROMPT.md "backend/server copy.js" "backend/server copy 2.js" "frontend/server copy.js" "frontend/webpack.config copy.js" 2>/dev/null
 git commit -m "cleanup: remove archived phase files and backups"
@@ -359,10 +306,10 @@ git push origin main
 ## 🎯 IMMEDIATE ACTION ITEMS
 
 ### Diese Woche:
-1. ✅ `.env.example` Dateien erstellen → DONE
-2. ✅ PRODUCTION-DEPLOYMENT.md schreiben → DONE
-3. ✅ MASTER-CONTEXT-PROMPT aktualisieren → DONE
-4. 📸 Screenshots senden (Original vs Current)
+1. ✅ `.env.example` Dateien erstellen
+2. ✅ PRODUCTION-DEPLOYMENT.md schreiben
+3. ✅ MASTER-CONTEXT-PROMPT mit echtem Schema
+4. 📸 Screenshots senden (Original vs Current) - **TODO**
 5. 🧹 Repository cleanup durchführen
 6. 🎨 Design-System Audit starten
 7. 🔐 WebAuthn Refactor planen
@@ -382,39 +329,10 @@ git push origin main
 |---------|--------|-------|
 | Design kaputtgegangen | Check CSS-Variablen | `frontend/css/design-system.css` |
 | WebAuthn bricht | Verifiziere Button-Listener | `frontend/js/webauthn.js` |
-| ENV-Variablen unklar | Siehe `.env.example` Dateien | `backend/.env.example` |
+| DB Fragen | Siehe schema.sql & pgAdmin | `backend/db/schema.sql` |
+| ENV-Variablen unklar | Siehe .env.example Dateien | `.env.example` |
 | Production Fragen | Siehe Deployment Guide | `PRODUCTION-DEPLOYMENT.md` |
-| Neuer Chat brauchts Context | Use this Prompt | `MASTER-CONTEXT-PROMPT.md` |
-| Datenbank Fragen | Siehe schema.sql | `schema.sql` |
-
----
-
-## 📚 USEFUL LINKS
-
-- **GitHub Repo:** https://github.com/Waschtl904/song-nexus
-- **Backend Server:** https://localhost:3000
-- **Frontend:** https://localhost:5500
-- **API Docs:** In README.md
-- **Database Schema:** schema.sql
-
----
-
-## 📋 CHECKLIST FÜR PRODUCTION READY
-
-- [ ] Design-System stabilisiert (Phase 1)
-- [ ] WebAuthn hardeniert (Phase 2)
-- [ ] Screenshots vergleicht und gefixt
-- [ ] `.env.example` Dateien vorhanden ✅
-- [ ] PRODUCTION-DEPLOYMENT.md vorhanden ✅
-- [ ] Keine console.logs in production code
-- [ ] Error tracking configured (Sentry)
-- [ ] Database backups automated
-- [ ] SSL certificates ready (Let's Encrypt)
-- [ ] Nginx config ready
-- [ ] PM2 ecosystem config ready
-- [ ] Monitoring alerts configured
-- [ ] Rollback plan documented ✅
-- [ ] Post-deployment checklist reviewed ✅
+| Neuer Chat brauchts Context | Use this Prompt | Dieses File |
 
 ---
 
