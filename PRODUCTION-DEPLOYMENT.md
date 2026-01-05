@@ -4,7 +4,8 @@
 
 **Version:** 1.0.0  
 **Last Updated:** January 5, 2026  
-**Status:** ✅ Production Ready
+**Status:** ✅ Production Ready  
+**Documentation:** [README.md](./README.md) | [DATABASE.md](./DATABASE.md) | [MASTER-CONTEXT-PROMPT.md](./MASTER-CONTEXT-PROMPT.md)
 
 ---
 
@@ -66,7 +67,7 @@
 
 ---
 
-## 🔧 Environment Setup
+## 🛠️ Environment Setup
 
 ### Step 1: Prepare Production Environment File
 
@@ -141,7 +142,20 @@ git commit -m "chore: prevent .env.production from being committed"
 
 ---
 
-## 🗄️ Database Configuration
+## 📊 Database Configuration
+
+### Database Schema Reference
+
+Full database documentation with all tables, fields, indexes, and relationships:
+
+**📄 [DATABASE.md](./DATABASE.md) - Complete Schema Documentation**
+
+This includes:
+- All 10 tables with field descriptions
+- Primary keys and foreign keys
+- 22 indexes for performance
+- Backup and recovery procedures
+- Performance optimization tips
 
 ### Option A: Local PostgreSQL on VPS (Simple)
 
@@ -198,6 +212,8 @@ psql -h your-db-host -U song_nexus_user -d song_nexus_prod -f schema.sql
 # Verify tables created
 psql -h your-db-host -U song_nexus_user -d song_nexus_prod -c '\dt'
 ```
+
+**Schema Documentation:** See [DATABASE.md](./DATABASE.md) for complete table reference with all 10 tables, 22 indexes, and relationships.
 
 ### Setup Database Backups
 
@@ -365,7 +381,7 @@ pm2 logs song-nexus-backend | tail -50
 
 ---
 
-## 📦 Frontend Deployment
+## 📟 Frontend Deployment
 
 ### Step 1: Build Frontend
 
@@ -477,7 +493,7 @@ sudo systemctl restart nginx
 
 ---
 
-## 🔒 SSL/TLS Certificates
+## 🔐 SSL/TLS Certificates
 
 ### Automatic Renewal with Certbot
 
@@ -533,7 +549,7 @@ See Nginx configuration above. Key points:
 
 ---
 
-## 🛡️ Security Hardening
+## 💡 Security Hardening
 
 ### Firewall Configuration
 
@@ -573,7 +589,7 @@ sudo nano /etc/postgresql/*/main/postgresql.conf
 
 ---
 
-## 📊 Monitoring & Logging
+## 📈 Monitoring & Logging
 
 ### Application Logs
 
@@ -734,6 +750,8 @@ echo | openssl s_client -connect yourdomain.com:443 2>/dev/null | openssl x509 -
 ## 📞 Support & Resources
 
 - **GitHub Issues:** [song-nexus/issues](https://github.com/Waschtl904/song-nexus/issues)
+- **Documentation:** [README.md](./README.md), [DATABASE.md](./DATABASE.md), [MASTER-CONTEXT-PROMPT.md](./MASTER-CONTEXT-PROMPT.md)
+- **API Reference:** [README.md#api-documentation](./README.md#api-documentation)
 - **Node.js Docs:** [nodejs.org](https://nodejs.org)
 - **PostgreSQL Docs:** [postgresql.org](https://postgresql.org)
 - **Let's Encrypt:** [letsencrypt.org](https://letsencrypt.org)
@@ -741,7 +759,7 @@ echo | openssl s_client -connect yourdomain.com:443 2>/dev/null | openssl x509 -
 
 ---
 
-## 📝 Post-Deployment Checklist
+## 📋 Post-Deployment Checklist
 
 - [ ] Application loads without errors
 - [ ] All API endpoints responding
