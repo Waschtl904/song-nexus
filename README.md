@@ -29,6 +29,7 @@
 - [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
+- [Database Schema](#database-schema)
 - [API Documentation](#api-documentation)
 - [Authentication](#authentication)
 - [Development](#development)
@@ -41,7 +42,7 @@
 ## ✨ Features
 
 ### 🔐 Authentication System
-- **WebAuthn Biometric** - Fingerprint/Face ID login (production-ready)
+- **WebAuthn Biometric** - Fingerprint/Face ID login (in development)
 - **Email & Password** - Traditional registration & login
 - **Magic Link** - One-click email authentication
 - **JWT Tokens** - 7-day expiration, configurable via `.env`
@@ -93,9 +94,11 @@
 
 ### **Database**
 - **System:** PostgreSQL 12+
-- **ORM:** Native queries with connection pooling
-- **Schema:** User, track, payment, analytics tables
-- **Migrations:** Versioned schema updates
+- **Schema:** 10 tables with 22 indexes
+- **Tables:** users, tracks, orders, purchases, play_history, play_stats, magic_links, magic_link_tokens, webauthn_credentials, design_system
+- **Connections:** Connection pooling with pg library
+
+**See [DATABASE.md](./DATABASE.md) for complete schema documentation**
 
 ### **Security**
 - **Encryption:** TLS 1.3, CORS, CSP headers
@@ -117,7 +120,7 @@
 1. **Clone repository**
 ```bash
 git clone https://github.com/Waschtl904/song-nexus.git
-cd SONGSSEITE
+cd song-nexus
 ```
 
 2. **Install dependencies**
@@ -139,9 +142,13 @@ cp frontend/.env.example frontend/.env
 
 4. **Setup database**
 ```bash
-cd backend
-node db.js  # Creates tables
-cd ..
+# Create PostgreSQL database first
+psql -U postgres
+CREATE DATABASE song_nexus_dev;
+\q
+
+# Apply schema
+psql -U postgres -d song_nexus_dev -f schema.sql
 ```
 
 5. **Generate SSL certificates (development)**
@@ -169,7 +176,7 @@ API:       https://localhost:3000/api
 ## 📁 Project Structure
 
 ```
-SONGSSEITE/
+SONG-NEXUS/
 ├── backend/
 │   ├── certs/                      # SSL certificates
 │   ├── db/                         # Database files
@@ -215,10 +222,36 @@ SONGSSEITE/
 ├── assets/
 │   └── images/                     # Project branding
 │
-├── schema.sql                      # Database schema
+├── schema.sql                      # ✅ Database schema (10 tables, 22 indexes)
+├── DATABASE.md                     # ✅ Detailed database documentation
+├── PRODUCTION-DEPLOYMENT.md        # ✅ Complete deployment guide
+├── MASTER-CONTEXT-PROMPT.md        # ✅ Project context for new sessions
 ├── package.json                    # Root package
 └── README.md                       # This file
 ```
+
+---
+
+## 📊 Database Schema
+
+**Quick Overview:**
+
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| **users** | User accounts & credentials | id, email, username, password_hash, webauthn_credential |
+| **tracks** | Music metadata & files | id, name, artist, genre, audio_filename, price, is_published |
+| **orders** | PayPal transactions | id, user_id, paypal_order_id, amount, status |
+| **purchases** | Track purchases per user | id, user_id, track_id, license_type, expires_at |
+| **play_history** | Track play events | id, user_id, track_id, played_at, duration_played_seconds |
+| **play_stats** | Advanced analytics | id, user_id, track_id, device_type, session_id |
+| **webauthn_credentials** | Biometric auth data | id, user_id, credential_id, public_key, counter |
+| **magic_links** | Email-based login | id, user_id, token, expires_at, ip_address |
+| **magic_link_tokens** | Alternative magic links | id, user_id, token, expires_at |
+| **design_system** | Theme & design tokens | id, color_primary, color_secondary, ... (27 tokens) |
+
+**Full documentation:** See [DATABASE.md](./DATABASE.md)
+
+**Schema file:** [schema.sql](./schema.sql) (10 tables, 22 optimized indexes)
 
 ---
 
@@ -373,7 +406,7 @@ npm run test:e2e      # End-to-end tests
 
 **Backend (.env)**
 ```env
-DATABASE_URL=postgres://user:pass@localhost:5432/song_nexus
+DATABASE_URL=postgres://user:pass@localhost:5432/song_nexus_dev
 JWT_SECRET=your-secret-key
 JWT_EXPIRE=7d
 NODE_ENV=development
@@ -417,69 +450,70 @@ git push origin main
 
 ## 🚀 Deployment
 
-### Vercel (Frontend)
+**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
-```bash
-# Connect repo to Vercel
-# Vercel auto-deploys on push to main
+### Quick Deployment Steps
 
-# Configuration (vercel.json)
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist"
-}
-```
+1. **Prepare environment**
+   - Create `.env.production` with real secrets
+   - Generate secure JWT_SECRET, SESSION_SECRET
+   - Setup PayPal LIVE credentials
 
-### VPS or Self-Hosted (Backend)
+2. **Database**
+   - Create PostgreSQL database on VPS/RDS
+   - Apply `schema.sql` to production database
+   - Setup automated backups
 
-```bash
-# 1. SSH into server
-ssh user@your-server.com
+3. **Backend**
+   - Clone repository on VPS
+   - Install dependencies with `--production` flag
+   - Start with PM2 (2+ instances for clustering)
+   - Setup SSL certificates with Let's Encrypt
 
-# 2. Clone repository
-git clone https://github.com/Waschtl904/song-nexus.git
-cd song-nexus
+4. **Frontend**
+   - Build with `npm run build`
+   - Serve from Nginx with reverse proxy to backend
+   - Configure caching headers for assets
 
-# 3. Install dependencies
-npm install
-cd backend && npm install && cd ..
-cd frontend && npm install && cd ..
+5. **Monitoring**
+   - Setup error tracking (Sentry, LogRocket)
+   - Configure uptime monitoring
+   - Setup log aggregation
+   - Enable performance monitoring
 
-# 4. Setup environment
-cp backend/.env.example backend/.env
-# Edit .env with production secrets
-
-# 5. Setup database
-cd backend && npm run db:setup && cd ..
-
-# 6. Build frontend
-cd frontend && npm run build && cd ..
-
-# 7. Start with PM2 (recommended)
-npm install -g pm2
-pm2 start backend/server.js --name song-nexus
-pm2 save
-
-# 8. Setup reverse proxy (Nginx)
-# Configure nginx to forward requests to localhost:3000
-```
+**Full details:** [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
 ---
 
-## 📊 Database Schema
+## 📊 Project Status
 
-**Key Tables:**
+### ✅ Completed (v1.0)
+- WebAuthn biometric authentication (backend complete, frontend in development)
+- Password-based auth with JWT
+- Audio streaming with preview
+- PayPal payment integration
+- User statistics & leaderboards
+- Admin track management
+- Play history tracking
+- Database schema (10 tables, verified)
+- API documentation
+- Deployment guide
 
-```sql
-users               -- User accounts & credentials
-credentials         -- WebAuthn biometric data
-tracks              -- Music metadata & files
-purchases           -- User track purchases
-play_history        -- Track play events
-payment_orders      -- PayPal transaction records
-```
+### 🚧 In Development (v1.1)
+- [ ] WebAuthn frontend stabilization
+- [ ] Design System refinement
+- [ ] Unit & E2E testing framework
+- [ ] Advanced search & filtering
+- [ ] Playlist creation
+- [ ] Social features (followers, recommendations)
 
-Full schema in `schema.sql`
+### 🔮 Future (v2.0)
+- [ ] Mobile app (React Native)
+- [ ] Audio processing (normalization, EQ)
+- [ ] Social sharing
+- [ ] Streaming analytics
+- [ ] Artist dashboard
+- [ ] Multi-region deployment
 
 ---
 
@@ -498,6 +532,7 @@ npm run test:e2e     # Full user flows
 ### Manual Testing Checklist
 
 - [ ] Register with email/password
+- [ ] Login with magic link
 - [ ] Login with WebAuthn biometric
 - [ ] Browse tracks
 - [ ] Stream audio (preview + full)
@@ -540,6 +575,15 @@ git push origin feature/your-feature-name
 
 ---
 
+## 📚 Documentation
+
+- **[DATABASE.md](./DATABASE.md)** - Complete database schema with diagrams
+- **[MASTER-CONTEXT-PROMPT.md](./MASTER-CONTEXT-PROMPT.md)** - Project context for new chat sessions
+- **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Full deployment guide
+- **API-Documentation-v1.md** - Detailed API endpoint reference
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -574,28 +618,23 @@ npm run build
 
 ## 📝 Roadmap
 
-### ✅ Completed (v1.0)
-- WebAuthn biometric authentication
-- Password-based auth with JWT
-- Audio streaming with preview
-- PayPal payment integration
-- User statistics & leaderboards
-- Admin track management
-- Play history tracking
+### Q1 2026
+- [ ] WebAuthn frontend hardening
+- [ ] Design system stabilization
+- [ ] Unit testing framework
+- [ ] Advanced search capabilities
 
-### 🚧 In Development (v1.1)
-- [ ] Unit & E2E testing framework
-- [ ] Advanced search & filtering
-- [ ] Playlist creation
-- [ ] Social features (followers, recommendations)
+### Q2 2026
+- [ ] Playlist functionality
+- [ ] Social features
 - [ ] Mobile app (React Native)
+- [ ] Performance optimization
 
-### 🔮 Future (v2.0)
-- [ ] Audio processing (normalization, EQ)
-- [ ] Social sharing
-- [ ] Streaming analytics
+### Q3 2026
+- [ ] Audio processing features
 - [ ] Artist dashboard
 - [ ] Multi-region deployment
+- [ ] Analytics enhancement
 
 ---
 
@@ -634,7 +673,7 @@ See `LICENSE` file for details.
 
 ---
 
-**Last Updated:** December 19, 2025  
+**Last Updated:** January 5, 2026  
 **Version:** 1.0.0  
 **Status:** ✅ Production Ready
 
