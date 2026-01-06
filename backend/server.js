@@ -8,6 +8,7 @@
 // ✅ CSP FIXED - allows localhost:5500
 // ✅ scriptSrcAttr ADDED - allows inline event handlers
 // ✅ regenerateDesignTokens() ADDED - updates CSS on save
+// ✅ HTTPS startup logic fixed - removed duplicate code
 
 
 
@@ -1076,14 +1077,13 @@ warmupDatabase().then(async () => {
             console.log('');
         });
     } else {
-        const server = https.createServer(httpsOptions, app);
-        server.listen(PORT, HOST, () => {
+        const server = app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
             console.log('║   🎵 SONG-NEXUS v6.3 Backend              ║');
             console.log('║      Secure • Ad-Free • Cookie-Free        ║');
             console.log('╚════════════════════════════════════════════╝');
-            console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
+            console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
             console.log('🛡️  Security: Helmet + CORS + CSP + Session + Auth Middleware');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
