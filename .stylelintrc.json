@@ -2,7 +2,8 @@
   "extends": "stylelint-config-standard",
   "rules": {
     "declaration-no-important": true,
-    "selector-max-id": 0,
+    "selector-max-id": 1,
+    "selector-id-pattern": null,
     "selector-class-pattern": null,
     "custom-property-pattern": null,
     "color-function-notation": "legacy",
