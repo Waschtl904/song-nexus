@@ -1,5 +1,5 @@
 // ============================================================================
-// 🎵 TRACKS-LOADER.JS v8.8 - FIXED (Play Button Visibility)
+// 🎵 TRACKS-LOADER.JS v8.9 - FIXED (Play Button Image Positioning)
 // ============================================================================
 
 import { APIClient } from './api-client.js';
@@ -172,7 +172,7 @@ export class TracksLoader {
             <div class="track-footer">
               <span class="track-price">${priceDisplay}</span>
               <span class="track-badge ${badgeClass}">
-                ${track.is_free ? '🎵 FREE' : '💎 PAID'}
+                ${track.is_free ? '🎵 FREE' : '💰 PAID'}
               </span>
             </div>
 
@@ -187,7 +187,7 @@ export class TracksLoader {
           </div>
         `;
 
-                // ✅ FIX: Proper button setup with image loading
+                // ✅ FIX: Proper button setup with image loading and positioning
                 const playBtn = trackCard.querySelector('.button-metal-play');
                 if (playBtn) {
                     // 1. Get image URL from config (absolute path)
@@ -207,17 +207,19 @@ export class TracksLoader {
                     playBtn.style.backgroundImage = `url('${imageUrl}')`;
                     playBtn.style.width = `${width}px`;
                     playBtn.style.height = `${height}px`;
-                    playBtn.style.backgroundSize = 'contain';
+                    playBtn.style.backgroundSize = 'cover';
                     playBtn.style.backgroundRepeat = 'no-repeat';
-                    playBtn.style.backgroundPosition = 'center';
+                    // FIX: Use background-position to crop transparent edges
+                    playBtn.style.backgroundPosition = 'center 20%';
                     playBtn.style.backgroundColor = 'transparent';
                     playBtn.style.border = 'none';
                     playBtn.style.padding = '0';
                     playBtn.style.cursor = 'pointer';
                     playBtn.style.display = 'block';
                     playBtn.style.margin = '8px auto 0';
+                    playBtn.style.overflow = 'hidden';
 
-                    console.log(`🖼️ Play button styled: ${imageUrl} (${width}x${height})`);
+                    console.log(`🎬 Play button styled: ${imageUrl} (${width}x${height}) with background-position adjustment`);
 
                     // 3. Add Click Listener
                     playBtn.addEventListener('click', (e) => {
