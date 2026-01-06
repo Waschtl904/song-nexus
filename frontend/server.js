@@ -1,18 +1,20 @@
 /**
- * Frontend HTTPS Server - FIXED VERSION
+ * Frontend HTTPS Server v2.0 - WITH API PROXY
  * Port: 5500
- * WICHTIG: _design-tokens.css Route MUSS VOR dem Wildcard kommen!
+ * Feature: Proxies /api/* requests to backend (port 3000)
  */
 
 require('dotenv').config();
 const express = require('express');
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const compression = require('compression');
 const helmet = require('helmet');
 const cors = require('cors');
 const crypto = require('crypto');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
@@ -22,6 +24,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const USE_HTTPS = process.env.USE_HTTPS === 'true' || true;
 const PORT = process.env.PORT || 5500;
 const HOST = process.env.HOST || 'localhost';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://localhost:3000';
 
 // Try mkcert certificates FIRST (preferred)
 const mkcertKeyPath = path.join(__dirname, 'certs/localhost-key.pem');
@@ -34,6 +37,7 @@ const selfSignedCertPath = path.join(__dirname, '../backend/certs/localhost.pem'
 console.log('🔐 Checking SSL certificates...');
 console.log(`   NODE_ENV: ${NODE_ENV}`);
 console.log(`   USE_HTTPS: ${USE_HTTPS}`);
+console.log(`   BACKEND_URL: ${BACKEND_URL}`);
 
 // Try mkcert first
 if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
@@ -155,8 +159,8 @@ const corsOptions = {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    exposedHeaders: ['Content-Type', 'X-Total-Count'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+    exposedHeaders: ['Content-Type', 'X-Total-Count', 'X-CSRF-Token'],
     optionsSuccessStatus: 200,
     maxAge: 86400
 };
@@ -194,6 +198,40 @@ console.log('✅ Compression middleware enabled (GZIP - CSS excluded)');
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// ===== 🔥 API PROXY TO BACKEND (HTTPS, for design-system + all /api routes) =====
+console.log('\n🔗 Setting up API Proxy to Backend...');
+
+// Create HTTPS agent that ignores self-signed certificates
+const https_agent = require('https').Agent({ rejectUnauthorized: false });
+
+app.use('/api', createProxyMiddleware({
+    target: BACKEND_URL,
+    changeOrigin: true,
+    agent: https_agent,
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+        console.log(`📨 [PROXY] ${req.method} ${req.path} → ${BACKEND_URL}${req.path}`);
+        // Forward credentials in proxy
+        proxyReq.setHeader('Origin', `https://${HOST}:${PORT}`);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+        console.log(`📬 [PROXY] Response ${proxyRes.statusCode} from ${BACKEND_URL}${req.path}`);
+        // Ensure CORS headers are set on proxied responses
+        proxyRes.headers['Access-Control-Allow-Origin'] = `https://${HOST}:${PORT}`;
+        proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ [PROXY ERROR] ${req.method} ${req.path}:`, err.message);
+        res.status(502).json({
+            error: 'Backend API unreachable',
+            message: err.message,
+            attempted: `${BACKEND_URL}${req.path}`
+        });
+    }
+}));
+
+console.log(`✅ API Proxy configured: /api → ${BACKEND_URL}`);
 
 // ===== 🔥 EXPLICIT CSS ROUTES - BEFORE static files! =====
 
@@ -290,77 +328,6 @@ app.use(express.static(path.join(__dirname), {
 
 console.log('📁 Static files directory:', path.join(__dirname));
 
-// ===== API ROUTES =====
-
-// Design System API
-app.get('/api/design-system', (req, res) => {
-    const configPath = path.join(__dirname, 'config', 'design.config.json');
-
-    if (!fs.existsSync(configPath)) {
-        console.warn(`⚠️ Design config not found: ${configPath}`);
-        return res.status(404).json({
-            error: 'Design config not found',
-            searched: configPath
-        });
-    }
-
-    try {
-        const configData = fs.readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(configData);
-
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.json(config);
-
-        console.log('✅ Served /api/design-system');
-    } catch (err) {
-        console.error(`❌ Error reading design config:`, err.message);
-        res.status(500).json({
-            error: 'Failed to read design config',
-            details: err.message
-        });
-    }
-});
-
-// Config Route
-app.get('/config/design.config.json', (req, res) => {
-    const configPath = path.join(__dirname, 'config', 'design.config.json');
-    if (!fs.existsSync(configPath)) {
-        console.warn(`⚠️ Config file not found: ${configPath}`);
-        return res.status(404).json({ error: 'Config not found', requested: configPath });
-    }
-
-    try {
-        const configData = fs.readFileSync(configPath, 'utf-8');
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.send(configData);
-        console.log('✅ Served /config/design.config.json');
-    } catch (err) {
-        console.error(`❌ Error reading config: ${err.message}`);
-        res.status(500).json({ error: 'Failed to read config', details: err.message });
-    }
-});
-
-// Assets Route
-app.get('/assets/*', (req, res) => {
-    const filePath = path.join(__dirname, req.path);
-    if (fs.existsSync(filePath)) {
-        if (req.path.endsWith('.webp')) {
-            res.setHeader('Content-Type', 'image/webp');
-        } else if (req.path.endsWith('.jpeg') || req.path.endsWith('.jpg')) {
-            res.setHeader('Content-Type', 'image/jpeg');
-        } else if (req.path.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css');
-        }
-
-        res.sendFile(filePath);
-    } else {
-        console.warn(`⚠️ Asset not found: ${req.path}`);
-        res.status(404).json({ error: 'Asset not found', requested: req.path });
-    }
-});
-
 // ===== FALLBACK TO index.html (SPA SUPPORT) - MUST BE LAST! =====
 app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
@@ -391,16 +358,19 @@ try {
     const server = https.createServer(httpsOptions, app);
     server.listen(PORT, HOST, () => {
         console.log('');
-        console.log('╔════════════════════════════════════════════════════╗');
-        console.log('║ 🎵 SONG-NEXUS FRONTEND - HTTPS SERVER              ║');
-        console.log('╠════════════════════════════════════════════════════╣');
+        console.log('╔═══════════════════════════════════════════════════════╗');
+        console.log('║ 🎵 SONG-NEXUS FRONTEND - HTTPS SERVER v2.0            ║');
+        console.log('╠═══════════════════════════════════════════════════════╣');
         console.log(`║ 🔐 URL: https://${HOST}:${PORT}${' '.repeat(18 - String(PORT).length)}║`);
-        console.log('║ ✅ HTTPS Enabled (mkcert)                          ║');
-        console.log(`║ 📁 Static: ${path.basename(__dirname)}${' '.repeat(36 - path.basename(__dirname).length)}║`);
-        console.log('║ 🔄 CORS: Enabled for Backend (port 3000)          ║');
-        console.log(`║ 🌍 Environment: ${NODE_ENV}${' '.repeat(29 - NODE_ENV.length)}║`);
-        console.log('║ 🛡️  CSP: scriptSrcAttr enabled for handlers       ║');
-        console.log('╚════════════════════════════════════════════════════╝');
+        console.log('║ ✅ HTTPS Enabled (mkcert)                             ║');
+        console.log(`║ 📁 Static: ${path.basename(__dirname)}${' '.repeat(42 - path.basename(__dirname).length)}║`);
+        console.log(`║ 🔗 API Proxy: /api → ${BACKEND_URL}${' '.repeat(30 - BACKEND_URL.length)}║`);
+        console.log(`║ 🌍 Environment: ${NODE_ENV}${' '.repeat(37 - NODE_ENV.length)}║`);
+        console.log('║ 🛡️  CSP: scriptSrcAttr enabled for handlers          ║');
+        console.log('║ ✅ CORS: Enabled with credentials support            ║');
+        console.log('╚═══════════════════════════════════════════════════════╝');
+        console.log('');
+        console.log('🎯 Ready to serve frontend + proxy API requests!');
         console.log('');
     });
 
