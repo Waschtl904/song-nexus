@@ -139,7 +139,7 @@ body::after {
 }
 
 /* ============================================================================
-   🎛 UI COMPONENTS
+   🖥 UI COMPONENTS
    ============================================================================ */
 
 /* Theme Toggle */
@@ -532,7 +532,7 @@ h2 {
 }
 
 /* ============================================================================
-   🎬 HEAVY METAL PLAY BUTTON - FULLY CONFIGURABLE
+   🎬 HEAVY METAL PLAY BUTTON - FULLY CONFIGURABLE & CLIPPED
    ============================================================================ */
 
 .button-metal-play {
@@ -541,9 +541,13 @@ h2 {
     visibility: visible !important;
     opacity: 1 !important;
 
-    /* Dimensions */
+    /* Dimensions - Exact size of the image */
     width: 140px !important;
     height: 70px !important;
+
+    /* CRITICAL: Clip overflow so only image shows */
+    overflow: hidden !important;
+    border-radius: 0 !important;
 
     /* Background Image */
     background-size: contain !important;
@@ -557,12 +561,14 @@ h2 {
     outline: none !important;
     color: transparent !important;
     font-size: 0 !important;
+    line-height: 0 !important;
     
     /* Interaction */
     cursor: pointer !important;
     transition: all 150ms ease !important;
     position: relative !important;
     margin: 8px auto 0 auto !important;
+    flex-shrink: 0 !important;
 
     /* Hover Effects */
     box-shadow: none !important;
