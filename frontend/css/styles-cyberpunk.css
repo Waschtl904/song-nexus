@@ -532,7 +532,7 @@ h2 {
 }
 
 /* ============================================================================
-   🎬 HEAVY METAL PLAY BUTTON - TRANSPARENT EDGES REMOVED
+   🎬 HEAVY METAL PLAY BUTTON - FINAL FIX
    ============================================================================ */
 
 .button-metal-play {
@@ -541,7 +541,7 @@ h2 {
     visibility: visible !important;
     opacity: 1 !important;
 
-    /* Dimensions - Exact size */
+    /* Dimensions - Exact size (140x70 - CORRECT) */
     width: 140px !important;
     height: 70px !important;
 
@@ -549,10 +549,11 @@ h2 {
     overflow: hidden !important;
     border-radius: 0 !important;
 
-    /* Background Image - Cover mode to hide transparent edges */
-    background-size: cover !important;
+    /* Background Image - Fixed with correct dimensions */
+    background-image: url('../assets/images/metal-play-button-optimized.webp') !important;
+    background-size: 140px 70px !important;
     background-repeat: no-repeat !important;
-    background-position: center center !important;
+    background-position: 0 0 !important;
     background-color: transparent !important;
 
     /* Reset Button Styles completely */
@@ -785,6 +786,7 @@ button.button-metal-play:disabled {
     .button-metal-play {
         width: 100px !important;
         height: 50px !important;
+        background-size: 100px 50px !important;
         min-width: 100px !important;
         max-width: 100px !important;
     }
