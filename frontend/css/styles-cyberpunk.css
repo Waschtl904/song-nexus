@@ -532,7 +532,7 @@ h2 {
 }
 
 /* ============================================================================
-   🎬 HEAVY METAL PLAY BUTTON - FINAL FIX
+   🎬 HEAVY METAL PLAY BUTTON - CORRECT IMPLEMENTATION
    ============================================================================ */
 
 .button-metal-play {
@@ -541,19 +541,15 @@ h2 {
     visibility: visible !important;
     opacity: 1 !important;
 
-    /* Dimensions - Exact size (140x70 - CORRECT) */
+    /* Dimensions - Exact size */
     width: 140px !important;
     height: 70px !important;
 
-    /* CRITICAL: Clip overflow + handle transparent padding in image */
-    overflow: hidden !important;
-    border-radius: 0 !important;
-
-    /* Background Image - Fixed with correct dimensions */
+    /* Background Image - CORRECT sizing */
     background-image: url('../assets/images/metal-play-button-optimized.webp') !important;
-    background-size: 140px 70px !important;
+    background-size: contain !important;
     background-repeat: no-repeat !important;
-    background-position: 0 0 !important;
+    background-position: center !important;
     background-color: transparent !important;
 
     /* Reset Button Styles completely */
@@ -573,8 +569,6 @@ h2 {
     flex-shrink: 0 !important;
     min-width: 140px !important;
     max-width: 140px !important;
-
-    /* Hover Effects */
     box-shadow: none !important;
 }
 
@@ -786,7 +780,6 @@ button.button-metal-play:disabled {
     .button-metal-play {
         width: 100px !important;
         height: 50px !important;
-        background-size: 100px 50px !important;
         min-width: 100px !important;
         max-width: 100px !important;
     }
