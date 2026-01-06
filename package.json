@@ -12,8 +12,7 @@
         "client": "cd frontend && npm start",
         "client:https": "cd frontend && npm run start:https",
         "client:http": "cd frontend && npm run start:http",
-        "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"blue.bold,magenta.bold\" \"npm run server:dev\" \"npm run client:https\"",
-        "server:dev": "cd backend && npm run dev:local",
+        "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"blue.bold,magenta.bold\" \"npm run server:local\" \"npm run client:https\"",
         "stop": "taskkill /IM node.exe /F",
         "build": "webpack --mode production",
         "build:dev": "webpack --mode development",
@@ -35,7 +34,7 @@
     "dependencies": {
         "@simplewebauthn/server": "^13.2.2",
         "base64url": "^3.0.1",
-        "bcryptjs": "^3.0.3",
+        "bcryptjs": "^2.4.3",
         "compression": "^1.8.1",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
@@ -45,6 +44,7 @@
         "helmet": "^8.1.0",
         "jsonwebtoken": "^9.0.3",
         "mongo-sanitize": "^1.1.0",
+        "morgan": "^1.10.0",
         "xss-clean": "^0.1.4"
     }
 }
