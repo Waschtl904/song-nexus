@@ -403,7 +403,7 @@ h2 {
             rgba(var(--color-primary-rgb, 0, 204, 119), 0.08) 50%,
             rgba(50, 184, 198, 0.12) 100%);
     backdrop-filter: blur(10px);
-    border: 2px solid var(--color-primary);
+    border: 1px solid var(--color-primary);
     border-radius: var(--border-radius);
     padding: 20px;
     cursor: pointer;
@@ -442,6 +442,7 @@ h2 {
                 0 0 25px rgba(255, 20, 147, 0.2),
                 inset 0 0 25px rgba(var(--color-primary-rgb, 0, 204, 119), 0.12);
     transform: translateY(-6px) scale(1.02);
+    backdrop-filter: blur(0);
 }
 
 .track-card:hover::before {
@@ -534,55 +535,57 @@ h2 {
    🎬 HEAVY METAL PLAY BUTTON - FULLY CONFIGURABLE
    ============================================================================ */
 
-.play-button,
-button.button-metal-play {
-    /* Base Properties from Variables */
-    background-image: var(--button-track-play-image-url) !important;
-    width: var(--button-track-play-width) !important;
-    height: var(--button-track-play-height) !important;
-    opacity: var(--button-track-play-opacity) !important;
-    filter: var(--button-track-play-filter) !important;
-    transform: var(--button-track-play-transform) !important;
+.button-metal-play {
+    /* Display & Visibility */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 
-    /* Hard overrides to ensure image-only look */
+    /* Dimensions */
+    width: 140px !important;
+    height: 70px !important;
+
+    /* Background Image */
     background-size: contain !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
     background-color: transparent !important;
+
+    /* Reset Button Styles */
     padding: 0 !important;
     border: none !important;
     outline: none !important;
-    box-shadow: none !important;
     color: transparent !important;
     font-size: 0 !important;
+    
+    /* Interaction */
     cursor: pointer !important;
     transition: all 150ms ease !important;
     position: relative !important;
-    display: inline-block !important;
     margin: 8px auto 0 auto !important;
+
+    /* Hover Effects */
+    box-shadow: none !important;
 }
 
-/* Hover State */
 button.button-metal-play:hover:not(:disabled) {
-    opacity: var(--button-track-play-opacity-hover) !important;
-    filter: var(--button-track-play-filter-hover) !important;
-    transform: var(--button-track-play-transform-hover) translateY(var(--button-track-play-hover-offset-y)) !important;
-    box-shadow: var(--button-track-play-box-shadow-hover) !important;
+    opacity: 0.95 !important;
+    transform: scale(1.05) translateY(-2px) !important;
+    filter: brightness(1.08) drop-shadow(0 0 12px rgba(0, 204, 119, 0.5)) !important;
+    box-shadow: 0 0 20px rgba(0, 204, 119, 0.4), 0 8px 16px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Active State */
 button.button-metal-play:active:not(:disabled) {
-    opacity: var(--button-track-play-opacity-active) !important;
-    filter: var(--button-track-play-filter-active) !important;
-    transform: var(--button-track-play-transform-active) translateY(0) !important;
-    box-shadow: var(--button-track-play-box-shadow-active) !important;
+    opacity: 0.9 !important;
+    transform: scale(0.98) !important;
+    filter: brightness(0.95) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Disabled State */
 button.button-metal-play:disabled {
-    opacity: var(--button-track-play-opacity-disabled) !important;
+    opacity: 0.5 !important;
     cursor: not-allowed !important;
-    filter: var(--button-track-play-filter-disabled) !important;
+    filter: grayscale(0.8) opacity(0.6) !important;
 }
 
 /* ============================================================================
@@ -770,7 +773,7 @@ button.button-metal-play:disabled {
         bottom: 80px;
     }
 
-    .play-button {
+    .button-metal-play {
         width: 100px !important;
         height: 50px !important;
     }
