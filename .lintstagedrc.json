@@ -1,0 +1,10 @@
+{
+  "*.css": [
+    "stylelint --fix",
+    "git add"
+  ],
+  "*.{js,jsx}": [
+    "eslint --fix",
+    "git add"
+  ]
+}

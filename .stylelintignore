@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Minified files
+*.min.css
+
+# Archived files
+archived/
+frontend/css/styles-cyberpunk333.css
+
+# Vendor files
+vendor/
