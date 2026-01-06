@@ -1,5 +1,5 @@
 // ============================================================================
-// 🎵 TRACKS-LOADER.JS v8.7 - FIXED (Price & Type Conversion)
+// 🎵 TRACKS-LOADER.JS v8.8 - FIXED (Play Button Visibility)
 // ============================================================================
 
 import { APIClient } from './api-client.js';
@@ -22,7 +22,7 @@ async function loadDesignConfig() {
             components: {
                 buttons: {
                     track_play: {
-                        image_url: '../assets/images/metal-play-button-optimized.webp',
+                        image_url: '/assets/images/metal-play-button-optimized.webp',
                         width: 140,
                         height: 70,
                     }
@@ -172,29 +172,54 @@ export class TracksLoader {
             <div class="track-footer">
               <span class="track-price">${priceDisplay}</span>
               <span class="track-badge ${badgeClass}">
-                ${track.is_free ? '🎵 FREE' : '💰 PAID'}
+                ${track.is_free ? '🎵 FREE' : '💎 PAID'}
               </span>
             </div>
 
             <!-- Play Button -->
             <button 
-              class="play-button button-metal-play"
+              class="button-metal-play"
               data-track-id="${track.id}"
               aria-label="Play ${this.escapeHtml(track.name || track.title)}"
               title="Play"
+              type="button"
             ></button>
           </div>
         `;
 
-                // ✅ FIX: Event Listener & Styling
-                const playBtn = trackCard.querySelector('.play-button');
+                // ✅ FIX: Proper button setup with image loading
+                const playBtn = trackCard.querySelector('.button-metal-play');
                 if (playBtn) {
-                    // 1. Apply Image from Config
-                    if (designConfig && designConfig.components?.buttons?.track_play?.image_url) {
-                        playBtn.style.backgroundImage = `url('${designConfig.components.buttons.track_play.image_url}')`;
+                    // 1. Get image URL from config (absolute path)
+                    let imageUrl = '/assets/images/metal-play-button-optimized.webp';
+                    if (designConfig?.components?.buttons?.track_play?.image_url) {
+                        imageUrl = designConfig.components.buttons.track_play.image_url;
+                        // Ensure absolute path
+                        if (!imageUrl.startsWith('/') && !imageUrl.startsWith('http')) {
+                            imageUrl = '/' + imageUrl.replace(/^\.\//g, '');
+                        }
                     }
 
-                    // 2. Add Click Listener
+                    // 2. Set dimensions from config
+                    const width = designConfig?.components?.buttons?.track_play?.width || 140;
+                    const height = designConfig?.components?.buttons?.track_play?.height || 70;
+                    
+                    playBtn.style.backgroundImage = `url('${imageUrl}')`;
+                    playBtn.style.width = `${width}px`;
+                    playBtn.style.height = `${height}px`;
+                    playBtn.style.backgroundSize = 'contain';
+                    playBtn.style.backgroundRepeat = 'no-repeat';
+                    playBtn.style.backgroundPosition = 'center';
+                    playBtn.style.backgroundColor = 'transparent';
+                    playBtn.style.border = 'none';
+                    playBtn.style.padding = '0';
+                    playBtn.style.cursor = 'pointer';
+                    playBtn.style.display = 'block';
+                    playBtn.style.margin = '8px auto 0';
+
+                    console.log(`🖼️ Play button styled: ${imageUrl} (${width}x${height})`);
+
+                    // 3. Add Click Listener
                     playBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
