@@ -1,10 +1,10 @@
 // ============================================================================
-// 🎵 SONG-NEXUS BACKEND v6.4 - SECURITY HARDENED
+// 🎵 SONG-NEXUS BACKEND v6.5 - ROUTE ORDERING FIXED
 // ============================================================================
 // ✅ CSRF Protection for Design-System API
 // ✅ Designer Permission Check
 // ✅ Input Validation (Hex color format)
-// ✅ All previous fixes intact
+// ✅ ROUTE ORDERING FIX - design-system registered BEFORE track routes
 
 require('dotenv').config();
 
@@ -316,7 +316,6 @@ function isValidHexColor(hex) {
 function validateDesignInput(data) {
     const errors = [];
     
-    // Validate colors
     if (data.colors?.primary && !isValidHexColor(data.colors.primary)) {
         errors.push('Invalid primary color format. Must be hex: #RRGGBB');
     }
@@ -330,7 +329,6 @@ function validateDesignInput(data) {
         errors.push('Invalid background color format');
     }
     
-    // Validate typography
     if (data.typography?.font_sizes?.base) {
         const size = parseInt(data.typography.font_sizes.base);
         if (isNaN(size) || size < 10 || size > 72) {
@@ -338,7 +336,6 @@ function validateDesignInput(data) {
         }
     }
     
-    // Validate spacing
     if (data.spacing?.['8']) {
         const spacing = parseInt(data.spacing['8']);
         if (isNaN(spacing) || spacing < 1 || spacing > 100) {
@@ -350,8 +347,10 @@ function validateDesignInput(data) {
 }
 
 // ============================================================================
-// 🎨 DESIGN-SYSTEM API ENDPOINTS WITH SECURITY
+// 🎨 DESIGN-SYSTEM API ENDPOINTS - REGISTERED EARLY (BEFORE OTHER ROUTES)
 // ============================================================================
+
+console.log('🔧 Registering DESIGN-SYSTEM API (before other routes)...');
 
 // GET design system settings from database
 app.get('/api/design-system', attachCSRFToken, async (req, res) => {
@@ -474,12 +473,10 @@ app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
     try {
         console.log('📝 PUT /api/design-system/:id received');
         console.log('   ID:', req.params.id);
-        console.log('   Designer role: Design-Editor');
 
         const { id } = req.params;
         const body = req.body;
 
-        // ✅ INPUT VALIDATION
         const validationErrors = validateDesignInput(body);
         if (validationErrors.length > 0) {
             console.warn('⚠️ Validation errors:', validationErrors);
@@ -555,7 +552,6 @@ app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
         `;
 
         console.log('🔧 SQL Update:', query.substring(0, 100) + '...');
-        console.log('📊 Values count:', values.length);
 
         const result = await pool.query(query, values);
 
@@ -598,7 +594,7 @@ app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
     }
 });
 
-console.log('✅ Design-System API endpoints registered (CSRF + Input Validation)');
+console.log('✅ Design-System API endpoints registered EARLY (CSRF + Input Validation)');
 
 // ============================================================================
 // 🎨 REGENERATE DESIGN TOKENS CSS FROM DATABASE ROW
@@ -642,17 +638,16 @@ function regenerateDesignTokens(dbRow) {
 
         fs.writeFileSync(tokenPath, css, 'utf-8');
         console.log(`✅ Design tokens CSS regenerated: ${tokenPath}`);
-        console.log(`   Size: ${css.length} bytes`);
     } catch (error) {
         console.error('❌ Error regenerating design tokens:', error.message);
     }
 }
 
 // ============================================================================
-// 🌐 ROUTE REGISTRATION (AFTER Design-System!)
+// 🌐 OTHER ROUTES (AFTER Design-System)
 // ============================================================================
 
-console.log('🔧 Registering API routes...');
+console.log('🔧 Registering other API routes...');
 
 app.get('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
 
@@ -685,7 +680,7 @@ app.post('/api/csp-report', (req, res) => {
     res.status(204).send();
 });
 
-console.log('✅ API routes registered');
+console.log('✅ All API routes registered');
 
 // ============================================================================
 // 🎵 STATIC AUDIO DIRECTORY
@@ -764,7 +759,7 @@ warmupDatabase().then(async () => {
         server.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.4 Backend              ║');
+            console.log('║   🎵 SONG-NEXUS v6.5 Backend              ║');
             console.log('║   Secure • Ad-Free • CSRF-Protected        ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
@@ -784,7 +779,7 @@ warmupDatabase().then(async () => {
         const server = app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.4 Backend              ║');
+            console.log('║   🎵 SONG-NEXUS v6.5 Backend              ║');
             console.log('║   Secure • Ad-Free • CSRF-Protected        ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
