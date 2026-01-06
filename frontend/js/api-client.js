@@ -103,9 +103,16 @@ export class APIClient {
 
     static async logout() {
         try {
+            console.log('🚪 Logout: Sending request to backend...');
+            // 🔧 FIXED: Send request FIRST, THEN clear token
             await this.post('/auth/logout', {});
-        } finally {
+            console.log('✅ Logout successful from backend');
             this.clearToken();
+        } catch (err) {
+            console.error('❌ Logout error:', err.message);
+            // Still clear token locally even if backend call fails
+            this.clearToken();
+            throw err;
         }
     }
 
