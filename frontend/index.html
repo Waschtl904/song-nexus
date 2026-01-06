@@ -582,11 +582,11 @@
         // Trigger initialization after DOM is ready and bundle has loaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(ensureAuthInitialized, 100);
+                setTimeout(ensureAuthInitialized, 1000);
             });
         } else {
             // DOM already loaded
-            setTimeout(ensureAuthInitialized, 100);
+            setTimeout(ensureAuthInitialized, 1000);
         }
     </script>
 
