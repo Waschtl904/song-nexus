@@ -379,28 +379,30 @@
     </footer>
 
     <!-- ========================================================================
-         🎨 DESIGN-SYSTEM RUNTIME LOADER v3.0 (API + Webpack Fallback)
+         🎨 DESIGN-SYSTEM RUNTIME LOADER v3.1 (Relative path + API Proxy)
          ======================================================================== -->
     <script>
         /**
-         * DESIGN-SYSTEM RUNTIME LOADER v3.0
+         * DESIGN-SYSTEM RUNTIME LOADER v3.1
          * 
-         * Hybrid approach:
-         * 1. Try to load from API (PostgreSQL - has latest changes from Design-Editor)
+         * ✅ FIXED: Uses relative path /api/design-system (via frontend proxy)
+         * 1. Try to load from API via frontend proxy (PostgreSQL - has latest changes)
          * 2. Fallback to webpack-generated _design-tokens.css (build-time defaults)
          * 
-         * This way:
-         * - Design-Editor changes are reflected immediately (API)
+         * Benefits:
+         * - Works through frontend server proxy (no direct backend calls)
+         * - CORS + credentials handled by proxy
+         * - Design-Editor changes reflected immediately (API)
          * - If API fails, CSS still works (Webpack fallback)
          */
 
         async function loadDesignSystemFromAPI() {
             try {
-                console.log('🎨 Design System Runtime Loader v3.0 starting...');
+                console.log('🎨 Design System Runtime Loader v3.1 starting...');
 
-                // ✅ CRITICAL: Use absolute URL to backend API
-                const apiUrl = 'https://localhost:3000/api/design-system';
-                console.log('🌐 Attempting to load from API:', apiUrl);
+                // ✅ CRITICAL: Use RELATIVE path (proxied through frontend server)
+                const apiUrl = '/api/design-system';
+                console.log('🌐 Attempting to load from API proxy:', apiUrl);
 
                 const response = await fetch(apiUrl, {
                     method: 'GET',
@@ -417,7 +419,7 @@
                 if (!response.ok) {
                     console.log(`⚠️ API returned ${response.status}`);
                     console.log('💾 Using webpack-generated _design-tokens.css instead');
-                    return false; // Fallback to webpack CSS
+                    return false;
                 }
 
                 // ✅ Parse the API response
@@ -440,7 +442,7 @@
                 let cssVariables = 'html {\n';
 
                 // ✅ COLORS (aus colors-Objekt!)
-                cssVariables += '  /* Colors from PostgreSQL API */\n';
+                cssVariables += '  /* Colors from PostgreSQL API via Proxy */\n';
                 if (colors.primary) cssVariables += `  --color-primary: ${colors.primary};\n`;
                 if (colors.secondary) cssVariables += `  --color-secondary: ${colors.secondary};\n`;
                 if (colors.accent_teal) cssVariables += `  --color-accent-teal: ${colors.accent_teal};\n`;
@@ -450,7 +452,7 @@
                 if (colors.background) cssVariables += `  --color-background: ${colors.background};\n`;
 
                 // ✅ TYPOGRAPHY (aus typography-Objekt!)
-                cssVariables += '  /* Typography from PostgreSQL API */\n';
+                cssVariables += '  /* Typography from PostgreSQL API via Proxy */\n';
                 if (typography.font_family_base) {
                     cssVariables += `  --font-family-base: ${typography.font_family_base};\n`;
                 }
@@ -465,7 +467,7 @@
                 }
 
                 // ✅ LAYOUT (aus spacing/radius-Objekten!)
-                cssVariables += '  /* Layout from PostgreSQL API */\n';
+                cssVariables += '  /* Layout from PostgreSQL API via Proxy */\n';
                 if (spacing['8']) {
                     cssVariables += `  --space-8: ${spacing['8']};\n`;
                 }
@@ -474,7 +476,7 @@
                 }
 
                 // ✅ BUTTONS (aus components!)
-                cssVariables += '  /* Buttons from PostgreSQL API */\n';
+                cssVariables += '  /* Buttons from PostgreSQL API via Proxy */\n';
                 if (components.buttons?.primary?.background) {
                     cssVariables += `  --button-primary-background: ${components.buttons.primary.background};\n`;
                 }
@@ -491,7 +493,7 @@
                 const styleElement = document.getElementById('design-system-styles');
                 if (styleElement) {
                     styleElement.textContent = cssVariables;
-                    console.log('✅ Design System CSS injected from API');
+                    console.log('✅ Design System CSS injected from API (via proxy)');
                     console.log('   Primary Color:', colors.primary);
                     console.log('   Secondary Color:', colors.secondary);
                     return true;
@@ -513,8 +515,8 @@
 
         console.log('');
         console.log('╔════════════════════════════════════════════╗');
-        console.log('║  🎨 DESIGN-SYSTEM LOADER ACTIVE            ║');
-        console.log('║  Trying API → Fallback to Webpack CSS     ║');
+        console.log('║  🎨 DESIGN-SYSTEM LOADER v3.1 ACTIVE            ║');
+        console.log('║  Via Frontend Proxy → API → Webpack CSS Fallback ║');
         console.log('╚════════════════════════════════════════════╝');
         console.log('');
 
