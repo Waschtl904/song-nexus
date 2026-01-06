@@ -672,7 +672,7 @@ button.button-metal-play:disabled {
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    animation: fadeIn 0.3s ease-in-out;
+    animation: fade-in 0.3s ease-in-out;
 }
 
 .modal-content {
@@ -761,7 +761,7 @@ button.button-metal-play:disabled {
    ✨ ANIMATIONS
    ============================================================================ */
 
-@keyframes fadeIn {
+@keyframes fade-in {
     from {
         opacity: 0;
     }
