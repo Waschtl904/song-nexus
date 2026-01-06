@@ -532,7 +532,7 @@ h2 {
 }
 
 /* ============================================================================
-   🎬 HEAVY METAL PLAY BUTTON - FULLY CONFIGURABLE & CLIPPED
+   🎬 HEAVY METAL PLAY BUTTON - TRANSPARENT EDGES REMOVED
    ============================================================================ */
 
 .button-metal-play {
@@ -541,27 +541,28 @@ h2 {
     visibility: visible !important;
     opacity: 1 !important;
 
-    /* Dimensions - Exact size of the image */
+    /* Dimensions - Exact size */
     width: 140px !important;
     height: 70px !important;
 
-    /* CRITICAL: Clip overflow so only image shows */
+    /* CRITICAL: Clip overflow + handle transparent padding in image */
     overflow: hidden !important;
     border-radius: 0 !important;
 
-    /* Background Image */
-    background-size: contain !important;
+    /* Background Image - Cover mode to hide transparent edges */
+    background-size: cover !important;
     background-repeat: no-repeat !important;
-    background-position: center !important;
+    background-position: center center !important;
     background-color: transparent !important;
 
-    /* Reset Button Styles */
+    /* Reset Button Styles completely */
     padding: 0 !important;
     border: none !important;
     outline: none !important;
     color: transparent !important;
     font-size: 0 !important;
     line-height: 0 !important;
+    letter-spacing: 0 !important;
     
     /* Interaction */
     cursor: pointer !important;
@@ -569,6 +570,8 @@ h2 {
     position: relative !important;
     margin: 8px auto 0 auto !important;
     flex-shrink: 0 !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
 
     /* Hover Effects */
     box-shadow: none !important;
@@ -688,7 +691,7 @@ button.button-metal-play:disabled {
 }
 
 /* ============================================================================
-   🔲 MODALS
+   🔓 MODALS
    ============================================================================ */
 
 .modal-overlay {
@@ -782,6 +785,8 @@ button.button-metal-play:disabled {
     .button-metal-play {
         width: 100px !important;
         height: 50px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
     }
 }
 
