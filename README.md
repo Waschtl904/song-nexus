@@ -1,6 +1,6 @@
 # 🎵 SONG-NEXUS
 
-> **A modern, full-stack music streaming platform with advanced authentication, real-time audio playback, and secure payment integration.**
+> **A modern, full-stack music streaming platform with advanced authentication, real-time audio playback, and secure admin management.**
 
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-1.0-blue?style=flat-square)
@@ -16,7 +16,8 @@
 - 🔐 **Triple Authentication** - WebAuthn (Biometric), Password, Magic Link
 - 🎵 **Advanced Audio Streaming** - Real-time playback with waveform visualization
 - 💳 **Secure Payments** - PayPal integration for track purchases
-- 📊 **Full Track Management** - Upload, categorize, and monetize music
+- 📊 **Full Admin Dashboard** - Secure management console with JWT authentication
+- 📤 **Track Management** - Upload, categorize, and monetize music
 - 📈 **Analytics** - Play history, user statistics, leaderboards
 - ⚡ **High Performance** - Webpack bundling, optimized API endpoints
 - 🔒 **Security First** - JWT tokens, CORS, SSL/TLS encryption
@@ -27,10 +28,10 @@
 
 ### 🎯 For Every Development Session:
 
-**👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
+**👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./docs/MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
 
 This file contains:
-- ✅ Current project status (updated Jan 5, 2026)
+- ✅ Current project status (updated Jan 7, 2026)
 - ✅ Known issues & workarounds
 - ✅ Protected code sections (don't touch!)
 - ✅ Safe-to-modify code sections
@@ -46,6 +47,7 @@ This file contains:
 - [Master Prompt](#important-read-this-first)
 - [Quick Start](#quick-start)
 - [Features](#features)
+- [Admin Hub](#-admin-hub)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Database Schema](#database-schema)
@@ -80,11 +82,17 @@ This file contains:
 - **License Management** - Personal license per purchase
 - **Payment Statistics** - Spending analytics & patterns
 
+### 🛡️ Admin Console
+- **Secure JWT Login** - Admin-only authentication
+- **Track Upload** - Upload & publish music tracks
+- **Design Editor** - Customize platform colors & branding
+- **User Management** - Admin role assignment
+- **Analytics Dashboard** - View platform statistics
+
 ### 📊 User Features
 - **User Dashboard** - Profile, statistics, purchase history
 - **Play History** - Complete record of listened tracks
 - **Leaderboards** - Top users by plays & purchases
-- **Track Management** - Upload & publish music (admin)
 - **Genre Categorization** - Organize music by genre
 
 ### ⚡ Performance
@@ -92,6 +100,52 @@ This file contains:
 - **Optimized API** - Fast endpoints with caching
 - **Range Requests** - HTTP 206 for efficient streaming
 - **CDN Ready** - Static assets easily deployable to CDN
+
+---
+
+## 🛡️ Admin Hub
+
+**NEW in v1.0:** Secure admin dashboard with JWT authentication!
+
+### Access Admin Hub
+```
+https://localhost:3000/admin/
+```
+
+### Features
+- ✅ **JWT-based Login** - Secure admin authentication
+- ✅ **Role-based Access** - Only users with `role='admin'` can access
+- ✅ **Track Upload Tool** - Upload and manage music tracks
+- ✅ **Design Editor** - Customize platform colors and branding
+- ✅ **Dev Login** - Quick authentication for localhost development
+- ✅ **Cyberpunk UI** - Modern neon-themed interface
+
+### Admin Login Methods
+
+**Option 1: Dev Login (Localhost Only)**
+1. Navigate to `https://localhost:3000/admin/`
+2. Click "Dev Login (Localhost Only)" button
+3. Automatically creates dev admin user
+4. ✅ You're logged in!
+
+**Option 2: Existing Admin Account**
+1. Make sure your database user has `role='admin'`:
+```sql
+UPDATE users SET role='admin' WHERE email='your@email.com';
+```
+2. Navigate to `https://localhost:3000/admin/`
+3. Enter credentials
+4. ✅ Access granted!
+
+### Admin Tools
+
+| Tool | Path | Purpose |
+|------|------|----------|
+| **Track Upload** | `/admin/` → "Go to Upload" | Upload music, set prices, manage metadata |
+| **Design Editor** | `/admin/` → "Go to Editor" | Customize colors, fonts, branding |
+| **User Admin** | Coming soon | Manage users, assign roles, view statistics |
+
+**See [ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) for detailed admin documentation**
 
 ---
 
@@ -117,7 +171,7 @@ This file contains:
 - **Tables:** users, tracks, orders, purchases, play_history, play_stats, magic_links, magic_link_tokens, webauthn_credentials, design_system
 - **Connections:** Connection pooling with pg library
 
-**See [DATABASE.md](./DATABASE.md) for complete schema documentation**
+**See [DATABASE.md](./docs/DATABASE.md) for complete schema documentation**
 
 ### **Security**
 - **Encryption:** TLS 1.3, CORS, CSP headers
@@ -129,7 +183,7 @@ This file contains:
 
 ## 🚀 Quick Start
 
-**⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
+**⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./docs/MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
 
 ### Prerequisites
 - **Node.js** 18+ ([Download](https://nodejs.org))
@@ -190,6 +244,7 @@ npm start
 Frontend:  https://localhost:5500
 Backend:   https://localhost:3000
 API:       https://localhost:3000/api
+Admin:     https://localhost:3000/admin/
 ```
 
 ---
@@ -198,61 +253,104 @@ API:       https://localhost:3000/api
 
 ```
 SONG-NEXUS/
-├── backend/
-│   ├── certs/                      # SSL certificates
-│   ├── db/
-│   │   └── schema.sql              # ✅ DATABASE SCHEMA (single source of truth, 10 tables)
-│   ├── middleware/
-│   │   ├── auth-middleware.js      # JWT verification
-│   │   └── cache-middleware.js     # Response caching
-│   ├── routes/
-│   │   ├── auth.js                 # Password & email auth
-│   │   ├── webauthn.js             # Biometric auth
-│   │   ├── tracks.js               # Track endpoints
-│   │   ├── admin-tracks.js         # Admin upload/manage
-│   │   ├── payments.js             # PayPal integration
-│   │   ├── users.js                # User profile & stats
-│   │   └── play-history.js         # Play tracking
-│   ├── public/                     # Static files
-│   ├── uploads/                    # Audio storage
-│   ├── server.js                   # Express server
-│   ├── db.js                       # Database connection
+│
+├── 📂 backend/                    # Express.js REST API Server
+│   ├── 📂 certs/                  # SSL certificates
+│   ├── 📂 db/
+│   │   └── schema.sql             # ✅ DATABASE SCHEMA (single source of truth)
+│   ├── 📂 middleware/
+│   │   ├── auth-middleware.js     # JWT verification
+│   │   └── cache-middleware.js    # Response caching
+│   ├── 📂 routes/
+│   │   ├── auth.js                # Password & email auth
+│   │   ├── webauthn.js            # Biometric auth
+│   │   ├── tracks.js              # Track endpoints
+│   │   ├── admin-tracks.js        # Admin upload/manage
+│   │   ├── payments.js            # PayPal integration
+│   │   ├── users.js               # User profile & stats
+│   │   └── play-history.js        # Play tracking
+│   ├── 📂 public/                 # Static files
+│   ├── 📂 uploads/                # Audio storage
+│   ├── server.js                  # Express server
+│   ├── db.js                      # Database connection
 │   ├── package.json
 │   └── .env.example
 │
-├── frontend/
-│   ├── js/
-│   │   ├── main.js                 # Webpack entry point
-│   │   ├── app.js                  # Main app logic
-│   │   ├── auth.js                 # Auth flows
-│   │   ├── webauthn.js             # Biometric frontend
-│   │   ├── player.js               # Audio player
-│   │   ├── tracks.js               # Track management
-│   │   ├── api-client.js           # API wrapper
-│   │   └── ...                     # Other modules
-│   ├── html/
-│   │   ├── index.html              # Main entry
-│   │   ├── auth.html               # Login/signup
-│   │   ├── app.html                # Player UI
-│   │   └── ...                     # Other pages
-│   ├── css/                        # Stylesheets
-│   ├── assets/                     # Images & static
-│   ├── dist/                       # Webpack bundle
+├── 📂 frontend/                   # React + Webpack Frontend
+│   ├── 📂 admin/                  # ✅ NEW: Admin Console
+│   │   ├── index.html             # ✅ Admin Hub (JWT login, cyberpunk UI)
+│   │   ├── design-editor.html     # Design customization tool
+│   │   └── admin-upload.html      # Track upload interface
+│   ├── 📂 js/
+│   │   ├── main.js                # Webpack entry point
+│   │   ├── app.js                 # Main app logic
+│   │   ├── auth.js                # Auth flows
+│   │   ├── webauthn.js            # Biometric frontend
+│   │   ├── player.js              # Audio player
+│   │   ├── tracks.js              # Track management
+│   │   ├── api-client.js          # API wrapper
+│   │   └── ...                    # Other modules
+│   ├── 📂 html/
+│   │   ├── index.html             # Main entry
+│   │   ├── auth.html              # Login/signup
+│   │   ├── app.html               # Player UI
+│   │   └── ...                    # Other pages
+│   ├── 📂 css/                    # Stylesheets
+│   ├── 📂 assets/                 # Images & static
+│   ├── 📂 dist/                   # Webpack bundle (generated)
 │   ├── package.json
-│   └── webpack.config.js
+│   ├── webpack.config.js
+│   └── .env.example
 │
-├── assets/
-│   └── images/                     # Project branding
+├── 📂 docs/                       # Documentation
+│   ├── DATABASE.md                # ✅ Detailed schema documentation
+│   ├── API-Documentation-v1.md    # ✅ API endpoint reference
+│   ├── ADMIN-GUIDE.md             # ✅ NEW: Admin Hub guide
+│   ├── PRODUCTION-DEPLOYMENT.md   # ✅ Deployment guide
+│   └── MASTER-PROMPT-2026-AKTUELL.md # ✅ USE THIS EVERY SESSION!
 │
-├── docs/
-│   ├── DATABASE.md                 # ✅ Detailed schema documentation
-│   ├── API-Documentation-v1.md     # ✅ API endpoint reference
-│   ├── PRODUCTION-DEPLOYMENT.md    # ✅ Deployment guide
-│   └── MASTER-PROMPT-2026-AKTUELL.md # ✅ USE THIS FOR EVERY SESSION!
+├── 📂 assets/                     # Project branding
+│   └── images/
 │
-├── package.json                    # Root package
-├── .env.example                    # Environment template
-└── README.md                       # This file
+├── package.json                   # Root package
+├── .env.example                   # Environment template
+├── LICENSE                        # MIT License
+└── README.md                      # This file (YOU ARE HERE)
+```
+
+### 🎯 Key Directories
+
+**Backend Routes** (API Endpoints)
+```
+backend/routes/
+├── auth.js           → POST /api/auth/login, /register, /verify
+├── webauthn.js       → WebAuthn biometric authentication
+├── tracks.js         → GET /api/tracks/* (public)
+├── admin-tracks.js   → POST/PUT /api/admin/tracks/* (admin only)
+├── payments.js       → PayPal payment processing
+├── users.js          → User profile & statistics
+└── play-history.js   → Track play events
+```
+
+**Frontend Pages**
+```
+frontend/
+├── html/index.html         → Homepage
+├── html/auth.html          → Login/Signup
+├── html/app.html           → Player interface
+├── admin/index.html        → Admin Hub (NEW!)
+├── admin/design-editor.html → Design customization (NEW!)
+└── admin/admin-upload.html  → Track upload (NEW!)
+```
+
+**Documentation**
+```
+docs/
+├── MASTER-PROMPT-2026-AKTUELL.md → Start here each session!
+├── DATABASE.md               → Full database schema
+├── API-Documentation-v1.md   → All 35 API endpoints
+├── ADMIN-GUIDE.md            → Admin Hub documentation
+└── PRODUCTION-DEPLOYMENT.md  → Deployment checklist
 ```
 
 ---
@@ -262,8 +360,8 @@ SONG-NEXUS/
 **Quick Overview:**
 
 | Table | Purpose | Key Fields |
-|-------|---------|------------|
-| **users** | User accounts & credentials | id, email, username, password_hash, webauthn_credential |
+|-------|---------|----------|
+| **users** | User accounts & credentials | id, email, username, password_hash, role, webauthn_credential |
 | **tracks** | Music metadata & files | id, name, artist, genre, audio_filename, price, is_published |
 | **orders** | PayPal transactions | id, user_id, paypal_order_id, amount, status |
 | **purchases** | Track purchases per user | id, user_id, track_id, license_type, expires_at |
@@ -274,7 +372,7 @@ SONG-NEXUS/
 | **magic_link_tokens** | Alternative magic links | id, user_id, token, expires_at |
 | **design_system** | Theme & design tokens | id, color_primary, color_secondary, ... (27 tokens) |
 
-**Full documentation:** See [DATABASE.md](./DATABASE.md)
+**Full documentation:** See [DATABASE.md](./docs/DATABASE.md)
 
 **Schema file:** [backend/db/schema.sql](./backend/db/schema.sql) (✅ Single source of truth, 10 tables, 22 optimized indexes)
 
@@ -282,7 +380,7 @@ SONG-NEXUS/
 
 ## 📚 API Documentation
 
-Full API documentation available in [API-Documentation-v1.md](./API-Documentation-v1.md)
+Full API documentation available in [API-Documentation-v1.md](./docs/API-Documentation-v1.md)
 
 ### Quick Reference
 
@@ -318,10 +416,10 @@ GET    /api/tracks/genres/list         # Get available genres
 
 #### **Admin (4 endpoints)**
 ```
-POST   /api/admin/tracks/upload        # Upload new track
-GET    /api/admin/tracks/list          # List all tracks
-PUT    /api/admin/tracks/:id           # Update track metadata
-DELETE /api/admin/tracks/:id           # Soft delete track
+POST   /api/admin/tracks/upload        # Upload new track (admin)
+GET    /api/admin/tracks/list          # List all tracks (admin)
+PUT    /api/admin/tracks/:id           # Update track metadata (admin)
+DELETE /api/admin/tracks/:id           # Soft delete track (admin)
 ```
 
 #### **Payments (6 endpoints)**
@@ -475,7 +573,7 @@ git push origin main
 
 ## 🚀 Deployment
 
-**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./docs/PRODUCTION-DEPLOYMENT.md)
 
 ### Quick Deployment Steps
 
@@ -506,7 +604,7 @@ git push origin main
    - Setup log aggregation
    - Enable performance monitoring
 
-**Full details:** [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+**Full details:** [PRODUCTION-DEPLOYMENT.md](./docs/PRODUCTION-DEPLOYMENT.md)
 
 ---
 
@@ -523,6 +621,7 @@ git push origin main
 - Database schema (10 tables, verified)
 - API documentation
 - Deployment guide
+- **NEW:** Secure Admin Hub with JWT login (v1.0.1)
 
 ### 🚧 In Development (v1.1)
 - [ ] WebAuthn frontend stabilization
@@ -564,7 +663,9 @@ npm run test:e2e     # Full user flows
 - [ ] Purchase track via PayPal
 - [ ] View play history
 - [ ] Check user statistics
-- [ ] Admin: Upload new track
+- [ ] **Admin:** Login to Admin Hub
+- [ ] **Admin:** Upload new track
+- [ ] **Admin:** Customize design
 
 ---
 
@@ -602,10 +703,12 @@ git push origin feature/your-feature-name
 
 ## 📚 Documentation
 
-- **[MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!**
-- **[DATABASE.md](./DATABASE.md)** - Complete database schema with diagrams
-- **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Full deployment guide
-- **[API-Documentation-v1.md](./API-Documentation-v1.md)** - Detailed API endpoint reference
+### Essential Reading
+- **[MASTER-PROMPT-2026-AKTUELL.md](./docs/MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!**
+- **[ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md)** - Admin Hub documentation (NEW!)
+- **[DATABASE.md](./docs/DATABASE.md)** - Complete database schema with diagrams
+- **[API-Documentation-v1.md](./docs/API-Documentation-v1.md)** - Detailed API endpoint reference
+- **[PRODUCTION-DEPLOYMENT.md](./docs/PRODUCTION-DEPLOYMENT.md)** - Full deployment guide
 
 ---
 
@@ -629,7 +732,7 @@ cd backend && npm run generate-cert
 **Q: Port 3000 already in use**
 ```bash
 # Use different port in .env
-# Or kill process: lsof -ti:3000 | xargs kill -9
+# Or kill process: netstat -ano | findstr :3000
 ```
 
 **Q: Webpack bundle not updating**
@@ -639,21 +742,28 @@ rm -rf frontend/dist
 npm run build
 ```
 
+**Q: Cannot access Admin Hub**
+```bash
+# Make sure your user has role='admin'
+UPDATE users SET role='admin' WHERE email='your@email.com';
+# Then refresh the page
+```
+
 ---
 
 ## 📝 Roadmap
 
 ### Q1 2026
+- [x] Admin Hub with JWT login
 - [ ] WebAuthn frontend hardening
 - [ ] Design system stabilization
 - [ ] Unit testing framework
-- [ ] Advanced search capabilities
 
 ### Q2 2026
+- [ ] Advanced search capabilities
 - [ ] Playlist functionality
 - [ ] Social features
 - [ ] Mobile app (React Native)
-- [ ] Performance optimization
 
 ### Q3 2026
 - [ ] Audio processing features
@@ -698,8 +808,8 @@ See `LICENSE` file for details.
 
 ---
 
-**Last Updated:** January 5, 2026  
-**Version:** 1.0.0  
+**Last Updated:** January 7, 2026  
+**Version:** 1.0.1  
 **Status:** ✅ Production Ready
 
 ⭐ **If you find this project useful, please consider starring it on GitHub!**
