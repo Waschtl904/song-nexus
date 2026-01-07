@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Admin Console - Song-Nexus</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-bg: #0a0e27;
+            --color-surface: #10141f;
+            --color-primary: #00ff41;
+            --color-accent: #00d9ff;
+            --color-text: #e0e0e0;
+            --color-text-dim: #888;
+            --color-error: #ff4757;
+            --color-success: #26a827;
+            --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+            --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--color-bg) 0%, #0f1628 100%);
+            color: var(--color-text);
+            font-family: var(--font-mono);
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .header .subtitle {
+            color: var(--color-text-dim);
+            font-size: 0.9em;
+            letter-spacing: 1px;
+        }
+
+        .session-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--color-surface);
+            border: 1px solid var(--color-primary);
+            border-radius: 4px;
+            padding: 15px 20px;
+            margin-bottom: 40px;
+            font-size: 0.85em;
+        }
+
+        .session-bar .status::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-success);
+            box-shadow: 0 0 10px var(--color-success);
+            animation: pulse 2s infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .session-bar .user-info {
+            color: var(--color-accent);
+        }
+
+        .session-bar .logout {
+            cursor: pointer;
+            color: var(--color-error);
+            transition: var(--transition);
+            text-decoration: underline;
+        }
+
+        .session-bar .logout:hover {
+            text-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
+        }
+
+        .login-panel {
+            max-width: 600px;
+            margin: 60px auto;
+            background: var(--color-surface);
+            border: 1px solid var(--color-primary);
+            border-radius: 4px;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+
+        .login-panel h2 {
+            margin-bottom: 30px;
+            color: var(--color-primary);
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--color-accent);
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-primary);
+            border-radius: 4px;
+            color: var(--color-text);
+            font-family: var(--font-mono);
+            font-size: 0.95em;
+            transition: var(--transition);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--color-accent);
+            box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--color-primary);
+            color: var(--color-bg);
+            border: none;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--color-accent);
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--color-primary);
+            color: var(--color-primary);
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .error-message {
+            color: var(--color-error);
+            font-size: 0.85em;
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(255, 71, 87, 0.1);
+            border-left: 2px solid var(--color-error);
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .admin-card {
+            background: var(--color-surface);
+            border: 2px solid var(--color-primary);
+            border-radius: 4px;
+            padding: 30px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .admin-card:hover {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+            transform: translateY(-5px);
+        }
+
+        .admin-card .icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .admin-card h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            color: var(--color-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .admin-card p {
+            color: var(--color-text-dim);
+            font-size: 0.9em;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .admin-card .btn-card {
+            padding: 10px 20px;
+            font-size: 0.85em;
+            width: auto;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(0, 255, 65, 0.2);
+            color: var(--color-text-dim);
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8em; }
+            .admin-grid { grid-template-columns: 1fr; }
+            .session-bar { flex-direction: column; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ SONG-NEXUS ADMIN</h1>
+            <p class="subtitle">Secure Content Management System</p>
+        </div>
+
+        <div id="sessionBar" class="session-bar" style="display: none;">
+            <div class="status">✓ Session Active</div>
+            <div class="user-info">
+                <span id="userDisplay">User: admin</span> | Role: <span id="roleDisplay">admin</span>
+            </div>
+            <span class="logout" onclick="handleLogout()">Logout</span>
+        </div>
+
+        <div id="loginPanel" class="login-panel" style="display: none;">
+            <h2>🔐 ADMIN LOGIN</h2>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username">Username or Email</label>
+                    <input type="text" id="username" placeholder="your-username" required autocomplete="username"/>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password"/>
+                </div>
+                <div id="loginError" class="error-message"></div>
+                <button type="submit" class="btn" id="loginBtn">Login</button>
+                <button type="button" class="btn btn-secondary" onclick="handleDevLogin()">Dev Login</button>
+            </form>
+        </div>
+
+        <div id="adminContent" style="display: none;">
+            <div class="admin-grid">
+                <div class="admin-card">
+                    <span class="icon">📤</span>
+                    <h3>Track Upload</h3>
+                    <p>Upload new music tracks to the catalog. Manage metadata, pricing, and availability.</p>
+                    <a href="../admin-upload.html" class="btn btn-card">Go to Upload</a>
+                </div>
+
+                <div class="admin-card">
+                    <span class="icon">🎨</span>
+                    <h3>Design Editor</h3>
+                    <p>Customize colors, fonts, and branding. Live preview of design changes.</p>
+                    <a href="./design-editor.html" class="btn btn-card">Go to Editor</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>🎵 Song-Nexus Admin Console v1.0</p>
+        <span>© 2026 | Secure • Nerdy • Functional</span>
+    </footer>
+
+    <script>
+        const API_BASE = 'https://localhost:3000';
+        const STORAGE_KEY = 'songNexusAdminToken';
+        const STORAGE_USER = 'songNexusAdminUser';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem(STORAGE_KEY);
+            const user = localStorage.getItem(STORAGE_USER);
+            if (token && user) {
+                verifyTokenAndShowContent(token, JSON.parse(user));
+            } else {
+                showLoginPanel();
+            }
+        });
+
+        function showLoginPanel() {
+            document.getElementById('loginPanel').style.display = 'block';
+            document.getElementById('adminContent').style.display = 'none';
+            document.getElementById('sessionBar').style.display = 'none';
+        }
+
+        function showAdminContent(user) {
+            document.getElementById('loginPanel').style.display = 'none';
+            document.getElementById('adminContent').style.display = 'block';
+            document.getElementById('sessionBar').style.display = 'flex';
+            document.getElementById('userDisplay').textContent = `User: ${user.username || user.email}`;
+            document.getElementById('roleDisplay').textContent = user.role || 'user';
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+            const loginBtn = document.getElementById('loginBtn');
+
+            errorDiv.classList.remove('show');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.error || 'Login failed');
+                if (data.user.role !== 'admin') throw new Error('❌ Admin access required');
+
+                localStorage.setItem(STORAGE_KEY, data.token);
+                localStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
+                showAdminContent(data.user);
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.classList.add('show');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        }
+
+        async function handleDevLogin() {
+            if (!window.location.hostname.includes('localhost') && window.location.hostname !== '127.0.0.1') {
+                alert('Dev login only on localhost!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/dev-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+
+                localStorage.setItem(STORAGE_KEY, data.token);
+                localStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
+                showAdminContent(data.user);
+            } catch (error) {
+                alert('Dev login failed: ' + error.message);
+            }
+        }
+
+        async function verifyTokenAndShowContent(token, user) {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/verify`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!response.ok) throw new Error('Token invalid');
+                showAdminContent(user);
+            } catch (error) {
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(STORAGE_USER);
+                showLoginPanel();
+            }
+        }
+
+        async function handleLogout() {
+            const token = localStorage.getItem(STORAGE_KEY);
+            try {
+                await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+            } catch (e) {}
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(STORAGE_USER);
+            showLoginPanel();
+        }
+    </script>
+</body>
+</html>
