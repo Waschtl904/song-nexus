@@ -28,10 +28,10 @@
 
 ### 🎯 For Every Development Session:
 
-**👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./docs/MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
+**👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
 
-This file contains:
-- ✅ Current project status (updated Jan 7, 2026)
+This file is in the **ROOT directory** and contains:
+- ✅ Current project status (updated Jan 8, 2026)
 - ✅ Known issues & workarounds
 - ✅ Protected code sections (don't touch!)
 - ✅ Safe-to-modify code sections
@@ -145,7 +145,7 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 | **Design Editor** | `/admin/` → "Go to Editor" | Customize colors, fonts, branding |
 | **User Admin** | Coming soon | Manage users, assign roles, view statistics |
 
-**See [ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) for detailed admin documentation**
+**See [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) for detailed admin documentation**
 
 ---
 
@@ -171,7 +171,7 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 - **Tables:** users, tracks, orders, purchases, play_history, play_stats, magic_links, magic_link_tokens, webauthn_credentials, design_system
 - **Connections:** Connection pooling with pg library
 
-**See [DATABASE.md](./docs/DATABASE.md) for complete schema documentation**
+**See [DATABASE.md](./DATABASE.md) for complete schema documentation**
 
 ### **Security**
 - **Encryption:** TLS 1.3, CORS, CSP headers
@@ -183,7 +183,7 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 
 ## 🚀 Quick Start
 
-**⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./docs/MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
+**⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
 
 ### Prerequisites
 - **Node.js** 18+ ([Download](https://nodejs.org))
@@ -222,8 +222,8 @@ psql -U postgres
 CREATE DATABASE song_nexus_dev;
 \q
 
-# Apply schema (single source of truth)
-psql -U postgres -d song_nexus_dev -f backend/db/schema.sql
+# Apply schema (single source of truth in ROOT)
+psql -U postgres -d song_nexus_dev -f schema.sql
 ```
 
 5. **Generate SSL certificates (development)**
@@ -254,104 +254,49 @@ Admin:     https://localhost:3000/admin/
 ```
 SONG-NEXUS/
 │
-├── 📂 backend/                    # Express.js REST API Server
-│   ├── 📂 certs/                  # SSL certificates
-│   ├── 📂 db/
-│   │   └── schema.sql             # ✅ DATABASE SCHEMA (single source of truth)
-│   ├── 📂 middleware/
-│   │   ├── auth-middleware.js     # JWT verification
-│   │   └── cache-middleware.js    # Response caching
-│   ├── 📂 routes/
-│   │   ├── auth.js                # Password & email auth
-│   │   ├── webauthn.js            # Biometric auth
-│   │   ├── tracks.js              # Track endpoints
-│   │   ├── admin-tracks.js        # Admin upload/manage
-│   │   ├── payments.js            # PayPal integration
-│   │   ├── users.js               # User profile & stats
-│   │   └── play-history.js        # Play tracking
-│   ├── 📂 public/                 # Static files
-│   ├── 📂 uploads/                # Audio storage
-│   ├── server.js                  # Express server
-│   ├── db.js                      # Database connection
+├── 📋 Documentation (ROOT LEVEL)
+│   ├── README.md                           ✅ This file
+│   ├── MASTER-PROMPT-2026-AKTUELL.md       🊨 START HERE EVERY SESSION!
+│   ├── DATABASE.md                         ✅ Database schema documentation
+│   ├── PRODUCTION-DEPLOYMENT.md            ✅ Deployment guide
+│   ├── schema.sql                          ✅ DATABASE SCHEMA (single source of truth)
+│   └── ...
+│
+├── 📂 docs/                              (New documentation folder)
+│   ├── ADMIN-GUIDE.md                    ✅ Admin Hub documentation
+│   └── PROJECT-STRUCTURE.md              ✅ Complete project organization
+│
+├── 📂 backend/                             Express.js REST API Server
+│   ├── 📂 routes/                         API endpoints
+│   ├── 📂 middleware/                     Express middleware
+│   ├── 📂 public/                         Static files
+│   ├── 📂 certs/                          SSL certificates
+│   ├── server.js                          Express server
 │   ├── package.json
 │   └── .env.example
 │
-├── 📂 frontend/                   # React + Webpack Frontend
-│   ├── 📂 admin/                  # ✅ NEW: Admin Console
-│   │   ├── index.html             # ✅ Admin Hub (JWT login, cyberpunk UI)
-│   │   ├── design-editor.html     # Design customization tool
-│   │   └── admin-upload.html      # Track upload interface
-│   ├── 📂 js/
-│   │   ├── main.js                # Webpack entry point
-│   │   ├── app.js                 # Main app logic
-│   │   ├── auth.js                # Auth flows
-│   │   ├── webauthn.js            # Biometric frontend
-│   │   ├── player.js              # Audio player
-│   │   ├── tracks.js              # Track management
-│   │   ├── api-client.js          # API wrapper
-│   │   └── ...                    # Other modules
-│   ├── 📂 html/
-│   │   ├── index.html             # Main entry
-│   │   ├── auth.html              # Login/signup
-│   │   ├── app.html               # Player UI
-│   │   └── ...                    # Other pages
-│   ├── 📂 css/                    # Stylesheets
-│   ├── 📂 assets/                 # Images & static
-│   ├── 📂 dist/                   # Webpack bundle (generated)
-│   ├── package.json
+├── 📂 frontend/                            React + Webpack Frontend
+│   ├── 📂 admin/                          ✅ Admin Console
+│   │   ├── index.html                   🔐 Admin Hub main page
+│   │   ├── design-editor.html            🎨 Design editor
+│   │   └── admin-upload.html             📤 Track upload
+│   ├── 📂 html/                          Main HTML pages
+│   ├── 📂 js/                            JavaScript modules
+│   ├── 📂 css/                           Stylesheets
+│   ├── 📂 assets/                        Images & static
+│   ├── 📂 dist/                          Webpack output (generated)
 │   ├── webpack.config.js
+│   ├── package.json
 │   └── .env.example
 │
-├── 📂 docs/                       # Documentation
-│   ├── DATABASE.md                # ✅ Detailed schema documentation
-│   ├── API-Documentation-v1.md    # ✅ API endpoint reference
-│   ├── ADMIN-GUIDE.md             # ✅ NEW: Admin Hub guide
-│   ├── PRODUCTION-DEPLOYMENT.md   # ✅ Deployment guide
-│   └── MASTER-PROMPT-2026-AKTUELL.md # ✅ USE THIS EVERY SESSION!
-│
-├── 📂 assets/                     # Project branding
-│   └── images/
-│
-├── package.json                   # Root package
-├── .env.example                   # Environment template
-├── LICENSE                        # MIT License
-└── README.md                      # This file (YOU ARE HERE)
+├── package.json                         Root package (concurrently)
+├── .gitignore                           Git ignore patterns
+├── .env.example                         Root env template
+├── LICENSE                              MIT License
+└── schema.sql                           DATABASE SCHEMA (ROOT!)
 ```
 
-### 🎯 Key Directories
-
-**Backend Routes** (API Endpoints)
-```
-backend/routes/
-├── auth.js           → POST /api/auth/login, /register, /verify
-├── webauthn.js       → WebAuthn biometric authentication
-├── tracks.js         → GET /api/tracks/* (public)
-├── admin-tracks.js   → POST/PUT /api/admin/tracks/* (admin only)
-├── payments.js       → PayPal payment processing
-├── users.js          → User profile & statistics
-└── play-history.js   → Track play events
-```
-
-**Frontend Pages**
-```
-frontend/
-├── html/index.html         → Homepage
-├── html/auth.html          → Login/Signup
-├── html/app.html           → Player interface
-├── admin/index.html        → Admin Hub (NEW!)
-├── admin/design-editor.html → Design customization (NEW!)
-└── admin/admin-upload.html  → Track upload (NEW!)
-```
-
-**Documentation**
-```
-docs/
-├── MASTER-PROMPT-2026-AKTUELL.md → Start here each session!
-├── DATABASE.md               → Full database schema
-├── API-Documentation-v1.md   → All 35 API endpoints
-├── ADMIN-GUIDE.md            → Admin Hub documentation
-└── PRODUCTION-DEPLOYMENT.md  → Deployment checklist
-```
+**See [docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md) for complete project organization**
 
 ---
 
@@ -372,19 +317,17 @@ docs/
 | **magic_link_tokens** | Alternative magic links | id, user_id, token, expires_at |
 | **design_system** | Theme & design tokens | id, color_primary, color_secondary, ... (27 tokens) |
 
-**Full documentation:** See [DATABASE.md](./docs/DATABASE.md)
+**Full documentation:** See [DATABASE.md](./DATABASE.md)
 
-**Schema file:** [backend/db/schema.sql](./backend/db/schema.sql) (✅ Single source of truth, 10 tables, 22 optimized indexes)
+**Schema file:** [schema.sql](./schema.sql) (✅ Single source of truth in ROOT, 10 tables, 22 optimized indexes)
 
 ---
 
 ## 📚 API Documentation
 
-Full API documentation available in [API-Documentation-v1.md](./docs/API-Documentation-v1.md)
+Full API documentation available in the API endpoints (35 total)
 
 ### Quick Reference
-
-**Total: 35 endpoints** ✅
 
 #### **Authentication (7 endpoints)**
 ```
@@ -397,57 +340,16 @@ POST   /api/auth/logout                 # Logout
 POST   /api/auth/dev-login              # Dev-only quick login
 ```
 
-#### **WebAuthn Biometric (5 endpoints)**
+#### **Admin Routes (4 endpoints - admin only)**
 ```
-POST   /api/auth/webauthn/register-options     # Start biometric signup
-POST   /api/auth/webauthn/register-verify      # Complete biometric signup
-POST   /api/auth/webauthn/authenticate-options # Start biometric login
-POST   /api/auth/webauthn/authenticate-verify  # Complete biometric login
-POST   /api/auth/webauthn/register-password    # Register with password
-```
-
-#### **Tracks (4 endpoints)**
-```
-GET    /api/tracks                     # Get all tracks (paginated)
-GET    /api/tracks/:id                 # Get track details
-GET    /api/tracks/audio/:filename     # Stream audio
-GET    /api/tracks/genres/list         # Get available genres
+POST   /api/admin/tracks/upload        # Upload new track
+GET    /api/admin/tracks/list          # List all tracks
+PUT    /api/admin/tracks/:id           # Update track metadata
+DELETE /api/admin/tracks/:id           # Soft delete track
 ```
 
-#### **Admin (4 endpoints)**
-```
-POST   /api/admin/tracks/upload        # Upload new track (admin)
-GET    /api/admin/tracks/list          # List all tracks (admin)
-PUT    /api/admin/tracks/:id           # Update track metadata (admin)
-DELETE /api/admin/tracks/:id           # Soft delete track (admin)
-```
-
-#### **Payments (6 endpoints)**
-```
-GET    /api/payments/config            # Get PayPal config
-POST   /api/payments/create-order      # Create PayPal order
-POST   /api/payments/capture-order/:id # Capture payment
-GET    /api/payments/user-purchases    # Get user purchases
-GET    /api/payments/history           # Get payment history
-GET    /api/payments/stats             # Get user statistics
-```
-
-#### **Users (5 endpoints)**
-```
-GET    /api/users/profile              # Get user profile
-GET    /api/users/stats                # Get user statistics
-GET    /api/users/purchases            # Get purchased tracks
-GET    /api/users/play-history         # Get play history
-GET    /api/users/leaderboard          # Get public leaderboard
-```
-
-#### **Play History (4 endpoints)**
-```
-POST   /api/play-history/              # Log track play
-GET    /api/play-history/user/:userId  # Get user play history
-DELETE /api/play-history/user/:userId  # Clear play history
-GET    /api/play-history/stats/user/:userId # Get play statistics
-```
+#### **More endpoints** (WebAuthn, Tracks, Payments, Users, Play History)
+See [backend/routes/](./backend/routes/) for complete endpoint list
 
 ---
 
@@ -573,7 +475,7 @@ git push origin main
 
 ## 🚀 Deployment
 
-**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./docs/PRODUCTION-DEPLOYMENT.md)
+**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
 ### Quick Deployment Steps
 
@@ -584,7 +486,7 @@ git push origin main
 
 2. **Database**
    - Create PostgreSQL database on VPS/RDS
-   - Apply `backend/db/schema.sql` to production database
+   - Apply `schema.sql` to production database
    - Setup automated backups
 
 3. **Backend**
@@ -604,7 +506,7 @@ git push origin main
    - Setup log aggregation
    - Enable performance monitoring
 
-**Full details:** [PRODUCTION-DEPLOYMENT.md](./docs/PRODUCTION-DEPLOYMENT.md)
+**Full details:** [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
 ---
 
@@ -703,12 +605,12 @@ git push origin feature/your-feature-name
 
 ## 📚 Documentation
 
-### Essential Reading
-- **[MASTER-PROMPT-2026-AKTUELL.md](./docs/MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!**
-- **[ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md)** - Admin Hub documentation (NEW!)
-- **[DATABASE.md](./docs/DATABASE.md)** - Complete database schema with diagrams
-- **[API-Documentation-v1.md](./docs/API-Documentation-v1.md)** - Detailed API endpoint reference
-- **[PRODUCTION-DEPLOYMENT.md](./docs/PRODUCTION-DEPLOYMENT.md)** - Full deployment guide
+### Essential Reading (Most in ROOT!)
+- **[MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!** (ROOT)
+- **[DATABASE.md](./DATABASE.md)** - Complete database schema with diagrams (ROOT)
+- **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Full deployment guide (ROOT)
+- **[docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md)** - Admin Hub documentation (NEW)
+- **[docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md)** - Complete project organization (NEW)
 
 ---
 
@@ -808,7 +710,7 @@ See `LICENSE` file for details.
 
 ---
 
-**Last Updated:** January 7, 2026  
+**Last Updated:** January 8, 2026  
 **Version:** 1.0.1  
 **Status:** ✅ Production Ready
 
