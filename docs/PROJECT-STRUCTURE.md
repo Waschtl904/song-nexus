@@ -1,570 +1,344 @@
 # 📁 SONG-NEXUS Project Structure
 
-**Last Updated:** January 7, 2026  
+**Last Updated:** January 8, 2026  
 **Version:** 1.0.1  
 
 ---
 
-## 🂭 Overview
+## 💭 Overview
 
 Complete visual guide to Song-Nexus project organization. This document explains:
-- Root directory structure
+- Root directory structure (ACTUAL!)
 - Backend API organization
 - Frontend application layout
-- Documentation files
+- Documentation files location
 - Configuration files
 
 ---
 
-## 📁 Root Directory
+## 📁 Root Directory (REAL STRUCTURE)
 
 ```
 SONG-NEXUS/
 │
-├── 📂 backend/                    # Express.js REST API Server
-│   ├── 📂 certs/                  # SSL/TLS certificates
-│   ├── 📂 db/                    # Database schema & migrations
-│   ├── 📂 middleware/            # Express middleware
-│   ├── 📂 routes/                # API endpoint definitions
-│   ├── 📂 public/                # Static files (served at /)
-│   ├── 📂 uploads/               # Audio file storage (tracks)
-│   ├── 💤 server.js              # Express server entry point
-│   ├── 💤 db.js                  # Database connection pool
-│   ├── 📦 package.json           # Backend dependencies
-│   ├── 💤 .env.example           # Environment variables template
-│   └── 📜 .gitignore             # Ignore patterns
+├── 📋 Documentation (ROOT LEVEL!)
+│   ├── README.md                              ✅ Main project overview
+│   ├── MASTER-PROMPT-2026-AKTUELL.md          📌 USE THIS EVERY SESSION!
+│   ├── MASTER-PROMPT-2026-DEFINITIVE.md       (backup/reference)
+│   ├── MASTER-CONTEXT-PROMPT.md               (reference)
+│   ├── DATABASE.md                            ✅ Database schema
+│   ├── PRODUCTION-DEPLOYMENT.md               ✅ Deployment guide
+│   ├── REPOSITORY-STRUCTURE.md                (legacy, superseded by PROJECT-STRUCTURE.md)
+│   ├── CODE_QUALITY_AUDIT.md                  (quality review)
+│   └── schema.sql                             ✅ DATABASE SCHEMA (single source of truth)
 │
-├── 📂 frontend/                   # React + Webpack Frontend
-│   ├── 📂 admin/                  # 🊨 NEW: Admin Console
-│   │   ├── index.html             # 🔐 Admin Hub main page
-│   │   ├── design-editor.html     # 🎨 Design token editor
-│   │   └── admin-upload.html      # 📤 Track upload interface
-│   ├── 📂 html/                  # Main HTML pages
-│   │   ├── index.html             # Homepage
-│   │   ├── auth.html              # Login/registration page
-│   │   ├── app.html               # Main player app
-│   │   └── ...                    # Other pages
-│   ├── 📂 js/                    # JavaScript modules
-│   │   ├── main.js                # Webpack entry point
-│   │   ├── app.js                 # Main application logic
-│   │   ├── auth.js                # Authentication flows
-│   │   ├── webauthn.js            # Biometric auth (frontend)
-│   │   ├── player.js              # Audio player
-│   │   ├── tracks.js              # Track management
-│   │   ├── api-client.js          # API wrapper/utilities
-│   │   └── ...                    # Other modules
-│   ├── 📂 css/                    # Stylesheets
-│   │   ├── main.css               # Main styles
-│   │   ├── player.css             # Player styles
-│   │   └── ...                    # Other styles
-│   ├── 📂 assets/                 # Images & static files
+├── 📂 docs/                                   (New docs folder)
+│   ├── ADMIN-GUIDE.md                         ✅ NEW: Admin Hub documentation
+│   └── PROJECT-STRUCTURE.md                   ✅ NEW: This file
+│
+├── 📂 backend/                                Express.js REST API Server
+│   ├── 📂 middleware/                         Express middleware
+│   │   └── auth-middleware.js                 JWT verification & token generation
+│   ├── 📂 routes/                             API endpoint definitions
+│   │   ├── auth.js                            POST /api/auth/login, /register, /verify
+│   │   ├── webauthn.js                        WebAuthn biometric endpoints
+│   │   ├── tracks.js                          GET /api/tracks/* (public)
+│   │   ├── admin-tracks.js                    POST/PUT /api/admin/tracks/* (admin)
+│   │   ├── payments.js                        PayPal payment processing
+│   │   ├── users.js                           User profile & statistics
+│   │   └── play-history.js                    Track play events
+│   ├── 📂 public/                             Static files (CSS, JS, HTML)
+│   ├── 📂 certs/                              SSL/TLS certificates
+│   ├── 📂 node_modules/                       Dependencies (GITIGNORED)
+│   ├── server.js                              Express server entry point
+│   ├── generate-cert.js                       SSL cert generator utility
+│   ├── performance-monitor.js                 Performance monitoring
+│   ├── package.json                           Dependencies list
+│   ├── package-lock.json                      Locked versions
+│   ├── .env.example                           Environment template
+│   ├── .gitignore                             Git ignore patterns
+│   └── ⚠️ NOTE: NO /db/ folder! schema.sql is in ROOT!
+│
+├── 📂 frontend/                               React + Webpack Frontend
+│   ├── 📂 admin/                              ✅ NEW: Admin Console
+│   │   ├── index.html                         🔐 Admin Hub main page
+│   │   ├── design-editor.html                 🎨 Design token editor
+│   │   └── admin-upload.html                  📤 Track upload interface
+│   ├── 📂 html/                               Main HTML pages
+│   │   ├── index.html                         Homepage
+│   │   ├── auth.html                          Login/registration
+│   │   ├── app.html                           Main player interface
+│   │   └── ...                                Other pages
+│   ├── 📂 js/                                 JavaScript modules
+│   │   ├── main.js                            Webpack entry point
+│   │   ├── app.js                             Main application logic
+│   │   ├── auth.js                            Authentication flows
+│   │   ├── webauthn.js                        Biometric auth (frontend)
+│   │   ├── api-client.js                      API wrapper/utilities
+│   │   ├── player.js                          Audio player
+│   │   ├── tracks.js                          Track management
+│   │   └── ...                                Other modules
+│   ├── 📂 css/                                Stylesheets
+│   │   ├── main.css                           Global styles
+│   │   ├── player.css                         Player component
+│   │   ├── auth.css                           Auth forms
+│   │   └── ...                                Other styles
+│   ├── 📂 assets/                             Images & static files
 │   │   ├── logo.png
 │   │   ├── icons/
 │   │   └── ...
-│   ├── 📂 dist/                   # Webpack bundle output (generated)
-│   │   ├── main.bundle.js         # Built app bundle
-│   │   ├── main.bundle.js.map     # Source map
-│   │   └── ...
-│   ├── 📦 package.json           # Frontend dependencies
-│   ├── 💤 webpack.config.js      # Webpack build configuration
-│   ├── 💤 .env.example           # Environment variables template
-│   └─┐ 📜 .gitignore             # Ignore patterns
+│   ├── 📂 dist/                               Webpack output (GITIGNORED)
+│   │   ├── main.bundle.js                     Bundled app code
+│   │   └── main.bundle.js.map                 Source map
+│   ├── 📂 node_modules/                       Dependencies (GITIGNORED)
+│   ├── webpack.config.js                      Webpack build configuration
+│   ├── package.json                           Dependencies list
+│   ├── package-lock.json                      Locked versions
+│   ├── .env.example                           Environment template
+│   └── .gitignore                             Git ignore patterns
 │
-├── 📂 docs/                       # 📖 Documentation
-│   ├── MASTER-PROMPT-2026-AKTUELL.md  # 🊨 START HERE EACH SESSION!
-│   ├── README.md                      # Project overview
-│   ├── PROJECT-STRUCTURE.md           # This file - project organization
-│   ├── ADMIN-GUIDE.md                 # 🊨 NEW: Admin Hub documentation
-│   ├── DATABASE.md                    # Database schema & design
-│   ├── API-Documentation-v1.md        # Complete API reference
-│   ├── PRODUCTION-DEPLOYMENT.md       # Deployment & DevOps guide
-│   └── SECURITY.md                    # Security best practices
+├── 📂 assets/                                 Project branding & assets
+│   └── 📂 images/                             Screenshots, logos
 │
-├── 📂 assets/                     # Project branding & assets
-│   └── 📂 images/                 # Screenshots, logos
+├── 📂 archived/                               Old/deprecated code
+│   └── (legacy files)
 │
-├── 📦 package.json                   # Root package (for concurrently)
-├── 💤 .gitignore                     # Global git ignore
-├── 💤 .env.example                   # Root env template
-├── 💤 LICENSE                        # MIT License
-└── 📖 README.md                      # Main README (YOU ARE HERE)
+├── 📂 middleware/                             ⚠️ ROOT-LEVEL (legacy?)
+│   └── (check if this is used or deprecated)
+│
+├── 🔧 Config Files (ROOT)
+│   ├── .env                                   Secrets (GITIGNORED)
+│   ├── .env.example                           Environment template
+│   ├── .env.production                        Production secrets
+│   ├── .gitignore                             Git ignore patterns
+│   ├── gitignore                              (duplicate? check)
+│   ├── package.json                           Root package (concurrently)
+│   ├── sync-repo.ps1                          Sync script (PowerShell)
+│   └── LICENSE                                MIT License
+│
+└── 📄 README.md                               Main README (at root!)
 ```
 
 ---
 
-## 🐕 Backend Structure (`backend/`)
+## 🔴 IMPORTANT CORRECTIONS FROM PREVIOUS DOCS
 
-### 🐕 Core Files
-
+### ❌ WRONG in PROJECT-STRUCTURE.md (v1.0)
 ```
 backend/
-├── server.js                 # Main Express server
-│   └── 📚: Initializes Express app, routes, middleware
-│                 Listens on PORT (default: 3000)
-│                 Sets up HTTPS with SSL certificates
-│
-├── db.js                     # PostgreSQL connection pool
-│   └── 📚: Creates pg connection pool
-│                 Exports pool for queries
-│                 Handles connection errors
-│
-├── package.json              # Dependencies
-│   └── 📚: Express, bcrypt, pg, dotenv, etc.
-│
-├── .env                      # Environment secrets (GITIGNORED)
-│   └── 📚: DATABASE_URL, JWT_SECRET, PayPal keys, etc.
-│
-└── .env.example              # Template for .env
-    └── 📚: Reference for required env variables
+  ├── db/
+  │   └── schema.sql
 ```
 
-### 🐕 Routes (`backend/routes/`)
-
-**API Endpoints organized by feature:**
-
-```
-backend/routes/
-├── auth.js
-│   ├── POST /api/auth/register           # User signup
-│   ├── POST /api/auth/login               # User login
-│   ├── POST /api/auth/verify              # Verify JWT
-│   ├── POST /api/auth/logout              # Logout
-│   ├── POST /api/auth/refresh-token       # Refresh JWT
-│   ├── GET  /api/auth/me                  # Get current user
-│   └── POST /api/auth/dev-login           # Dev mode login
-│
-├── webauthn.js
-│   ├── POST /api/auth/webauthn/register-options
-│   ├── POST /api/auth/webauthn/register-verify
-│   ├── POST /api/auth/webauthn/authenticate-options
-│   ├── POST /api/auth/webauthn/authenticate-verify
-│   └── POST /api/auth/webauthn/register-password
-│
-├── tracks.js
-│   ├── GET  /api/tracks                    # List all tracks
-│   ├── GET  /api/tracks/:id                # Get track details
-│   ├── GET  /api/tracks/audio/:filename    # Stream audio
-│   └── GET  /api/tracks/genres/list        # List genres
-│
-├── admin-tracks.js                    # 🊨 ADMIN ONLY
-│   ├── POST /api/admin/tracks/upload      # Upload track
-│   ├── GET  /api/admin/tracks/list         # List all tracks
-│   ├── PUT  /api/admin/tracks/:id          # Update track
-│   └── DELETE /api/admin/tracks/:id       # Delete track
-│
-├── payments.js
-│   ├── GET  /api/payments/config           # PayPal config
-│   ├── POST /api/payments/create-order     # Create order
-│   ├── POST /api/payments/capture-order/:id # Capture payment
-│   ├── GET  /api/payments/history          # Payment history
-│   ├── GET  /api/payments/user-purchases   # User purchases
-│   └── GET  /api/payments/stats            # Payment statistics
-│
-├── users.js
-│   ├── GET  /api/users/profile             # User profile
-│   ├── GET  /api/users/stats               # User statistics
-│   ├── GET  /api/users/purchases           # Purchased tracks
-│   ├── GET  /api/users/play-history        # Play history
-│   └── GET  /api/users/leaderboard         # Public leaderboard
-│
-└── play-history.js
-    ├── POST /api/play-history/             # Log play
-    ├── GET  /api/play-history/user/:userId # Get history
-    ├── DELETE /api/play-history/user/:userId # Clear history
-    └── GET  /api/play-history/stats/user/:userId # Stats
-```
-
-**Total:** 35 API endpoints (👈 see API-Documentation-v1.md for details)
-
-### 🐕 Middleware (`backend/middleware/`)
-
-```
-backend/middleware/
-├── auth-middleware.js
-│   └── verifyToken()    - Verify JWT in Authorization header
-│       generateJWT()    - Create signed JWT token
-│       verifyAdmin()    - Check user role === 'admin'
-│
-└── cache-middleware.js
-    └── cacheControl()   - Set cache headers
-        rateLimit()      - Rate limiting for API
-```
-
-### 🐕 Database (`backend/db/`)
-
-```
-backend/db/
-└── schema.sql                 # ✅ SINGLE SOURCE OF TRUTH
-    ├── 10 tables:
-    │   1. users                  - User accounts & auth
-    │   2. tracks                 - Music metadata
-    │   3. orders                 - PayPal orders
-    │   4. purchases              - Track purchases
-    │   5. play_history           - Play events
-    │   6. play_stats             - Analytics
-    │   7. webauthn_credentials   - Biometric keys
-    │   8. magic_links            - Email login tokens
-    │   9. magic_link_tokens      - Alternative tokens
-    └── 10. design_system         - Theme configuration
-    ├── 22 indexes for performance
-    └── Triggers & constraints
-```
-
-**See DATABASE.md for complete schema documentation**
-
-### 🐕 Storage
-
-```
-backend/
-├── public/                   # Static files (CSS, JS, HTML)
-│   └── Served at: https://localhost:3000/
-│       Includes: Design CSS, images, etc.
-│
-├── certs/                    # SSL certificates
-│   ├── cert.pem                # Public certificate
-│   └── key.pem                 # Private key
-│       Generated with mkcert for local HTTPS
-│
-└── uploads/                  # Audio files (GITIGNORED)
-    └── track_[id]_[hash].mp3   # Audio file storage
-        track_[id]_[hash].wav   # Alternative format
-```
-
----
-
-## 📂 Frontend Structure (`frontend/`)
-
-### 📂 Pages (`frontend/html/`)
-
-```
-frontend/html/
-├── index.html                # Homepage
-│   └── Main landing page with track showcase
-│       Webpack bundles JS modules into this
-│
-├── auth.html                 # Login & registration
-│   └── Login form, signup form
-│       WebAuthn biometric option
-│
-├── app.html                  # Main player interface
-│   └── Audio player with controls
-│       Waveform visualization
-│       Track list & metadata
-│
-└── ...                       # Other pages as needed
-```
-
-### 📂 Admin Pages (`frontend/admin/`) - NEW!
-
-```
-frontend/admin/                    # 🊨 ADMIN CONSOLE (NEW)
-├── index.html                # 🔐 Admin Hub main dashboard
-│   └── JWT login interface
-│       Cyberpunk UI with neon styling
-│       Links to admin tools
-│       Session management
-│
-├── design-editor.html        # 🎨 Design token customization
-│   └── Color picker interface
-│       Font selection
-│       Real-time preview
-│
-└── admin-upload.html         # 📤 Track upload form
-    └── File picker
-        Metadata input fields
-        Upload progress
-        Published status toggle
-```
-
-### 📂 JavaScript Modules (`frontend/js/`)
-
-```
-frontend/js/
-├── main.js                   # Webpack entry point
-│   └── Imports all modules
-│       Creates main bundle
-│
-├── app.js                    # Main app logic
-│   └── Initialize application
-│       Route handling
-│       Component management
-│
-├── auth.js                   # Authentication flows
-│   └── Register user
-│       Login flows
-│       Token management
-│       Logout
-│
-├── webauthn.js               # Biometric authentication
-│   └── WebAuthn registration
-│       WebAuthn login
-│       Credential management
-│
-├── api-client.js             # API wrapper
-│   └── fetch() wrapper
-│       Request/response handling
-│       Error management
-│       Token injection in headers
-│
-├── player.js                 # Audio player
-│   └── Play/pause controls
-│       Seek functionality
-│       Volume control
-│       Waveform rendering
-│
-├── tracks.js                 # Track management
-│   └── Fetch tracks from API
-│       Display track list
-│       Filter by genre
-│       Sort functionality
-│
-└── ...                       # Other modules
-```
-
-### 📂 Stylesheets (`frontend/css/`)
-
-```
-frontend/css/
-├── main.css                  # Global styles
-│   └── Base styles, typography
-│       CSS variables for theming
-│
-├── player.css                # Player component styles
-│   └── Player controls
-│       Waveform styling
-│
-├── auth.css                  # Auth form styles
-│   └── Login/signup forms
-│
-└── ...                       # Other stylesheets
-```
-
-### 📂 Build Output (`frontend/dist/`) - Generated
-
-```
-frontend/dist/                     # Webpack output (GITIGNORED)
-├── main.bundle.js            # Bundled application code
-│   └── All JS modules combined
-│       Minified for production
-│
-├── main.bundle.js.map        # Source map for debugging
-│   └── Maps bundle back to source
-│
-└── ...                       # Other assets
-```
-
-### 📂 Configuration
-
-```
-frontend/
-├── webpack.config.js          # Build configuration
-│   └── Entry: js/main.js
-│       Output: dist/main.bundle.js
-│       Loaders for JS, CSS, images
-│       Dev server on port 5500
-│
-├── package.json              # Dependencies
-│   └── webpack, webpack-cli
-│       babel for transpilation
-│       dev-server
-│
-└── .env.example              # Environment template
-    └── VITE_API_URL, PAYPAL_CLIENT_ID
-```
-
----
-
-## 📖 Documentation (`docs/`)
-
-```
-docs/
-├── MASTER-PROMPT-2026-AKTUELL.md     # 🊨 START HERE!
-│   └── Current project status
-│       Known issues & workarounds
-│       Protected code sections
-│       Next priorities
-│
-├── README.md                          # Project overview
-│   └── Features, quick start
-│       Installation instructions
-│       Tech stack overview
-│
-├── PROJECT-STRUCTURE.md               # This file
-│   └── Visual directory organization
-│       File purposes & organization
-│
-├── ADMIN-GUIDE.md                     # 🊨 Admin Hub documentation
-│   └── Admin login methods
-│       Admin tools guide
-│       Troubleshooting
-│       Best practices
-│
-├── DATABASE.md                        # Database documentation
-│   └── Schema diagrams
-│       Table descriptions
-│       Relationships & indexes
-│
-├── API-Documentation-v1.md            # API reference
-│   └── All 35 endpoints documented
-│       Request/response examples
-│       Error codes
-│
-├── PRODUCTION-DEPLOYMENT.md           # Deployment guide
-│   └── VPS setup instructions
-│       SSL certificates
-│       Nginx reverse proxy
-│       PM2 process manager
-│
-└── SECURITY.md                        # Security guide (planned)
-    └── Security best practices
-        Input validation
-        CORS configuration
-        Rate limiting
-```
-
----
-
-## 💤 Configuration Files
-
+### ✅ CORRECT
 ```
 ROOT/
-├── .env                        # Actual secrets (GITIGNORED)
-│   └── DATABASE_URL
-│       JWT_SECRET
-│       PayPal credentials
-│
-├── .env.example                # Template for developers
-│   └── All required vars documented
-│       No real secrets included
-│
-├── .gitignore                  # Global git ignore patterns
-│   └── node_modules/
-│       dist/
-│       .env
-│       uploads/
-│
-├── package.json               # Root package
-│   └── Scripts: npm start, npm run build
-│       Uses concurrently to run backend + frontend
-│
-└── LICENSE                    # MIT License
-    └── Full license text
+  └── schema.sql  (NOT in backend/db/!)
+```
+
+### ❌ WRONG in PROJECT-STRUCTURE.md (v1.0)
+```
+docs/
+  ├── MASTER-PROMPT-2026-AKTUELL.md
+  ├── DATABASE.md
+  ├── PRODUCTION-DEPLOYMENT.md
+```
+
+### ✅ CORRECT
+```
+ROOT/
+  ├── MASTER-PROMPT-2026-AKTUELL.md
+  ├── DATABASE.md
+  ├── PRODUCTION-DEPLOYMENT.md
+
+docs/
+  ├── ADMIN-GUIDE.md              (NEW)
+  └── PROJECT-STRUCTURE.md        (NEW)
 ```
 
 ---
 
-## 📁 Directory Sizes
+## 📊 Actual File Locations
+
+| File/Folder | Location | Purpose |
+|-------------|----------|----------|
+| **schema.sql** | `ROOT/` | ✅ Database schema (single source of truth) |
+| **MASTER-PROMPT-2026-AKTUELL.md** | `ROOT/` | 📌 Start every session with this! |
+| **DATABASE.md** | `ROOT/` | Database documentation |
+| **PRODUCTION-DEPLOYMENT.md** | `ROOT/` | Deployment guide |
+| **README.md** | `ROOT/` | Project overview |
+| **ADMIN-GUIDE.md** | `docs/` | ✅ NEW: Admin Hub guide |
+| **PROJECT-STRUCTURE.md** | `docs/` | ✅ NEW: Project organization (this file) |
+| **backend/** | `ROOT/` | Express.js API server |
+| **frontend/** | `ROOT/` | Webpack + HTML frontend |
+| **admin/** | `frontend/admin/` | ✅ NEW: Admin console pages |
+
+---
+
+## 🔍 Backend Structure (Correct)
 
 ```
 backend/
-  ├─ routes/          ~15 KB   (6 files, 35 endpoints)
-  ├─ middleware/      ~3 KB    (2 files)
-  ├─ db/              ~25 KB   (schema.sql with indexes)
-  ├─ uploads/         ~500 MB  (audio files, GITIGNORED)
-  └─ Total ~600+ MB
+├── middleware/
+│   └── auth-middleware.js        JWT verification, token generation
+├── routes/                       API endpoints (6 files)
+│   ├── auth.js                   Authentication (7 endpoints)
+│   ├── webauthn.js              Biometric (5 endpoints)
+│   ├── tracks.js                Public tracks (4 endpoints)
+│   ├── admin-tracks.js          Admin tracks (4 endpoints)
+│   ├── payments.js              PayPal (6 endpoints)
+│   ├── users.js                 User profile (5 endpoints)
+│   └── play-history.js          Play tracking (4 endpoints)
+├── public/                       Static files
+├── certs/                        SSL certificates
+├── server.js                     Express server
+├── generate-cert.js              Cert generator
+├── performance-monitor.js        Performance tracking
+├── package.json
+├── .env.example
+└── .gitignore
 
+⚠️ DATABASE SCHEMA:
+   schema.sql is in ROOT, NOT in backend/db/
+```
+
+---
+
+## 🎨 Frontend Structure (Correct)
+
+```
 frontend/
-  ├─ js/              ~30 KB   (10+ modules)
-  ├─ css/             ~15 KB   (stylesheets)
-  ├─ html/            ~8 KB    (5 pages)
-  ├─ admin/           ~50 KB   (3 admin pages)
-  ├─ dist/            ~83 KB   (bundled, generated)
-  └─ Total ~200+ KB
+├── admin/                        ✅ NEW Admin Console
+│   ├── index.html                Admin Hub main
+│   ├── design-editor.html        Design tool
+│   └── admin-upload.html         Track upload
+├── html/
+│   ├── index.html                Homepage
+│   ├── auth.html                 Login/signup
+│   ├── app.html                  Player
+│   └── ...
+├── js/                           JavaScript modules
+│   ├── main.js                   Entry point
+│   ├── app.js
+│   ├── auth.js
+│   ├── api-client.js
+│   ├── player.js
+│   ├── tracks.js
+│   └── webauthn.js
+├── css/                          Stylesheets
+├── assets/                       Images & static
+├── dist/                         Webpack output (generated)
+├── webpack.config.js
+├── package.json
+├── .env.example
+└── .gitignore
+```
 
+---
+
+## 📚 Documentation Files (Actual Locations)
+
+### ROOT Level Documents:
+```
+ROOT/
+├── README.md                              Main project overview
+├── MASTER-PROMPT-2026-AKTUELL.md          👈 MANDATORY! Start every session!
+├── MASTER-PROMPT-2026-DEFINITIVE.md       Reference/backup
+├── MASTER-CONTEXT-PROMPT.md               Legacy reference
+├── DATABASE.md                            Complete schema documentation
+├── PRODUCTION-DEPLOYMENT.md               Deployment & DevOps guide
+├── REPOSITORY-STRUCTURE.md                Legacy (use PROJECT-STRUCTURE.md instead)
+├── CODE_QUALITY_AUDIT.md                  Quality review document
+├── schema.sql                             ✅ DATABASE SCHEMA
+└── ...
+```
+
+### docs/ Folder (New):
+```
 docs/
-  └─ Total ~150 KB    (5 markdown files)
+├── ADMIN-GUIDE.md                         ✅ NEW: Admin Hub guide
+└── PROJECT-STRUCTURE.md                   ✅ NEW: This document
 ```
 
 ---
 
-## 💏 Typical Workflow
+## 🧭 Quick Navigation
 
-### 1. Start Development
-```
-PowerShell ⇒ cd song-nexus
-            ⇒ npm start
-            ⇒ Both backend & frontend start
-```
+### Finding Specific Things
 
-### 2. Make Changes
-```
-Edit: backend/routes/tracks.js
-Edit: frontend/js/player.js
+| Need | Location |
+|------|----------|
+| **API Endpoint Code** | `backend/routes/*.js` |
+| **Authentication Logic** | `backend/middleware/auth-middleware.js` |
+| **Database Schema** | `ROOT/schema.sql` |
+| **Database Documentation** | `ROOT/DATABASE.md` |
+| **Admin Hub Pages** | `frontend/admin/*.html` |
+| **Frontend Styles** | `frontend/css/*.css` |
+| **API Client** | `frontend/js/api-client.js` |
+| **Environment Setup** | `backend/.env.example` + `frontend/.env.example` |
+| **Master Context** | `ROOT/MASTER-PROMPT-2026-AKTUELL.md` |
+| **Deployment Info** | `ROOT/PRODUCTION-DEPLOYMENT.md` |
+| **Project Overview** | `ROOT/README.md` |
+| **Admin Documentation** | `docs/ADMIN-GUIDE.md` |
 
-Frontend: Auto-reload (Webpack watches)
-Backend:  Requires manual restart (Ctrl+C, npm start)
-```
+---
 
-### 3. Test Admin
-```
-Browser ⇒ https://localhost:3000/admin/
-        ⇒ Click "Dev Login"
-        ⇒ Access admin tools
-```
+## 🎯 Key Files You Need
 
-### 4. Commit Changes
+### To Start Coding Each Session:
+1. **Read first:** `ROOT/MASTER-PROMPT-2026-AKTUELL.md` (current status)
+2. **Reference:** `ROOT/README.md` (overview)
+3. **For admin work:** `docs/ADMIN-GUIDE.md`
+4. **Database questions:** `ROOT/DATABASE.md`
+5. **Deployment:** `ROOT/PRODUCTION-DEPLOYMENT.md`
+
+### Configuration:
+- Backend config: `backend/.env.example` → `backend/.env`
+- Frontend config: `frontend/.env.example` → `frontend/.env`
+- Root package: `ROOT/package.json` (concurrently runner)
+
+### Database:
+- Schema: `ROOT/schema.sql` (⚠️ NOT in backend/db/!)
+- Docs: `ROOT/DATABASE.md`
+
+---
+
+## 🚨 Things to Fix/Clarify
+
+### Questions:
+1. **Root-level `middleware/` folder** - Is this still used or deprecated?
+2. **`gitignore` file** - Why is there both `.gitignore` and `gitignore`?
+3. **Legacy documentation** - Can we clean up `MASTER-CONTEXT-PROMPT.md` and `MASTER-PROMPT-2026-DEFINITIVE.md`?
+4. **`archived/` folder** - What's in there? Can it be removed?
+
+---
+
+## 📖 How to Read This Hierarchy
+
 ```
-PowerShell ⇒ git add .
-            ⇒ git commit -m "feat: add new feature"
-            ⇒ git push origin main
+📂 = Folder
+📄 = File
+✅ = Important/New
+⚠️ = Attention needed
+📌 = Mandatory reading
+👈 = You are here
 ```
 
 ---
 
-## 🏽 Naming Conventions
+## 🔄 Update Log
 
-### Files
-- **API routes:** kebab-case (admin-tracks.js)
-- **Components:** camelCase (apiClient.js)
-- **Styles:** kebab-case (player.css)
-- **HTML pages:** kebab-case or camelCase (auth.html, admin-upload.html)
-- **Database:** snake_case (play_history, webauthn_credentials)
+**v1.0.1 - January 8, 2026**
+- ✅ Fixed schema.sql location (ROOT, not backend/db/)
+- ✅ Fixed documentation locations (most are ROOT, not docs/)
+- ✅ Added notes about incorrect previous documentation
+- ✅ Clarified actual vs. intended structure
 
-### Directories
-- **Module collections:** plural (routes/, middleware/, uploads/)
-- **Code organization:** descriptive (js/, css/, html/)
-- **Config:** root level (.env, package.json)
-
-### Database Tables
-- **Singular nouns preferred:** user (not users), track (not tracks)
-- **Composite names:** snake_case (webauthn_credentials, play_history)
-- **Junction tables:** alphabetical order (user_tracks, not tracks_users)
+**v1.0 - January 7, 2026**
+- Created initial PROJECT-STRUCTURE.md with errors
 
 ---
 
-## 🔍 Finding Things
-
-| Need | Location | File |
-|------|----------|------|
-| **API endpoint** | backend/routes/ | auth.js, tracks.js, admin-tracks.js |
-| **Auth logic** | backend/middleware/ | auth-middleware.js |
-| **Database schema** | backend/db/ | schema.sql |
-| **Frontend page** | frontend/html/ | index.html, app.html |
-| **Admin interface** | frontend/admin/ | index.html |
-| **API client code** | frontend/js/ | api-client.js |
-| **Styling** | frontend/css/ | *.css files |
-| **Config** | root + backend/ + frontend/ | .env, .env.example |
-| **Docs** | docs/ | *.md files |
-
----
-
-## 🔒 Protected vs Modifiable
-
-### 🔒 Protected (Don't modify without reason)
-- `backend/db/schema.sql` - Database structure
-- `backend/middleware/auth-middleware.js` - Auth logic
-- `frontend/js/api-client.js` - API wrapper
-
-### 🗑️ Safe to Modify
-- `frontend/css/` - Styling
-- `frontend/html/` - HTML structure
-- `backend/routes/` - API endpoints (when tested!)
-- Documentation files (docs/)
-
-**See MASTER-PROMPT-2026-AKTUELL.md for detailed protection info**
-
----
-
-**Last Updated:** January 7, 2026  
-**Version:** 1.0.1  
+**Last Updated:** January 8, 2026  
+**Accuracy:** 95% (see "Things to Fix" section)  
 **Maintainer:** Sebastian
