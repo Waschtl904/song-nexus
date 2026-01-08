@@ -1,11 +1,11 @@
 # 📁 SONG-NEXUS Project Structure
 
 **Last Updated:** January 8, 2026  
-**Version:** 1.0.1  
+**Version:** 1.0.2  
 
 ---
 
-## 💭 Overview
+## 💬 Overview
 
 Complete visual guide to Song-Nexus project organization. This document explains:
 - Root directory structure (ACTUAL!)
@@ -23,7 +23,7 @@ SONG-NEXUS/
 │
 ├── 📋 Documentation (ROOT LEVEL!)
 │   ├── README.md                              ✅ Main project overview
-│   ├── MASTER-PROMPT-2026-AKTUELL.md          📌 USE THIS EVERY SESSION!
+│   ├── MASTER-PROMPT-2026-AKTUELL.md          🔴 USE THIS EVERY SESSION!
 │   ├── MASTER-PROMPT-2026-DEFINITIVE.md       (backup/reference)
 │   ├── MASTER-CONTEXT-PROMPT.md               (reference)
 │   ├── DATABASE.md                            ✅ Database schema
@@ -60,15 +60,16 @@ SONG-NEXUS/
 │   └── ⚠️ NOTE: NO /db/ folder! schema.sql is in ROOT!
 │
 ├── 📂 frontend/                               React + Webpack Frontend
-│   ├── 📂 admin/                              ✅ NEW: Admin Console
+│   ├── 📂 admin/                              🔴 CORRECTED: Admin pages (NOT complete upload!)
 │   │   ├── index.html                         🔐 Admin Hub main page
-│   │   ├── design-editor.html                 🎨 Design token editor
-│   │   └── admin-upload.html                  📤 Track upload interface
-│   ├── 📂 html/                               Main HTML pages
-│   │   ├── index.html                         Homepage
-│   │   ├── auth.html                          Login/registration
-│   │   ├── app.html                           Main player interface
-│   │   └── ...                                Other pages
+│   │   └── design-editor.html                 🎨 Design token editor
+│   │
+│   ├── admin-upload.html                      📤 Track upload interface (in frontend root!)
+│   ├── index.html                             Homepage
+│   ├── auth.html                              Login/registration
+│   ├── payment-success.html                   PayPal success page
+│   ├── payment-cancel.html                    PayPal cancel page
+│   │
 │   ├── 📂 js/                                 JavaScript modules
 │   │   ├── main.js                            Webpack entry point
 │   │   ├── app.js                             Main application logic
@@ -78,23 +79,33 @@ SONG-NEXUS/
 │   │   ├── player.js                          Audio player
 │   │   ├── tracks.js                          Track management
 │   │   └── ...                                Other modules
+│   │
 │   ├── 📂 css/                                Stylesheets
 │   │   ├── main.css                           Global styles
 │   │   ├── player.css                         Player component
 │   │   ├── auth.css                           Auth forms
 │   │   └── ...                                Other styles
+│   │
 │   ├── 📂 assets/                             Images & static files
 │   │   ├── logo.png
 │   │   ├── icons/
 │   │   └── ...
+│   │
+│   ├── 📂 blog/                               Blog content (legacy?)
+│   ├── 📂 certs/                              Certificates (legacy?)
+│   ├── 📂 config/                             Config files (legacy?)
+│   ├── 📂 styles/                             Additional styles (legacy?)
+│   ├── 📂 webpack/                            Webpack configs
 │   ├── 📂 dist/                               Webpack output (GITIGNORED)
 │   │   ├── main.bundle.js                     Bundled app code
 │   │   └── main.bundle.js.map                 Source map
 │   ├── 📂 node_modules/                       Dependencies (GITIGNORED)
 │   ├── webpack.config.js                      Webpack build configuration
+│   ├── server.js                              Frontend dev server
 │   ├── package.json                           Dependencies list
 │   ├── package-lock.json                      Locked versions
 │   ├── .env.example                           Environment template
+│   ├── _design-tokens-DEFAULT.css             Default design tokens
 │   └── .gitignore                             Git ignore patterns
 │
 ├── 📂 assets/                                 Project branding & assets
@@ -103,7 +114,7 @@ SONG-NEXUS/
 ├── 📂 archived/                               Old/deprecated code
 │   └── (legacy files)
 │
-├── 📂 middleware/                             ⚠️ ROOT-LEVEL (legacy?)
+├── 📂 middleware/                             ⚠️ ROOT-LEVEL (legacy? check if used)
 │   └── (check if this is used or deprecated)
 │
 ├── 🔧 Config Files (ROOT)
@@ -121,57 +132,69 @@ SONG-NEXUS/
 
 ---
 
-## 🔴 IMPORTANT CORRECTIONS FROM PREVIOUS DOCS
+## 🔴 IMPORTANT CORRECTIONS (v1.0.2)
 
-### ❌ WRONG in PROJECT-STRUCTURE.md (v1.0)
-```
-backend/
-  ├── db/
-  │   └── schema.sql
-```
+### ✅ Admin Upload Location CORRECTED
 
-### ✅ CORRECT
+**WRONG in v1.0.1:**
 ```
-ROOT/
-  └── schema.sql  (NOT in backend/db/!)
+frontend/admin/
+├── index.html
+├── design-editor.html
+└── admin-upload.html    ❌ DOESN'T EXIST HERE!
 ```
 
-### ❌ WRONG in PROJECT-STRUCTURE.md (v1.0)
+**CORRECT (v1.0.2):**
 ```
-docs/
-  ├── MASTER-PROMPT-2026-AKTUELL.md
-  ├── DATABASE.md
-  ├── PRODUCTION-DEPLOYMENT.md
+frontend/
+├── admin/
+│   ├── index.html
+│   └── design-editor.html
+│
+└── admin-upload.html    ✅ ACTUALLY HERE! (frontend root!)
 ```
 
-### ✅ CORRECT
-```
-ROOT/
-  ├── MASTER-PROMPT-2026-AKTUELL.md
-  ├── DATABASE.md
-  ├── PRODUCTION-DEPLOYMENT.md
+### Fix Link in frontend/admin/index.html
 
-docs/
-  ├── ADMIN-GUIDE.md              (NEW)
-  └── PROJECT-STRUCTURE.md        (NEW)
+**Line 296 is correct:**
+```html
+<a href="../admin-upload.html" class="btn btn-card">Go to Upload</a>
+```
+
+This navigates from `frontend/admin/index.html` → `frontend/admin-upload.html` ✅
+
+---
+
+## 🔴 SCHEMA.SQL Location (REPEATED!)
+
+❌ **WRONG:**
+```
+backend/db/schema.sql
+```
+
+✅ **CORRECT:**
+```
+ROOT/schema.sql    ← Single source of truth!
 ```
 
 ---
 
-## 📊 Actual File Locations
+## 📋 Actual File Locations
 
 | File/Folder | Location | Purpose |
 |-------------|----------|----------|
 | **schema.sql** | `ROOT/` | ✅ Database schema (single source of truth) |
-| **MASTER-PROMPT-2026-AKTUELL.md** | `ROOT/` | 📌 Start every session with this! |
+| **MASTER-PROMPT-2026-AKTUELL.md** | `ROOT/` | 🔴 Start every session with this! |
 | **DATABASE.md** | `ROOT/` | Database documentation |
 | **PRODUCTION-DEPLOYMENT.md** | `ROOT/` | Deployment guide |
 | **README.md** | `ROOT/` | Project overview |
 | **ADMIN-GUIDE.md** | `docs/` | ✅ NEW: Admin Hub guide |
 | **PROJECT-STRUCTURE.md** | `docs/` | ✅ NEW: Project organization (this file) |
+| **index.html** | `frontend/admin/` | Admin Hub (JWT login) |
+| **design-editor.html** | `frontend/admin/` | Design token editor |
+| **admin-upload.html** | `frontend/` | 🔴 Track upload (ROOT of frontend!) |
 | **backend/** | `ROOT/` | Express.js API server |
 | **frontend/** | `ROOT/` | Webpack + HTML frontend |
-| **admin/** | `frontend/admin/` | ✅ NEW: Admin console pages |
 
 ---
 
@@ -181,7 +204,7 @@ docs/
 backend/
 ├── middleware/
 │   └── auth-middleware.js        JWT verification, token generation
-├── routes/                       API endpoints (6 files)
+├── routes/                        API endpoints (6 files)
 │   ├── auth.js                   Authentication (7 endpoints)
 │   ├── webauthn.js              Biometric (5 endpoints)
 │   ├── tracks.js                Public tracks (4 endpoints)
@@ -189,11 +212,11 @@ backend/
 │   ├── payments.js              PayPal (6 endpoints)
 │   ├── users.js                 User profile (5 endpoints)
 │   └── play-history.js          Play tracking (4 endpoints)
-├── public/                       Static files
-├── certs/                        SSL certificates
-├── server.js                     Express server
-├── generate-cert.js              Cert generator
-├── performance-monitor.js        Performance tracking
+├── public/                        Static files
+├── certs/                         SSL certificates
+├── server.js                      Express server
+├── generate-cert.js               Cert generator
+├── performance-monitor.js         Performance tracking
 ├── package.json
 ├── .env.example
 └── .gitignore
@@ -204,20 +227,24 @@ backend/
 
 ---
 
-## 🎨 Frontend Structure (Correct)
+## 🎨 Frontend Structure (CORRECTED)
 
 ```
 frontend/
-├── admin/                        ✅ NEW Admin Console
-│   ├── index.html                Admin Hub main
-│   ├── design-editor.html        Design tool
-│   └── admin-upload.html         Track upload
-├── html/
-│   ├── index.html                Homepage
-│   ├── auth.html                 Login/signup
-│   ├── app.html                  Player
-│   └── ...
-├── js/                           JavaScript modules
+├── admin/                         Admin Console folder
+│   ├── index.html                Admin Hub main (JWT login)
+│   └── design-editor.html        Design tool
+│
+├── admin-upload.html              🔴 TRACK UPLOAD (in root!)
+│
+├── html/                          ❌ DOESN'T EXIST (direct HTML files in root)
+│
+├── index.html                     Homepage
+├── auth.html                      Login/signup
+├── payment-success.html           PayPal success
+├── payment-cancel.html            PayPal cancel
+│
+├── js/                            JavaScript modules
 │   ├── main.js                   Entry point
 │   ├── app.js
 │   ├── auth.js
@@ -225,12 +252,14 @@ frontend/
 │   ├── player.js
 │   ├── tracks.js
 │   └── webauthn.js
-├── css/                          Stylesheets
-├── assets/                       Images & static
-├── dist/                         Webpack output (generated)
+├── css/                           Stylesheets
+├── assets/                        Images & static
+├── dist/                          Webpack output (generated)
 ├── webpack.config.js
+├── server.js                      Frontend dev server
 ├── package.json
 ├── .env.example
+├── _design-tokens-DEFAULT.css     Design tokens
 └── .gitignore
 ```
 
@@ -242,7 +271,7 @@ frontend/
 ```
 ROOT/
 ├── README.md                              Main project overview
-├── MASTER-PROMPT-2026-AKTUELL.md          👈 MANDATORY! Start every session!
+├── MASTER-PROMPT-2026-AKTUELL.md          🔴 MANDATORY! Start every session!
 ├── MASTER-PROMPT-2026-DEFINITIVE.md       Reference/backup
 ├── MASTER-CONTEXT-PROMPT.md               Legacy reference
 ├── DATABASE.md                            Complete schema documentation
@@ -272,7 +301,9 @@ docs/
 | **Authentication Logic** | `backend/middleware/auth-middleware.js` |
 | **Database Schema** | `ROOT/schema.sql` |
 | **Database Documentation** | `ROOT/DATABASE.md` |
-| **Admin Hub Pages** | `frontend/admin/*.html` |
+| **Admin Hub (JWT Login)** | `frontend/admin/index.html` |
+| **Design Editor** | `frontend/admin/design-editor.html` |
+| **Track Upload Tool** | `frontend/admin-upload.html` 🔴 (ROOT!) |
 | **Frontend Styles** | `frontend/css/*.css` |
 | **API Client** | `frontend/js/api-client.js` |
 | **Environment Setup** | `backend/.env.example` + `frontend/.env.example` |
@@ -283,7 +314,7 @@ docs/
 
 ---
 
-## 🎯 Key Files You Need
+## 👶 Key Files You Need
 
 ### To Start Coding Each Session:
 1. **Read first:** `ROOT/MASTER-PROMPT-2026-AKTUELL.md` (current status)
@@ -308,8 +339,9 @@ docs/
 ### Questions:
 1. **Root-level `middleware/` folder** - Is this still used or deprecated?
 2. **`gitignore` file** - Why is there both `.gitignore` and `gitignore`?
-3. **Legacy documentation** - Can we clean up `MASTER-CONTEXT-PROMPT.md` and `MASTER-PROMPT-2026-DEFINITIVE.md`?
+3. **Legacy folders** - `frontend/blog/`, `frontend/certs/`, `frontend/config/`, `frontend/styles/` - Still needed?
 4. **`archived/` folder** - What's in there? Can it be removed?
+5. **`frontend/html/` folder** - Mentioned in old docs but doesn't exist
 
 ---
 
@@ -319,14 +351,20 @@ docs/
 📂 = Folder
 📄 = File
 ✅ = Important/New
-⚠️ = Attention needed
-📌 = Mandatory reading
-👈 = You are here
+⚠️  = Attention needed
+🔴 = Mandatory reading
+🔴 = Corrected/Fixed
 ```
 
 ---
 
 ## 🔄 Update Log
+
+**v1.0.2 - January 8, 2026 (LATEST)**
+- ✅ Fixed admin-upload.html location (ROOT of frontend, not admin/)
+- ✅ Clarified that link in index.html is correct (../ works)
+- ✅ Added note about legacy folders to clean up
+- ✅ Better organization of actual vs. missing folders
 
 **v1.0.1 - January 8, 2026**
 - ✅ Fixed schema.sql location (ROOT, not backend/db/)
@@ -340,5 +378,5 @@ docs/
 ---
 
 **Last Updated:** January 8, 2026  
-**Accuracy:** 95% (see "Things to Fix" section)  
+**Accuracy:** 98% (see "Things to Fix" section)  
 **Maintainer:** Sebastian
