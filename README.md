@@ -9,6 +9,37 @@
 
 ---
 
+## 🖥️ YOUR WINDOWS 11 LAPTOP SETUP
+
+### ⚠️ IMPORTANT: Your Single Working Directory
+
+**All development work happens in ONE location ONLY:**
+
+```
+C:\Users\sebas\Desktop\SongSeite
+```
+
+**This directory contains:**
+- ✅ All project code (backend/, frontend/)
+- ✅ All documentation files (README.md, *.md)
+- ✅ Database schema (schema.sql)
+- ✅ Node.js packages (node_modules/)
+- ✅ Environment configurations (.env files)
+- ✅ Git repository (.git/)
+
+**NEVER:**
+- ❌ Create copies in other locations
+- ❌ Work in different folders
+- ❌ Mix with other projects
+
+**Keep synchronized with GitHub:**
+```powershell
+cd C:\Users\sebas\Desktop\SongSeite
+git pull origin main
+```
+
+---
+
 ## 🚀 Overview
 
 **SONG-NEXUS** is a cutting-edge music streaming application built with modern web technologies. It features:
@@ -31,7 +62,7 @@
 **👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
 
 This file is in the **ROOT directory** and contains:
-- ✅ Current project status (updated Jan 8, 2026)
+- ✅ Current project status (updated Jan 13, 2026)
 - ✅ Known issues & workarounds
 - ✅ Protected code sections (don't touch!)
 - ✅ Safe-to-modify code sections
@@ -40,10 +71,27 @@ This file is in the **ROOT directory** and contains:
 
 **TL;DR:** Copy the content of `MASTER-PROMPT-2026-AKTUELL.md` into your Claude chat at the start of each session. This prevents regression bugs and redundancy problems.
 
+### 📚 Documentation Versions
+
+✅ **USE THESE CURRENT FILES:**
+- MASTER-PROMPT-2026-AKTUELL.md (CURRENT - Jan 13, 2026)
+- README.md (this file)
+- DATABASE.md (root level)
+- PRODUCTION-DEPLOYMENT.md (root level)
+- docs/ADMIN-GUIDE.md
+- docs/SETUP-WINDOWS.md
+- docs/PROJECT-STRUCTURE.md
+
+❌ **IGNORE (Legacy/outdated):**
+- MASTER-PROMPT-2026-DEFINITIVE.md (old version)
+- MASTER-CONTEXT-PROMPT.md (old version)
+- REPOSITORY-STRUCTURE.md (use PROJECT-STRUCTURE.md instead)
+
 ---
 
 ## 📋 Table of Contents
 
+- [Your Windows 11 Setup](#-your-windows-11-laptop-setup)
 - [Master Prompt](#important-read-this-first)
 - [Local Development Setup](#local-development-setup-windows-11-pro)
 - [Quick Start](#quick-start)
@@ -321,7 +369,7 @@ SONG-NEXUS/
 │
 ├── 📋 Documentation (ROOT LEVEL)
 │   ├── README.md                           ✅ This file
-│   ├── MASTER-PROMPT-2026-AKTUELL.md       🊨 START HERE EVERY SESSION!
+│   ├── MASTER-PROMPT-2026-AKTUELL.md       🔴 START HERE EVERY SESSION!
 │   ├── DATABASE.md                         ✅ Database schema documentation
 │   ├── PRODUCTION-DEPLOYMENT.md            ✅ Deployment guide
 │   ├── schema.sql                          ✅ DATABASE SCHEMA (single source of truth)
@@ -345,7 +393,7 @@ SONG-NEXUS/
 │   ├── 📂 admin/                          ✅ Admin Console
 │   │   ├── index.html                   🔐 Admin Hub main page
 │   │   └── design-editor.html            🎨 Design editor
-│   ├── admin-upload.html                 📤 Track upload (frontend root!)
+│   ├── admin-upload.html                 📤 Track upload (in frontend root!)
 │   ├── 📂 js/                            JavaScript modules
 │   ├── 📂 css/                           Stylesheets
 │   ├── 📂 assets/                        Images & static
@@ -368,7 +416,24 @@ SONG-NEXUS/
 
 ## 📊 Database Schema
 
-**Quick Overview:**
+### ⚠️ CRITICAL: Database Schema Location
+
+The SQL schema file is located at:
+
+✅ **CORRECT:** `ROOT/schema.sql` (22 KB, CURRENT)
+❌ **WRONG:** `backend/db/schema.sql` (doesn't exist, was deleted)
+
+**Always reference:**
+```powershell
+psql -U postgres -d song_nexus_dev -f schema.sql
+```
+
+**Never use:**
+```powershell
+psql -U postgres -d song_nexus_dev -f backend/db/schema.sql  # ❌ This path is wrong!
+```
+
+### Quick Overview:
 
 | Table | Purpose | Key Fields |
 |-------|---------|----------|
@@ -591,6 +656,7 @@ git push origin main
 - Deployment guide
 - **NEW:** Secure Admin Hub with JWT login (v1.0.1)
 - **NEW:** Windows 11 Pro setup guide (v1.0.2)
+- **NEW:** Documentation audit & corrections (v1.0.3)
 
 ### 🚧 In Development (v1.1)
 - [ ] WebAuthn frontend stabilization
@@ -729,6 +795,7 @@ See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) Troubleshooting section for
 ### Q1 2026
 - [x] Admin Hub with JWT login
 - [x] Windows 11 Pro setup guide
+- [x] Documentation audit & fixes
 - [ ] WebAuthn frontend hardening
 - [ ] Design system stabilization
 - [ ] Unit testing framework
@@ -784,7 +851,7 @@ See `LICENSE` file for details.
 ---
 
 **Last Updated:** January 13, 2026  
-**Version:** 1.0.2  
+**Version:** 1.0.3  
 **Status:** ✅ Production Ready  
 **Local Setup:** ✅ Windows 11 Pro Documented
 
