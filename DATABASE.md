@@ -2,8 +2,8 @@
 
 > **Complete database schema reference for Song-Nexus**
 
-**Version:** 1.0  
-**Updated:** January 5, 2026  
+**Version:** 1.0.1  
+**Updated:** January 13, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -22,7 +22,7 @@
 
 ---
 
-## 🐦 Overview
+## 🐥 Overview
 
 **Database System:** PostgreSQL 12+  
 **Total Tables:** 10  
@@ -32,11 +32,48 @@
 **Primary Keys:** 10  
 **Unique Constraints:** 9  
 
-**Schema File:** [schema.sql](./schema.sql) (22 KB, 700+ lines)
+**Schema File:** [👉 **schema.sql in ROOT directory**](./schema.sql) (22 KB, 700+ lines)
+
+⚠️ **IMPORTANT:** `schema.sql` is located in the **ROOT directory**, NOT in `backend/db/`
 
 ---
 
-## 🗄 Tables & Fields
+## 🗣️ Key Files
+
+| File | Location | Purpose |
+|------|----------|----------|
+| **schema.sql** | `ROOT/` | ✅ Database schema (single source of truth) |
+| **DATABASE.md** | `ROOT/` | This documentation |
+| **README.md** | `ROOT/` | Project overview |
+| ~~backend/db/schema.sql~~ | ❌ Doesn't exist | Use ROOT/schema.sql instead |
+
+---
+
+## 🗣️ How to Apply Schema
+
+### ✅ CORRECT (Windows PowerShell)
+
+```powershell
+cd C:\Users\sebas\Desktop\SongSeite
+psql -U postgres -d song_nexus_dev -f schema.sql
+```
+
+### ❌ WRONG (Don't use this path!)
+
+```powershell
+psql -U postgres -d song_nexus_dev -f backend/db/schema.sql  # ❌ Path doesn't exist!
+```
+
+---
+
+## 🗣️ Schema Version History
+
+- **v1.0.1** - Jan 13, 2026 - Documentation clarity update
+- **v1.0.0** - Jan 5, 2026 - Initial production version
+
+---
+
+## 🗣 Tables & Fields
 
 ### 1. **users** - User Accounts & Credentials
 
@@ -423,7 +460,7 @@ orders (PK: id)
 ### Foreign Key Constraints
 
 | From | To | On Delete | Purpose |
-|------|----|-----------|---------|
+|------|----|-----------|----------|
 | webauthn_credentials.user_id | users.id | CASCADE | Delete creds when user deleted |
 | magic_links.user_id | users.id | CASCADE | Delete tokens when user deleted |
 | magic_link_tokens.user_id | users.id | CASCADE | Delete tokens when user deleted |
@@ -438,7 +475,7 @@ orders (PK: id)
 
 ---
 
-## 🗒️ Indexes
+## 📏 Indexes
 
 **Total: 22 indexes** for optimized query performance.
 
@@ -481,7 +518,7 @@ idx_play_stats_track_id            -- Track analytics
 
 ---
 
-## 🔓 Constraints
+## 🔐 Constraints
 
 ### Primary Keys (10)
 - design_system_pkey
@@ -527,7 +564,7 @@ psql -U postgres
 CREATE DATABASE song_nexus_dev;
 \q
 
-# 2. Apply schema
+# 2. Apply schema (from ROOT directory)
 psql -U postgres -d song_nexus_dev -f schema.sql
 
 # 3. Verify tables
@@ -722,12 +759,13 @@ DATABASE_URL=postgres://song_nexus_user:password@localhost:5432/song_nexus_dev
 ## 📚 Additional Resources
 
 - **PostgreSQL Docs:** [postgresql.org/docs](https://www.postgresql.org/docs)
-- **Schema File:** [schema.sql](./schema.sql)
+- **Schema File:** [schema.sql](./schema.sql) (👉 in ROOT directory)
 - **README:** [README.md](./README.md)
 - **Deployment Guide:** [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+- **Project Structure:** [docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md)
 
 ---
 
-**Last Updated:** January 5, 2026  
-**Version:** 1.0.0  
+**Last Updated:** January 13, 2026  
+**Version:** 1.0.1  
 **Status:** ✅ Production Ready
