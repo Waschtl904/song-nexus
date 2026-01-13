@@ -1,12 +1,12 @@
 # 🛡️ SONG-NEXUS ADMIN HUB GUIDE
 
-**Version:** 1.0.1  
+**Version:** 1.0.2  
 **Created:** January 7, 2026  
-**Updated:** January 7, 2026  
+**Updated:** January 13, 2026  
 
 ---
 
-## 💫 Overview
+## 👫 Overview
 
 The **Admin Hub** is the central management console for Song-Nexus platform administrators. It provides a secure, JWT-authenticated dashboard for managing tracks, customizing platform branding, and accessing user analytics.
 
@@ -125,17 +125,31 @@ https://localhost:3000/admin/
 
 **Purpose:** Upload music files, set metadata, publish tracks
 
-**Access:** Admin Hub → Click "Go to Upload" button
+**Access Methods:**
 
-**URL:** `https://localhost:3000/admin-upload.html`
+**Method A: From Admin Hub**
+1. Navigate to `https://localhost:3000/admin/`
+2. Click "Go to Upload" button
+3. Redirects to upload interface
+
+**Method B: Direct URL**
+```
+https://localhost:3000/frontend/admin-upload.html
+```
+
+**⚠️ IMPORTANT:** The `admin-upload.html` file is located in:
+
+✅ **CORRECT:** `frontend/admin-upload.html` (in frontend root directory!)
+
+❌ **WRONG:** `frontend/admin/admin-upload.html` (this doesn't exist)
 
 **Features:**
 - 📤 Upload MP3 or WAV files
 - 🎵 Set track metadata (name, artist, genre)
 - 💲 Set pricing
-- 📈 Preview track before publishing
+- 🔍 Preview track before publishing
 - ✅ Publish/unpublish tracks
-- 🗝️ Edit track information
+- 📝 Edit track information
 - 🗑️ Delete tracks (soft delete)
 
 **File Requirements:**
@@ -176,13 +190,13 @@ https://localhost:3000/admin/
 
 **Access:** Admin Hub → Click "Go to Editor" button
 
-**URL:** `https://localhost:3000/admin/design-editor.html`
+**URL:** `https://localhost:3000/frontend/admin/design-editor.html`
 
 **Features:**
 - 🎨 Customize primary colors
 - 🎯 Change accent colors
-- 💺 Select fonts
-- 🕐 Real-time preview
+- 📚 Select fonts
+- 🕒 Real-time preview
 - 💾 Save design configuration
 - 🔄 Reset to defaults
 - 🌘 Dark/Light mode toggle
@@ -291,20 +305,27 @@ Headers: {
 ## 📁 File Structure
 
 ```
-frontend/admin/
-├── index.html              # 🔐 MAIN: Admin Hub console
-├── design-editor.html      # 🎨 Design customization tool
-└── admin-upload.html       # 📤 Track upload interface
+frontend/
+├── admin/
+│   ├── index.html              🔐 Admin Hub console
+│   └── design-editor.html      🎨 Design customization
+│
+└── admin-upload.html         📤 Track upload (IN FRONTEND ROOT!)
 
 backend/routes/
-├── auth.js                # POST /api/auth/login (admin check)
-├── admin-tracks.js        # Track upload endpoints
-└── (design routes - v1.1)  # Design customization endpoints
+├── auth.js                ✓ POST /api/auth/login (admin check)
+├── admin-tracks.js        ✓ Track upload endpoints
+└── (design routes - v1.1)  Design customization endpoints
 ```
+
+**⚠️ KEY POINT:**
+- `admin-upload.html` is in `frontend/` **ROOT directory**, not in `frontend/admin/`
+- This is intentional for direct URL access
+- All other admin files are in `frontend/admin/` subdirectory
 
 ---
 
-## 🧘 Best Practices
+## 😯 Best Practices
 
 ### Security
 
@@ -452,7 +473,34 @@ npm start
 
 ---
 
-## 📚 API Reference
+### Issue: Cannot Find admin-upload.html
+
+**Problem:** 404 error when accessing upload tool
+
+**Cause:** Looking in wrong path
+
+**Solution:**
+
+✅ **CORRECT paths:**
+```
+https://localhost:3000/frontend/admin-upload.html
+https://localhost:3000/admin-upload.html  (if configured)
+```
+
+❌ **WRONG paths:**
+```
+https://localhost:3000/admin/admin-upload.html  # ❌ Directory doesn't exist
+https://localhost:3000/frontend/admin/admin-upload.html  # ❌ File not there
+```
+
+**File actually located at:**
+```
+frontend/admin-upload.html  ✅ (in frontend ROOT)
+```
+
+---
+
+## 📋 API Reference
 
 ### Admin Authentication Endpoints
 
@@ -654,11 +702,11 @@ Secure Content Management System
 ✓ Session Active | User: admin@example.com | Role: admin | Logout
 
 [ADMIN GRID]
-┌─────────┐  ┌─────────┐
+┌─────┐  ┌─────┐
 │ 📤 Track Upload │  │ 🎨 Design Editor │
 │ Upload & manage   │  │ Customize colors  │
 │ [Go to Upload]    │  │ [Go to Editor]    │
-└─────────┘  └─────────┘
+└─────┘  └─────┘
 
 [FOOTER]
 🎵 Song-Nexus Admin Console v1.0
@@ -682,7 +730,7 @@ Secure Content Management System
   - System: "Courier New"
 
 **Terminal Font Note:**
-You asked about terminal fonts - for Admin Console it doesn't matter which terminal font you use personally (VS Code, PowerShell, etc.). The Admin Hub frontend uses Fira Code by default but falls back gracefully. Choose whatever you prefer for YOUR dev environment! 🌙
+You asked about terminal fonts - for Admin Console it doesn't matter which terminal font you use personally (VS Code, PowerShell, etc.). The Admin Hub frontend uses Fira Code by default but falls back gracefully. Choose whatever you prefer for YOUR dev environment! 🌘
 
 ---
 
@@ -702,11 +750,11 @@ You asked about terminal fonts - for Admin Console it doesn't matter which termi
 ## 📚 Additional Resources
 
 - **[README.md](../README.md)** - Project overview
-- **[DATABASE.md](./DATABASE.md)** - Database schema
-- **[API-Documentation-v1.md](./API-Documentation-v1.md)** - All API endpoints
-- **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Deployment guide
+- **[DATABASE.md](../DATABASE.md)** - Database schema
+- **[PRODUCTION-DEPLOYMENT.md](../PRODUCTION-DEPLOYMENT.md)** - Deployment guide
+- **[docs/PROJECT-STRUCTURE.md](./PROJECT-STRUCTURE.md)** - Project organization
 
 ---
 
-**Last Updated:** January 7, 2026  
-**Version:** 1.0.1
+**Last Updated:** January 13, 2026  
+**Version:** 1.0.2
