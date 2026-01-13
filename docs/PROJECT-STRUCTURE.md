@@ -1,11 +1,11 @@
 # 📁 SONG-NEXUS Project Structure
 
-**Last Updated:** January 8, 2026  
-**Version:** 1.0.2  
+**Last Updated:** January 13, 2026  
+**Version:** 1.0.3  
 
 ---
 
-## 💬 Overview
+## 🗣️ Overview
 
 Complete visual guide to Song-Nexus project organization. This document explains:
 - Root directory structure (ACTUAL!)
@@ -24,17 +24,22 @@ SONG-NEXUS/
 ├── 📋 Documentation (ROOT LEVEL!)
 │   ├── README.md                              ✅ Main project overview
 │   ├── MASTER-PROMPT-2026-AKTUELL.md          🔴 USE THIS EVERY SESSION!
-│   ├── MASTER-PROMPT-2026-DEFINITIVE.md       (backup/reference)
-│   ├── MASTER-CONTEXT-PROMPT.md               (reference)
 │   ├── DATABASE.md                            ✅ Database schema
 │   ├── PRODUCTION-DEPLOYMENT.md               ✅ Deployment guide
-│   ├── REPOSITORY-STRUCTURE.md                (legacy, superseded by PROJECT-STRUCTURE.md)
-│   ├── CODE_QUALITY_AUDIT.md                  (quality review)
-│   └── schema.sql                             ✅ DATABASE SCHEMA (single source of truth)
+│   ├── schema.sql                             ✅ DATABASE SCHEMA (single source of truth)
+│   ├── LICENSE                                MIT License
+│   └── ...
 │
-├── 📂 docs/                                   (New docs folder)
-│   ├── ADMIN-GUIDE.md                         ✅ NEW: Admin Hub documentation
-│   └── PROJECT-STRUCTURE.md                   ✅ NEW: This file
+├── 📋 Deprecated Documentation (IGNORE THESE)
+│   ├── MASTER-PROMPT-2026-DEFINITIVE.md       ❌ Old version
+│   ├── MASTER-CONTEXT-PROMPT.md               ❌ Old version
+│   ├── REPOSITORY-STRUCTURE.md                ❌ Use PROJECT-STRUCTURE.md instead
+│   └── CODE_QUALITY_AUDIT.md                  ❌ Outdated
+│
+├── 📂 docs/                                   (New documentation folder)
+│   ├── ADMIN-GUIDE.md                         ✅ Admin Hub documentation
+│   ├── SETUP-WINDOWS.md                       ✅ Windows 11 Pro setup guide
+│   └── PROJECT-STRUCTURE.md                   ✅ This file
 │
 ├── 📂 backend/                                Express.js REST API Server
 │   ├── 📂 middleware/                         Express middleware
@@ -59,8 +64,8 @@ SONG-NEXUS/
 │   ├── .gitignore                             Git ignore patterns
 │   └── ⚠️ NOTE: NO /db/ folder! schema.sql is in ROOT!
 │
-├── 📂 frontend/                               React + Webpack Frontend
-│   ├── 📂 admin/                              🔴 CORRECTED: Admin pages (NOT complete upload!)
+├── 📂 frontend/                               Webpack + HTML Frontend
+│   ├── 📂 admin/                              🔴 CORRECTED: Admin pages
 │   │   ├── index.html                         🔐 Admin Hub main page
 │   │   └── design-editor.html                 🎨 Design token editor
 │   │
@@ -80,23 +85,18 @@ SONG-NEXUS/
 │   │   ├── tracks.js                          Track management
 │   │   └── ...                                Other modules
 │   │
-│   ├── 📂 css/                                Stylesheets
-│   │   ├── main.css                           Global styles
-│   │   ├── player.css                         Player component
-│   │   ├── auth.css                           Auth forms
+│   ├── 📂 css/                                 Stylesheets
+│   │   ├── main.css                            Global styles
+│   │   ├── player.css                          Player component
+│   │   ├── auth.css                            Auth forms
 │   │   └── ...                                Other styles
 │   │
-│   ├── 📂 assets/                             Images & static files
+│   ├── 📂 assets/                              Images & static files
 │   │   ├── logo.png
 │   │   ├── icons/
 │   │   └── ...
 │   │
-│   ├── 📂 blog/                               Blog content (legacy?)
-│   ├── 📂 certs/                              Certificates (legacy?)
-│   ├── 📂 config/                             Config files (legacy?)
-│   ├── 📂 styles/                             Additional styles (legacy?)
-│   ├── 📂 webpack/                            Webpack configs
-│   ├── 📂 dist/                               Webpack output (GITIGNORED)
+│   ├── 📂 dist/                                Webpack output (GITIGNORED)
 │   │   ├── main.bundle.js                     Bundled app code
 │   │   └── main.bundle.js.map                 Source map
 │   ├── 📂 node_modules/                       Dependencies (GITIGNORED)
@@ -117,26 +117,25 @@ SONG-NEXUS/
 ├── 📂 middleware/                             ⚠️ ROOT-LEVEL (legacy? check if used)
 │   └── (check if this is used or deprecated)
 │
-├── 🔧 Config Files (ROOT)
-│   ├── .env                                   Secrets (GITIGNORED)
-│   ├── .env.example                           Environment template
-│   ├── .env.production                        Production secrets
-│   ├── .gitignore                             Git ignore patterns
-│   ├── gitignore                              (duplicate? check)
-│   ├── package.json                           Root package (concurrently)
-│   ├── sync-repo.ps1                          Sync script (PowerShell)
-│   └── LICENSE                                MIT License
+├── 📠 Config Files (ROOT)
+│   ├── .env                                  Secrets (GITIGNORED)
+│   ├── .env.example                          Environment template
+│   ├── .env.production                       Production secrets
+│   ├── .gitignore                            Git ignore patterns
+│   ├── package.json                          Root package (concurrently)
+│   ├── sync-repo.ps1                         PowerShell sync script
+│   └── LICENSE                               MIT License
 │
-└── 📄 README.md                               Main README (at root!)
+└── README.md                               Main README (at root!)
 ```
 
 ---
 
-## 🔴 IMPORTANT CORRECTIONS (v1.0.2)
+## 🔴 IMPORTANT CORRECTIONS (v1.0.3)
 
 ### ✅ Admin Upload Location CORRECTED
 
-**WRONG in v1.0.1:**
+**WRONG in earlier versions:**
 ```
 frontend/admin/
 ├── index.html
@@ -144,7 +143,7 @@ frontend/admin/
 └── admin-upload.html    ❌ DOESN'T EXIST HERE!
 ```
 
-**CORRECT (v1.0.2):**
+**CORRECT (v1.0.3):**
 ```
 frontend/
 ├── admin/
@@ -154,9 +153,11 @@ frontend/
 └── admin-upload.html    ✅ ACTUALLY HERE! (frontend root!)
 ```
 
+**Why?** The upload tool is accessed directly via URL and from the Admin Hub using a relative link (`../admin-upload.html`), so it lives in the `frontend` root directory.
+
 ### Fix Link in frontend/admin/index.html
 
-**Line 296 is correct:**
+**Line is correct:**
 ```html
 <a href="../admin-upload.html" class="btn btn-card">Go to Upload</a>
 ```
@@ -165,7 +166,7 @@ This navigates from `frontend/admin/index.html` → `frontend/admin-upload.html`
 
 ---
 
-## 🔴 SCHEMA.SQL Location (REPEATED!)
+### 🔴 SCHEMA.SQL Location (CRITICAL!)
 
 ❌ **WRONG:**
 ```
@@ -176,6 +177,35 @@ backend/db/schema.sql
 ```
 ROOT/schema.sql    ← Single source of truth!
 ```
+
+**How to apply schema:**
+```powershell
+psql -U postgres -d song_nexus_dev -f schema.sql  ✅
+```
+
+**NOT:**
+```powershell
+psql -U postgres -d song_nexus_dev -f backend/db/schema.sql  ❌
+```
+
+---
+
+### 🔴 Documentation Versions Clarified
+
+✅ **USE THESE CURRENT FILES:**
+- `MASTER-PROMPT-2026-AKTUELL.md` (CURRENT - Jan 13, 2026)
+- `README.md` (main overview)
+- `DATABASE.md` (database schema)
+- `PRODUCTION-DEPLOYMENT.md` (deployment guide)
+- `docs/ADMIN-GUIDE.md` (Admin Hub)
+- `docs/SETUP-WINDOWS.md` (Windows 11 setup)
+- `docs/PROJECT-STRUCTURE.md` (this file)
+
+❌ **IGNORE (Legacy/outdated):**
+- `MASTER-PROMPT-2026-DEFINITIVE.md` (old version)
+- `MASTER-CONTEXT-PROMPT.md` (old version)
+- `REPOSITORY-STRUCTURE.md` (use PROJECT-STRUCTURE.md instead)
+- `CODE_QUALITY_AUDIT.md` (outdated)
 
 ---
 
@@ -188,8 +218,9 @@ ROOT/schema.sql    ← Single source of truth!
 | **DATABASE.md** | `ROOT/` | Database documentation |
 | **PRODUCTION-DEPLOYMENT.md** | `ROOT/` | Deployment guide |
 | **README.md** | `ROOT/` | Project overview |
-| **ADMIN-GUIDE.md** | `docs/` | ✅ NEW: Admin Hub guide |
-| **PROJECT-STRUCTURE.md** | `docs/` | ✅ NEW: Project organization (this file) |
+| **ADMIN-GUIDE.md** | `docs/` | ✅ Admin Hub guide |
+| **SETUP-WINDOWS.md** | `docs/` | ✅ Windows 11 Pro setup |
+| **PROJECT-STRUCTURE.md** | `docs/` | ✅ Project organization (this file) |
 | **index.html** | `frontend/admin/` | Admin Hub (JWT login) |
 | **design-editor.html** | `frontend/admin/` | Design token editor |
 | **admin-upload.html** | `frontend/` | 🔴 Track upload (ROOT of frontend!) |
@@ -204,7 +235,7 @@ ROOT/schema.sql    ← Single source of truth!
 backend/
 ├── middleware/
 │   └── auth-middleware.js        JWT verification, token generation
-├── routes/                        API endpoints (6 files)
+├── routes/                        API endpoints (7 files)
 │   ├── auth.js                   Authentication (7 endpoints)
 │   ├── webauthn.js              Biometric (5 endpoints)
 │   ├── tracks.js                Public tracks (4 endpoints)
@@ -236,8 +267,6 @@ frontend/
 │   └── design-editor.html        Design tool
 │
 ├── admin-upload.html              🔴 TRACK UPLOAD (in root!)
-│
-├── html/                          ❌ DOESN'T EXIST (direct HTML files in root)
 │
 ├── index.html                     Homepage
 ├── auth.html                      Login/signup
@@ -272,26 +301,29 @@ frontend/
 ROOT/
 ├── README.md                              Main project overview
 ├── MASTER-PROMPT-2026-AKTUELL.md          🔴 MANDATORY! Start every session!
-├── MASTER-PROMPT-2026-DEFINITIVE.md       Reference/backup
-├── MASTER-CONTEXT-PROMPT.md               Legacy reference
 ├── DATABASE.md                            Complete schema documentation
 ├── PRODUCTION-DEPLOYMENT.md               Deployment & DevOps guide
-├── REPOSITORY-STRUCTURE.md                Legacy (use PROJECT-STRUCTURE.md instead)
-├── CODE_QUALITY_AUDIT.md                  Quality review document
 ├── schema.sql                             ✅ DATABASE SCHEMA
-└── ...
+├── LICENSE                                MIT License
+│
+├── (deprecated, ignore these)
+├── MASTER-PROMPT-2026-DEFINITIVE.md       ❌ Old version
+├── MASTER-CONTEXT-PROMPT.md               ❌ Old version
+├── REPOSITORY-STRUCTURE.md                ❌ Use PROJECT-STRUCTURE.md
+└── CODE_QUALITY_AUDIT.md                  ❌ Outdated
 ```
 
 ### docs/ Folder (New):
 ```
 docs/
-├── ADMIN-GUIDE.md                         ✅ NEW: Admin Hub guide
-└── PROJECT-STRUCTURE.md                   ✅ NEW: This document
+├── ADMIN-GUIDE.md                         ✅ Admin Hub guide
+├── SETUP-WINDOWS.md                       ✅ Windows 11 Pro setup
+└── PROJECT-STRUCTURE.md                   ✅ This document
 ```
 
 ---
 
-## 🧭 Quick Navigation
+## 🧧 Quick Navigation
 
 ### Finding Specific Things
 
@@ -311,10 +343,11 @@ docs/
 | **Deployment Info** | `ROOT/PRODUCTION-DEPLOYMENT.md` |
 | **Project Overview** | `ROOT/README.md` |
 | **Admin Documentation** | `docs/ADMIN-GUIDE.md` |
+| **Windows Setup** | `docs/SETUP-WINDOWS.md` |
 
 ---
 
-## 👶 Key Files You Need
+## 👷 Key Files You Need
 
 ### To Start Coding Each Session:
 1. **Read first:** `ROOT/MASTER-PROMPT-2026-AKTUELL.md` (current status)
@@ -322,6 +355,7 @@ docs/
 3. **For admin work:** `docs/ADMIN-GUIDE.md`
 4. **Database questions:** `ROOT/DATABASE.md`
 5. **Deployment:** `ROOT/PRODUCTION-DEPLOYMENT.md`
+6. **Windows setup:** `docs/SETUP-WINDOWS.md`
 
 ### Configuration:
 - Backend config: `backend/.env.example` → `backend/.env`
@@ -334,33 +368,16 @@ docs/
 
 ---
 
-## 🚨 Things to Fix/Clarify
+## 📋 Update Log
 
-### Questions:
-1. **Root-level `middleware/` folder** - Is this still used or deprecated?
-2. **`gitignore` file** - Why is there both `.gitignore` and `gitignore`?
-3. **Legacy folders** - `frontend/blog/`, `frontend/certs/`, `frontend/config/`, `frontend/styles/` - Still needed?
-4. **`archived/` folder** - What's in there? Can it be removed?
-5. **`frontend/html/` folder** - Mentioned in old docs but doesn't exist
+**v1.0.3 - January 13, 2026 (LATEST)**
+- ✅ Updated documentation organization
+- ✅ Clarified deprecated files list
+- ✅ Added SETUP-WINDOWS.md reference
+- ✅ Emphasized schema.sql location
+- ✅ Corrected admin-upload.html path throughout
 
----
-
-## 📖 How to Read This Hierarchy
-
-```
-📂 = Folder
-📄 = File
-✅ = Important/New
-⚠️  = Attention needed
-🔴 = Mandatory reading
-🔴 = Corrected/Fixed
-```
-
----
-
-## 🔄 Update Log
-
-**v1.0.2 - January 8, 2026 (LATEST)**
+**v1.0.2 - January 8, 2026**
 - ✅ Fixed admin-upload.html location (ROOT of frontend, not admin/)
 - ✅ Clarified that link in index.html is correct (../ works)
 - ✅ Added note about legacy folders to clean up
@@ -377,6 +394,6 @@ docs/
 
 ---
 
-**Last Updated:** January 8, 2026  
-**Accuracy:** 98% (see "Things to Fix" section)  
+**Last Updated:** January 13, 2026  
+**Accuracy:** 99% (✅ all major issues corrected)  
 **Maintainer:** Sebastian
