@@ -45,6 +45,7 @@ This file is in the **ROOT directory** and contains:
 ## 📋 Table of Contents
 
 - [Master Prompt](#important-read-this-first)
+- [Local Development Setup](#local-development-setup-windows-11-pro)
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Admin Hub](#-admin-hub)
@@ -57,6 +58,66 @@ This file is in the **ROOT directory** and contains:
 - [Deployment](#deployment)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## 💻 Local Development Setup (Windows 11 Pro)
+
+### Your Project Root Directory
+
+```
+C:\Users\sebas\Desktop\SongSeite
+```
+
+**This is your main working directory.** All development happens here.
+
+### Quick Setup (Windows PowerShell)
+
+```powershell
+# 1. Navigate to project
+cd C:\Users\sebas\Desktop\SongSeite
+
+# 2. Install all dependencies
+npm install && cd backend && npm install && cd .. && cd frontend && npm install && cd ..
+
+# 3. Setup environment files
+cp backend\.env.example backend\.env
+cp frontend\.env.example frontend\.env
+
+# 4. Setup database (see Full Setup Guide below)
+psql -U postgres
+CREATE DATABASE song_nexus_dev;
+\q
+psql -U postgres -d song_nexus_dev -f schema.sql
+
+# 5. Generate SSL certificates
+cd backend && npm run generate-cert && cd ..
+
+# 6. Start development
+npm start
+```
+
+**Access at:**
+- Frontend: `https://localhost:5500`
+- Backend: `https://localhost:3000`
+- Admin Hub: `https://localhost:3000/admin/`
+
+### Full Setup Guide
+
+**📖 See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) for comprehensive Windows 11 setup instructions:**
+- Detailed prerequisites
+- PowerShell commands
+- PostgreSQL setup
+- Troubleshooting
+- Daily workflow
+- sync-repo.ps1 utility script
+
+### Repository Sync
+
+```powershell
+# Keep your local repo synchronized with GitHub
+.\sync-repo.ps1
+```
 
 ---
 
@@ -115,7 +176,7 @@ https://localhost:3000/admin/
 ### Features
 - ✅ **JWT-based Login** - Secure admin authentication
 - ✅ **Role-based Access** - Only users with `role='admin'` can access
-- ✅ **Track Upload Tool** - Upload and manage music tracks
+- ✅ **Track Upload Tool** - Upload and manage music tracks (frontend/admin-upload.html)
 - ✅ **Design Editor** - Customize platform colors and branding
 - ✅ **Dev Login** - Quick authentication for localhost development
 - ✅ **Cyberpunk UI** - Modern neon-themed interface
@@ -141,8 +202,9 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 
 | Tool | Path | Purpose |
 |------|------|----------|
-| **Track Upload** | `/admin/` → "Go to Upload" | Upload music, set prices, manage metadata |
-| **Design Editor** | `/admin/` → "Go to Editor" | Customize colors, fonts, branding |
+| **Admin Hub** | `https://localhost:3000/admin/` | Main admin console (JWT login) |
+| **Track Upload** | `frontend/admin-upload.html` | Upload music, set metadata & prices |
+| **Design Editor** | `frontend/admin/design-editor.html` | Customize colors, fonts, branding |
 | **User Admin** | Coming soon | Manage users, assign roles, view statistics |
 
 **See [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) for detailed admin documentation**
@@ -185,10 +247,13 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 
 **⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
 
+**For Windows 11 setup:** See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) for detailed instructions.
+
 ### Prerequisites
 - **Node.js** 18+ ([Download](https://nodejs.org))
 - **PostgreSQL** 12+ ([Download](https://www.postgresql.org))
 - **Git** ([Download](https://git-scm.com))
+- **Windows 11 Pro** with PowerShell
 
 ### Installation
 
@@ -264,7 +329,8 @@ SONG-NEXUS/
 │
 ├── 📂 docs/                              (New documentation folder)
 │   ├── ADMIN-GUIDE.md                    ✅ Admin Hub documentation
-│   └── PROJECT-STRUCTURE.md              ✅ Complete project organization
+│   ├── PROJECT-STRUCTURE.md              ✅ Complete project organization
+│   └── SETUP-WINDOWS.md                  ✅ Windows 11 Pro setup guide (NEW)
 │
 ├── 📂 backend/                             Express.js REST API Server
 │   ├── 📂 routes/                         API endpoints
@@ -278,9 +344,8 @@ SONG-NEXUS/
 ├── 📂 frontend/                            React + Webpack Frontend
 │   ├── 📂 admin/                          ✅ Admin Console
 │   │   ├── index.html                   🔐 Admin Hub main page
-│   │   ├── design-editor.html            🎨 Design editor
-│   │   └── admin-upload.html             📤 Track upload
-│   ├── 📂 html/                          Main HTML pages
+│   │   └── design-editor.html            🎨 Design editor
+│   ├── admin-upload.html                 📤 Track upload (frontend root!)
 │   ├── 📂 js/                            JavaScript modules
 │   ├── 📂 css/                           Stylesheets
 │   ├── 📂 assets/                        Images & static
@@ -289,6 +354,7 @@ SONG-NEXUS/
 │   ├── package.json
 │   └── .env.example
 │
+├── 📂 sync-repo.ps1                      ✅ Repository sync utility (PowerShell)
 ├── package.json                         Root package (concurrently)
 ├── .gitignore                           Git ignore patterns
 ├── .env.example                         Root env template
@@ -524,6 +590,7 @@ git push origin main
 - API documentation
 - Deployment guide
 - **NEW:** Secure Admin Hub with JWT login (v1.0.1)
+- **NEW:** Windows 11 Pro setup guide (v1.0.2)
 
 ### 🚧 In Development (v1.1)
 - [ ] WebAuthn frontend stabilization
@@ -609,8 +676,9 @@ git push origin feature/your-feature-name
 - **[MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!** (ROOT)
 - **[DATABASE.md](./DATABASE.md)** - Complete database schema with diagrams (ROOT)
 - **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Full deployment guide (ROOT)
-- **[docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md)** - Admin Hub documentation (NEW)
-- **[docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md)** - Complete project organization (NEW)
+- **[docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md)** - Windows 11 Pro setup guide (NEW)
+- **[docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md)** - Admin Hub documentation
+- **[docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md)** - Complete project organization
 
 ---
 
@@ -651,12 +719,16 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 # Then refresh the page
 ```
 
+**Q: Node/npm/psql commands not found (Windows PowerShell)**
+See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) Troubleshooting section for Windows-specific fixes.
+
 ---
 
 ## 📝 Roadmap
 
 ### Q1 2026
 - [x] Admin Hub with JWT login
+- [x] Windows 11 Pro setup guide
 - [ ] WebAuthn frontend hardening
 - [ ] Design system stabilization
 - [ ] Unit testing framework
@@ -686,9 +758,10 @@ See `LICENSE` file for details.
 ## 👤 Author
 
 **Sebastian** - Full-stack Developer
-- 🌍 Gloggnitz, Lower Austria
+- 🌍 Gloggnitz, Lower Austria (Vienna, AT)
 - 💻 Tool-maker turned Web Developer
 - 🎵 Music Technology Enthusiast
+- 📍 **Project Root:** `C:\Users\sebas\Desktop\SongSeite` (Windows 11 Pro)
 
 ---
 
@@ -710,8 +783,9 @@ See `LICENSE` file for details.
 
 ---
 
-**Last Updated:** January 8, 2026  
-**Version:** 1.0.1  
-**Status:** ✅ Production Ready
+**Last Updated:** January 13, 2026  
+**Version:** 1.0.2  
+**Status:** ✅ Production Ready  
+**Local Setup:** ✅ Windows 11 Pro Documented
 
 ⭐ **If you find this project useful, please consider starring it on GitHub!**
