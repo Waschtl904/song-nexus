@@ -5,6 +5,7 @@
 // ✅ Designer Permission Check
 // ✅ Input Validation (Hex color format)
 // ✅ ROUTE ORDERING FIX - design-system registered BEFORE track routes
+// ✅ ADMIN AUTHORIZATION - PUT /api/design-system now requires admin role
 
 require('dotenv').config();
 
@@ -468,11 +469,12 @@ app.get('/api/design-system', attachCSRFToken, async (req, res) => {
     }
 });
 
-// PUT update design system (with CSRF + Permission check)
-app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
+// PUT update design system (with CSRF + Permission check + ADMIN ROLE)
+app.put('/api/design-system/:id', validateCSRFToken, verifyToken, requireAdmin, async (req, res) => {
     try {
         console.log('📝 PUT /api/design-system/:id received');
         console.log('   ID:', req.params.id);
+        console.log('   User:', req.user.username, 'Role:', req.user.role);
 
         const { id } = req.params;
         const body = req.body;
@@ -520,7 +522,7 @@ app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
             player_button_color: body.components?.player?.button_color,
             player_button_size: body.components?.player?.button_size ? parseInt(body.components.player.button_size) : null,
             updated_at: new Date(),
-            updated_by: 'Designer'
+            updated_by: req.user.username || 'Designer'
         };
 
         const setClause = [];
@@ -564,6 +566,7 @@ app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
 
         const updatedRow = result.rows[0];
         console.log('✅ Design system updated successfully, ID:', updatedRow.id);
+        console.log('   Updated by:', updatedRow.updated_by);
 
         regenerateDesignTokens(updatedRow);
 
@@ -594,7 +597,7 @@ app.put('/api/design-system/:id', validateCSRFToken, async (req, res) => {
     }
 });
 
-console.log('✅ Design-System API endpoints registered EARLY (CSRF + Input Validation)');
+console.log('✅ Design-System API endpoints registered EARLY (CSRF + Input Validation + ADMIN CHECK)');
 
 // ============================================================================
 // 🎨 REGENERATE DESIGN TOKENS CSS FROM DATABASE ROW
@@ -764,14 +767,15 @@ warmupDatabase().then(async () => {
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Input Validation');
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Input Validation + ADMIN CHECK');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT)');
+            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT + ADMIN)');
             console.log('🛡️  CSRF Protection: Enabled on all state-changing operations');
             console.log('✔️  Input Validation: Hex colors, typography, spacing');
+            console.log('👮 Admin Authorization: Required for Design-System updates');
             console.log('🎨 CSS Regeneration: Automatic on design update');
             console.log('');
         });
@@ -784,14 +788,15 @@ warmupDatabase().then(async () => {
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Input Validation');
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Input Validation + ADMIN CHECK');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT)');
+            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT + ADMIN)');
             console.log('🛡️  CSRF Protection: Enabled on all state-changing operations');
             console.log('✔️  Input Validation: Hex colors, typography, spacing');
+            console.log('👮 Admin Authorization: Required for Design-System updates');
             console.log('🎨 CSS Regeneration: Automatic on design update');
             console.log('');
         });
