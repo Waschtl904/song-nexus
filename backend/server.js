@@ -155,7 +155,7 @@ const getCSPDirectives = () => {
 
     return {
         defaultSrc: ["'self'", "https:", "http:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
         scriptSrcAttr: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -285,11 +285,12 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
 };
 
 app.use('/api/', rateLimit(30, 60 * 1000));
+app.use('/api/auth/login', rateLimit(5, 60 * 1000));
 app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));
 app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000));
 app.use('/public/audio/', rateLimit(20, 60 * 1000));
 
-console.log('✅ Rate limiting enabled');
+console.log('✅ Rate limiting enabled (login: 5/min, other auth: 30/min)');
 
 // ============================================================================
 // 🔐 AUTH MIDDLEWARE
@@ -652,7 +653,7 @@ function regenerateDesignTokens(dbRow) {
 
 console.log('🔧 Registering other API routes...');
 
-app.get('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
+app.use('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
 
 app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
     try {
@@ -673,7 +674,6 @@ console.log('✅ WebAuthn routes registered');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/payments', require('./routes/payments'));
-app.use('/api/tracks', require('./routes/tracks'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/play-history', require('./routes/play-history'));
 app.use('/api/admin/tracks', require('./routes/admin-tracks'));
@@ -690,7 +690,7 @@ console.log('✅ All API routes registered');
 // ============================================================================
 
 app.use('/public/audio', (req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'https://localhost:5500');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
     res.setHeader('Accept-Ranges', 'bytes');
