@@ -2,10 +2,10 @@
 
 > **Complete step-by-step guide for deploying Song-Nexus to production**
 
-**Version:** 1.0.0  
-**Last Updated:** January 5, 2026  
+**Version:** 1.0.1  
+**Last Updated:** January 13, 2026  
 **Status:** ✅ Production Ready  
-**Documentation:** [README.md](./README.md) | [DATABASE.md](./DATABASE.md) | [MASTER-CONTEXT-PROMPT.md](./MASTER-CONTEXT-PROMPT.md)
+**Documentation:** [README.md](./README.md) | [DATABASE.md](./DATABASE.md) | [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)
 
 ---
 
@@ -206,7 +206,7 @@ psql -h localhost -U song_nexus_user -d song_nexus_prod
 # Download schema from repository
 wget https://raw.githubusercontent.com/Waschtl904/song-nexus/main/schema.sql
 
-# Apply schema
+# Apply schema (ROOT/schema.sql is the single source of truth)
 psql -h your-db-host -U song_nexus_user -d song_nexus_prod -f schema.sql
 
 # Verify tables created
@@ -391,11 +391,11 @@ cd song-nexus/frontend
 # Copy .env.example to .env.production
 cp .env.example .env.production
 nano .env.production
-# Update: VITE_API_URL to https://yourdomain.com/api
-#         VITE_ENVIRONMENT to production
+# Update: API_URL to https://yourdomain.com/api
+#         ENVIRONMENT to production
 #         Disable debug flags
 
-# Build for production
+# Build for production (Webpack)
 npm run build
 
 # Output in: frontend/dist/
@@ -611,8 +611,8 @@ backend/logs/pm2-out.log       # PM2 output
 # Get your DSN
 
 # Update .env.production
-VITE_SENTRY_DSN=your-sentry-dsn
-VITE_SENTRY_ENVIRONMENT=production
+SENTRY_DSN=your-sentry-dsn
+SENTRY_ENVIRONMENT=production
 ```
 
 ### Performance Monitoring
@@ -750,7 +750,7 @@ echo | openssl s_client -connect yourdomain.com:443 2>/dev/null | openssl x509 -
 ## 📞 Support & Resources
 
 - **GitHub Issues:** [song-nexus/issues](https://github.com/Waschtl904/song-nexus/issues)
-- **Documentation:** [README.md](./README.md), [DATABASE.md](./DATABASE.md), [MASTER-CONTEXT-PROMPT.md](./MASTER-CONTEXT-PROMPT.md)
+- **Documentation:** [README.md](./README.md), [DATABASE.md](./DATABASE.md), [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)
 - **API Reference:** [README.md#api-documentation](./README.md#api-documentation)
 - **Node.js Docs:** [nodejs.org](https://nodejs.org)
 - **PostgreSQL Docs:** [postgresql.org](https://postgresql.org)
