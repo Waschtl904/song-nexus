@@ -1,11 +1,10 @@
 // ============================================================================
-// 🎵 SONG-NEXUS BACKEND v6.5 - ROUTE ORDERING FIXED
+// 🎵 SONG-NEXUS BACKEND v6.6 - INTELLIGENT CACHE STRATEGY
 // ============================================================================
-// ✅ CSRF Protection for Design-System API
-// ✅ Designer Permission Check
-// ✅ Input Validation (Hex color format)
-// ✅ ROUTE ORDERING FIX - design-system registered BEFORE track routes
-// ✅ ADMIN AUTHORIZATION - PUT /api/design-system now requires admin role
+// ✅ CACHE MIDDLEWARE: GET /api/tracks (300s), /api/payments/config (3600s), etc.
+// ✅ CACHE INVALIDATION: clearCacheKey() on POST/PUT/DELETE
+// ✅ USER-SPECIFIC CACHING: Cache + user auth token for personalized data
+// ✅ NO STORAGE: All cache in-memory via NodeCache
 
 require('dotenv').config();
 
@@ -120,7 +119,7 @@ const corsOptions = {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
-    exposedHeaders: ['Content-Type', 'X-Total-Count', 'X-CSRF-Token'],
+    exposedHeaders: ['Content-Type', 'X-Total-Count', 'X-CSRF-Token', 'X-Cache'],
     optionsSuccessStatus: 200,
     maxAge: 86400
 };
@@ -305,7 +304,7 @@ app.use('/api/', (req, res, next) => {
 
 console.log('✅ Auth middleware loaded');
 
-const { cacheMiddleware, clearCache } = require('./middleware/cache-middleware');
+const { cacheMiddleware, clearCacheKey } = require('./middleware/cache-middleware');
 
 // ============================================================================
 // ✅ INPUT VALIDATION UTILITIES
@@ -352,10 +351,10 @@ function validateDesignInput(data) {
 // 🎨 DESIGN-SYSTEM API ENDPOINTS - REGISTERED EARLY (BEFORE OTHER ROUTES)
 // ============================================================================
 
-console.log('🔧 Registering DESIGN-SYSTEM API (before other routes)...');
+console.log('🔧 Registering DESIGN-SYSTEM API (with cache)...');
 
-// GET design system settings from database
-app.get('/api/design-system', attachCSRFToken, async (req, res) => {
+// GET design system settings from database - CACHED 86400s (24h)
+app.get('/api/design-system', cacheMiddleware(86400), attachCSRFToken, async (req, res) => {
     try {
         console.log('📨 GET /api/design-system');
 
@@ -470,7 +469,7 @@ app.get('/api/design-system', attachCSRFToken, async (req, res) => {
     }
 });
 
-// PUT update design system (with CSRF + Permission check + ADMIN ROLE)
+// PUT update design system (with CSRF + Permission check + ADMIN ROLE) - INVALIDATES CACHE
 app.put('/api/design-system/:id', validateCSRFToken, verifyToken, requireAdmin, async (req, res) => {
     try {
         console.log('📝 PUT /api/design-system/:id received');
@@ -569,6 +568,10 @@ app.put('/api/design-system/:id', validateCSRFToken, verifyToken, requireAdmin, 
         console.log('✅ Design system updated successfully, ID:', updatedRow.id);
         console.log('   Updated by:', updatedRow.updated_by);
 
+        // 🎯 CLEAR CACHE
+        clearCacheKey('design-system');
+        console.log('🗑️  Cache cleared for design-system');
+
         regenerateDesignTokens(updatedRow);
 
         const response = {
@@ -598,7 +601,7 @@ app.put('/api/design-system/:id', validateCSRFToken, verifyToken, requireAdmin, 
     }
 });
 
-console.log('✅ Design-System API endpoints registered EARLY (CSRF + Input Validation + ADMIN CHECK)');
+console.log('✅ Design-System API endpoints registered with CACHE (86400s)');
 
 // ============================================================================
 // 🎨 REGENERATE DESIGN TOKENS CSS FROM DATABASE ROW
@@ -648,13 +651,15 @@ function regenerateDesignTokens(dbRow) {
 }
 
 // ============================================================================
-// 🌐 OTHER ROUTES (AFTER Design-System)
+// 🌐 CACHED GET ROUTES
 // ============================================================================
 
-console.log('🔧 Registering other API routes...');
+console.log('🔧 Registering cached API routes...');
 
+// Tracks: 300s cache (5 minutes)
 app.use('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
 
+// Blog posts: 600s cache (10 minutes)
 app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
     try {
         const filePath = path.join(__dirname, 'public', 'blog', 'posts.json');
@@ -669,14 +674,20 @@ app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
     }
 });
 
+// ============================================================================
+// 🌐 OTHER ROUTES (NO CACHE - Auth, Payments, Users, WebAuthn)
+// ============================================================================
+
 app.use('/api/auth/webauthn', require('./routes/webauthn'));
-console.log('✅ WebAuthn routes registered');
+console.log('✅ WebAuthn routes registered (NO CACHE)');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/play-history', require('./routes/play-history'));
 app.use('/api/admin/tracks', require('./routes/admin-tracks'));
+
+console.log('✅ Auth/Payments/Users routes registered (NO CACHE)');
 
 app.post('/api/csp-report', (req, res) => {
     console.warn('⚠️ CSP Violation:', JSON.stringify(req.body, null, 2));
@@ -762,42 +773,38 @@ warmupDatabase().then(async () => {
         server.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.5 Backend              ║');
-            console.log('║   Secure • Ad-Free • CSRF-Protected        ║');
+            console.log('║   🎵 SONG-NEXUS v6.6 Backend              ║');
+            console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Input Validation + ADMIN CHECK');
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Rate Limit');
+            console.log('⚡ Caching: Design-System (24h) | Tracks (5m) | Blog (10m)');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT + ADMIN)');
-            console.log('🛡️  CSRF Protection: Enabled on all state-changing operations');
-            console.log('✔️  Input Validation: Hex colors, typography, spacing');
-            console.log('👮 Admin Authorization: Required for Design-System updates');
-            console.log('🎨 CSS Regeneration: Automatic on design update');
+            console.log('🎨 Design-System API: GET (CACHED 24h) | PUT (ADMIN + CSRF)');
+            console.log('🎯 Rate Limits: General (30/min) | Login (5/min) | WebAuthn (20/15min)');
             console.log('');
         });
     } else {
         const server = app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.5 Backend              ║');
-            console.log('║   Secure • Ad-Free • CSRF-Protected        ║');
+            console.log('║   🎵 SONG-NEXUS v6.6 Backend              ║');
+            console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Input Validation + ADMIN CHECK');
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Rate Limit');
+            console.log('⚡ Caching: Design-System (24h) | Tracks (5m) | Blog (10m)');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: /api/design-system (GET) & /api/design-system/:id (PUT + ADMIN)');
-            console.log('🛡️  CSRF Protection: Enabled on all state-changing operations');
-            console.log('✔️  Input Validation: Hex colors, typography, spacing');
-            console.log('👮 Admin Authorization: Required for Design-System updates');
-            console.log('🎨 CSS Regeneration: Automatic on design update');
+            console.log('🎨 Design-System API: GET (CACHED 24h) | PUT (ADMIN + CSRF)');
+            console.log('🎯 Rate Limits: General (30/min) | Login (5/min) | WebAuthn (20/15min)');
             console.log('');
         });
     }
