@@ -1,9 +1,9 @@
 // ============================================================================
-// 🎵 SONG-NEXUS BACKEND v6.6 - INTELLIGENT CACHE STRATEGY
+// 🎵 SONG-NEXUS BACKEND v6.7 - INTELLIGENT CACHE STRATEGY
 // ============================================================================
 // ✅ CACHE MIDDLEWARE: GET /api/tracks (300s), /api/payments/config (3600s), etc.
 // ✅ CACHE INVALIDATION: clearCacheKey() on POST/PUT/DELETE
-// ✅ USER-SPECIFIC CACHING: Cache + user auth token for personalized data
+// ✅ CACHE MONITORING: /api/cache/stats (admin only)
 // ✅ NO STORAGE: All cache in-memory via NodeCache
 
 require('dotenv').config();
@@ -611,30 +611,30 @@ function regenerateDesignTokens(dbRow) {
     try {
         console.log('🎨 Regenerating _design-tokens.css from database...');
 
-        let css = ':root {\n';
+        let css = ':root {\\n';
 
-        if (dbRow.color_primary) css += `  --color-primary: ${dbRow.color_primary};\n`;
-        if (dbRow.color_secondary) css += `  --color-secondary: ${dbRow.color_secondary};\n`;
-        if (dbRow.color_accent_teal) css += `  --color-accent-teal: ${dbRow.color_accent_teal};\n`;
-        if (dbRow.color_accent_green) css += `  --color-accent-green: ${dbRow.color_accent_green};\n`;
-        if (dbRow.color_accent_red) css += `  --color-accent-red: ${dbRow.color_accent_red};\n`;
-        if (dbRow.color_text_primary) css += `  --color-text-primary: ${dbRow.color_text_primary};\n`;
-        if (dbRow.color_background) css += `  --color-background: ${dbRow.color_background};\n`;
+        if (dbRow.color_primary) css += `  --color-primary: ${dbRow.color_primary};\\n`;
+        if (dbRow.color_secondary) css += `  --color-secondary: ${dbRow.color_secondary};\\n`;
+        if (dbRow.color_accent_teal) css += `  --color-accent-teal: ${dbRow.color_accent_teal};\\n`;
+        if (dbRow.color_accent_green) css += `  --color-accent-green: ${dbRow.color_accent_green};\\n`;
+        if (dbRow.color_accent_red) css += `  --color-accent-red: ${dbRow.color_accent_red};\\n`;
+        if (dbRow.color_text_primary) css += `  --color-text-primary: ${dbRow.color_text_primary};\\n`;
+        if (dbRow.color_background) css += `  --color-background: ${dbRow.color_background};\\n`;
 
-        if (dbRow.font_family_base) css += `  --font-family-base: ${dbRow.font_family_base};\n`;
-        if (dbRow.font_size_base) css += `  --font-size-base: ${dbRow.font_size_base}px;\n`;
-        if (dbRow.font_weight_normal) css += `  --font-weight-normal: ${dbRow.font_weight_normal};\n`;
-        if (dbRow.font_weight_bold) css += `  --font-weight-bold: ${dbRow.font_weight_bold};\n`;
+        if (dbRow.font_family_base) css += `  --font-family-base: ${dbRow.font_family_base};\\n`;
+        if (dbRow.font_size_base) css += `  --font-size-base: ${dbRow.font_size_base}px;\\n`;
+        if (dbRow.font_weight_normal) css += `  --font-weight-normal: ${dbRow.font_weight_normal};\\n`;
+        if (dbRow.font_weight_bold) css += `  --font-weight-bold: ${dbRow.font_weight_bold};\\n`;
 
-        if (dbRow.spacing_unit) css += `  --space-8: ${dbRow.spacing_unit}px;\n`;
-        if (dbRow.border_radius) css += `  --radius-base: ${dbRow.border_radius}px;\n`;
+        if (dbRow.spacing_unit) css += `  --space-8: ${dbRow.spacing_unit}px;\\n`;
+        if (dbRow.border_radius) css += `  --radius-base: ${dbRow.border_radius}px;\\n`;
 
-        if (dbRow.button_background_color) css += `  --button-primary-background: ${dbRow.button_background_color};\n`;
-        if (dbRow.button_text_color) css += `  --button-primary-text-color: ${dbRow.button_text_color};\n`;
-        if (dbRow.button_border_radius) css += `  --button-primary-border-radius: ${dbRow.button_border_radius}px;\n`;
-        if (dbRow.button_padding) css += `  --button-primary-padding: ${dbRow.button_padding};\n`;
+        if (dbRow.button_background_color) css += `  --button-primary-background: ${dbRow.button_background_color};\\n`;
+        if (dbRow.button_text_color) css += `  --button-primary-text-color: ${dbRow.button_text_color};\\n`;
+        if (dbRow.button_border_radius) css += `  --button-primary-border-radius: ${dbRow.button_border_radius}px;\\n`;
+        if (dbRow.button_padding) css += `  --button-primary-padding: ${dbRow.button_padding};\\n`;
 
-        css += '}\n';
+        css += '}\\n';
 
         const tokenPath = path.join(__dirname, '../frontend/dist/_design-tokens.css');
         const tokenDir = path.dirname(tokenPath);
@@ -673,6 +673,14 @@ app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+// ============================================================================
+// 📊 CACHE MONITORING ENDPOINT (Admin only)
+// ============================================================================
+
+console.log('🔧 Registering CACHE MONITOR endpoint (admin only)...');
+app.use('/api/cache', require('./routes/cache-monitor'));
+console.log('✅ Cache monitor registered: GET /api/cache/stats, DELETE /api/cache/clear, DELETE /api/cache/clear-key');
 
 // ============================================================================
 // 🌐 OTHER ROUTES (NO CACHE - Auth, Payments, Users, WebAuthn)
@@ -773,13 +781,14 @@ warmupDatabase().then(async () => {
         server.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.6 Backend              ║');
+            console.log('║   🎵 SONG-NEXUS v6.7 Backend              ║');
             console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
             console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Rate Limit');
             console.log('⚡ Caching: Design-System (24h) | Tracks (5m) | Blog (10m)');
+            console.log('📊 Cache Monitor: GET /api/cache/stats | DELETE /api/cache/clear (ADMIN)');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
@@ -792,13 +801,14 @@ warmupDatabase().then(async () => {
         const server = app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.6 Backend              ║');
+            console.log('║   🎵 SONG-NEXUS v6.7 Backend              ║');
             console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
             console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Rate Limit');
             console.log('⚡ Caching: Design-System (24h) | Tracks (5m) | Blog (10m)');
+            console.log('📊 Cache Monitor: GET /api/cache/stats | DELETE /api/cache/clear (ADMIN)');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
