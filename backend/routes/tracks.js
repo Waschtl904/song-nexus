@@ -146,7 +146,7 @@ router.get('/audio/:filename', async (req, res) => {
 
     if (trackResult.rows.length === 0) {
       console.warn(`⚠️ No track record for audio file: ${filename}`);
-      console.log('🎧 No DB record found, treating as 40s preview');
+      console.log('🎶 No DB record found, treating as 40s preview');
       return servePreview(filepath, filename, null, req, res);
     }
 
@@ -198,8 +198,9 @@ router.get('/audio/:filename', async (req, res) => {
     }
 
     // Set CORS & Streaming Headers
+    const frontendUrl = process.env.FRONTEND_URL || 'https://localhost:5500';
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Access-Control-Allow-Origin', 'https://localhost:5500');
+    res.setHeader('Access-Control-Allow-Origin', frontendUrl);
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
@@ -211,7 +212,7 @@ router.get('/audio/:filename', async (req, res) => {
       return serveFullFile(filepath, filename, filesize, req.headers.range, res);
     }
 
-    console.log(`🎧 PREVIEW MODE - Streaming 40s preview`);
+    console.log(`🎶 PREVIEW MODE - Streaming 40s preview`);
     return servePreview(filepath, filename, track, req, res);
   } catch (err) {
     console.error('❌ Audio streaming error:', err);
@@ -271,12 +272,12 @@ function serveFullFile(filepath, filename, filesize, range, res) {
       res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
       res.setHeader('Content-Length', end - start + 1);
       res.setHeader('Cache-Control', 'public, max-age=86400');
-      console.log(`📤 206 Partial Content: bytes ${start}-${end}/${filesize}`);
+      console.log(`💤 206 Partial Content: bytes ${start}-${end}/${filesize}`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
     } else {
       res.setHeader('Content-Length', filesize);
       res.setHeader('Cache-Control', 'public, max-age=86400');
-      console.log(`📤 200 OK: Full file (${(filesize / 1024 / 1024).toFixed(2)} MB)`);
+      console.log(`💤 200 OK: Full file (${(filesize / 1024 / 1024).toFixed(2)} MB)`);
       fs.createReadStream(filepath).pipe(res);
     }
   } catch (err) {
@@ -305,7 +306,7 @@ function servePreview(filepath, filename, track, req, res) {
 
     const previewBytes = avgBytesPerSecond * PREVIEW_SECONDS;
     const maxPreviewEnd = Math.min(filesize - 1, previewBytes);
-    console.log(`🎧 Preview: ~${PREVIEW_SECONDS}s = ~${Math.floor(previewBytes / 1024)} KB`);
+    console.log(`🎶 Preview: ~${PREVIEW_SECONDS}s = ~${Math.floor(previewBytes / 1024)} KB`);
 
     const range = req.headers.range;
 
@@ -326,14 +327,14 @@ function servePreview(filepath, filename, track, req, res) {
       res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
       res.setHeader('Content-Length', end - start + 1);
       res.setHeader('Cache-Control', 'no-store');
-      console.log(`📤 206 Preview: bytes ${start}-${end} (max ${maxPreviewEnd})`);
+      console.log(`💤 206 Preview: bytes ${start}-${end} (max ${maxPreviewEnd})`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
     } else {
       res.status(206);
       res.setHeader('Content-Range', `bytes 0-${maxPreviewEnd}/${filesize}`);
       res.setHeader('Content-Length', maxPreviewEnd + 1);
       res.setHeader('Cache-Control', 'no-store');
-      console.log(`📤 206 Preview: bytes 0-${maxPreviewEnd}/${filesize}`);
+      console.log(`💤 206 Preview: bytes 0-${maxPreviewEnd}/${filesize}`);
       fs.createReadStream(filepath, { start: 0, end: maxPreviewEnd }).pipe(res);
     }
   } catch (err) {
