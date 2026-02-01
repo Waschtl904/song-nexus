@@ -103,8 +103,14 @@ router.post('/login', [
       isValidPassword = await bcrypt.compare(password, user.password_hash);
       console.log(`✅ Bcrypt verify result: ${isValidPassword}`);
     } catch (err) {
-      // Fallback: plain text comparison (dev mode only)
-      console.warn('⚠️ Bcrypt compare failed, trying plain text comparison');
+      // ⚠️ Fallback: plain text comparison (ONLY in development!)
+      if (process.env.NODE_ENV === 'production') {
+        console.error('❌❌ SECURITY: Bcrypt verify failed in production - rejecting login');
+        console.error('   This indicates a configuration issue. Check password_hash in database.');
+        return res.status(500).json({ error: 'Authentication system error' });
+      }
+
+      console.warn('⚠️ Bcrypt compare failed in development, trying plain text comparison');
       isValidPassword = (password === user.password_hash);
     }
 
@@ -133,12 +139,12 @@ router.post('/login', [
 });
 
 // ============================================================================
-// 🧪 POST /api/auth/dev-login - Development Quick Login
+// 🧨 POST /api/auth/dev-login - Development Quick Login
 // ============================================================================
 
 router.post('/dev-login', async (req, res) => {
   try {
-    console.log('🧪 Dev login attempt...');
+    console.log('🧨 Dev login attempt...');
 
     const devEmail = 'dev@localhost';
     const devUsername = 'devuser';
@@ -153,7 +159,7 @@ router.post('/dev-login', async (req, res) => {
     let user;
     if (userResult.rows.length === 0) {
       // Create dev user if not exists
-      console.log('📝 Creating dev user...');
+      console.log('📃 Creating dev user...');
       const hashedPassword = await bcrypt.hash(devPassword, 10);
       userResult = await pool.query(
         `INSERT INTO users (email, username, password_hash, role, is_active)
@@ -279,4 +285,5 @@ IMPORTANT:
 ✅ Token generation uses auth-middleware.generateJWT()
 ✅ last_login updated on every successful login
 ✅ is_active flag prevents deactivated users from logging in
+✅ SECURITY: Plaintext password fallback DISABLED in production
 */
