@@ -38,10 +38,10 @@ const cacheMiddleware = (cacheDuration = 300) => {
         // Response abfangen & speichern
         const originalJson = res.json.bind(res);
         res.json = function (data) {
-            // Nur successful responses cachen
-            if (data.success || data.data) {
-                cache.set(cacheKey, data, cacheDuration);
-            }
+            // Cache ALL responses from this middleware (no conditions)
+            // If you want to exclude certain responses, don't register the middleware on those routes
+            cache.set(cacheKey, data, cacheDuration);
+            console.log(`👇 Cached: ${cacheKey} for ${cacheDuration}s`);
             return originalJson(data);
         };
 
@@ -54,7 +54,7 @@ const cacheMiddleware = (cacheDuration = 300) => {
  */
 const clearCache = () => {
     cache.flushAll();
-    console.log('🧹 Cache gelöscht');
+    console.log('🗙️ Cache gelöscht');
 };
 
 /**
@@ -65,7 +65,7 @@ const clearCacheKey = (pattern) => {
     keys.forEach(key => {
         if (key.includes(pattern)) {
             cache.del(key);
-            console.log(`🧹 Deleted cache: ${key}`);
+            console.log(`🗙️ Deleted cache: ${key}`);
         }
     });
 };
