@@ -42,7 +42,7 @@ describe('POST /api/auth/login', () => {
     jest.clearAllMocks();
   });
 
-  test('400 – fehlende E-Mail', async () => {
+  test('400 – fehlendes username-Feld', async () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ password: 'irgendwas' });
@@ -52,7 +52,7 @@ describe('POST /api/auth/login', () => {
   test('400 – fehlendes Passwort', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'test@example.com' });
+      .send({ username: 'test@example.com' });
     expect(res.statusCode).toBe(400);
   });
 
@@ -60,7 +60,7 @@ describe('POST /api/auth/login', () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'nichtda@example.com', password: 'Passwort123!' });
+      .send({ username: 'nichtda@example.com', password: 'Passwort123!' });
     expect(res.statusCode).toBe(401);
   });
 
@@ -71,6 +71,7 @@ describe('POST /api/auth/login', () => {
       rows: [{
         id: 1,
         email: 'user@example.com',
+        username: 'testuser',
         password_hash: hash,
         role: 'user',
         is_active: true,
@@ -78,7 +79,7 @@ describe('POST /api/auth/login', () => {
     });
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'user@example.com', password: 'FalschesPasswort' });
+      .send({ username: 'testuser', password: 'FalschesPasswort' });
     expect(res.statusCode).toBe(401);
   });
 
@@ -90,18 +91,18 @@ describe('POST /api/auth/login', () => {
       rows: [{
         id: 42,
         email: 'admin@songnexus.at',
+        username: 'sebastian',
         password_hash: hash,
         role: 'admin',
         is_active: true,
-        username: 'sebastian',
       }],
     });
-    // 2. Query: last_login update
+    // 2. Query: last_login UPDATE
     pool.query.mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@songnexus.at', password: 'KorrektesPW123!' });
+      .send({ username: 'sebastian', password: 'KorrektesPW123!' });
 
     expect([200, 201]).toContain(res.statusCode);
     const hasToken =
@@ -121,10 +122,10 @@ describe('GET /api/auth/me', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  test('401 – ungueltiger Token', async () => {
+  test('403 – ungueltiger Token', async () => {
     const res = await request(app)
       .get('/api/auth/me')
       .set('Authorization', 'Bearer diesistkeingueltigertoken');
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(403);
   });
 });
