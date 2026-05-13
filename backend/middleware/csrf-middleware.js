@@ -9,7 +9,8 @@ const crypto = require('crypto');
 const tokens = new Map();
 
 // Cleanup old tokens every 10 minutes
-setInterval(() => {
+// Interval wird exportiert damit Tests ihn clearen koennen (kein offenes Handle)
+const cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const [token, data] of tokens.entries()) {
         if (now - data.createdAt > 10 * 60 * 1000) {
@@ -116,5 +117,6 @@ module.exports = {
     generateCSRFToken,
     verifyCSRFToken,
     attachCSRFToken,
-    validateCSRFToken
+    validateCSRFToken,
+    cleanupInterval,  // exportiert fuer Test-Teardown
 };
