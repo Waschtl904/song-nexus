@@ -10,9 +10,9 @@
     "start:local": "NODE_ENV=development node --no-deprecation server.js",
     "start:prod": "NODE_ENV=production node --no-deprecation server.js",
     "dev:local": "NODE_ENV=development nodemon --no-deprecation server.js --ignore logs",
-    "test": "jest --runInBand --forceExit",
+    "test": "jest --runInBand --detectOpenHandles",
     "test:watch": "jest --watch --runInBand",
-    "test:coverage": "jest --coverage --runInBand --forceExit"
+    "test:coverage": "jest --coverage --runInBand --detectOpenHandles"
   },
   "jest": {
     "testEnvironment": "node",
