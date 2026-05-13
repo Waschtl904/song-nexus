@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
-const { pool } = require('../server');
+const { pool } = require('../db');
 const { verifyToken, generateJWT } = require('../middleware/auth-middleware');
 const router = express.Router();
 

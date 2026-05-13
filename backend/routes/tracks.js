@@ -2,7 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
-const { pool } = require('../server');
+const { pool } = require('../db');
 const { verifyToken, verifyTokenSync } = require('../middleware/auth-middleware');
 const router = express.Router();
 
