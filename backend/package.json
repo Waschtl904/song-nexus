@@ -9,7 +9,20 @@
     "dev": "nodemon --no-deprecation server.js --ignore logs",
     "start:local": "NODE_ENV=development node --no-deprecation server.js",
     "start:prod": "NODE_ENV=production node --no-deprecation server.js",
-    "dev:local": "NODE_ENV=development nodemon --no-deprecation server.js --ignore logs"
+    "dev:local": "NODE_ENV=development nodemon --no-deprecation server.js --ignore logs",
+    "test": "jest --runInBand --forceExit",
+    "test:watch": "jest --watch --runInBand",
+    "test:coverage": "jest --coverage --runInBand --forceExit"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/__tests__/**/*.test.js"],
+    "setupFilesAfterFramework": [],
+    "verbose": true,
+    "collectCoverageFrom": [
+      "routes/**/*.js",
+      "!routes/index.js"
+    ]
   },
   "author": "Waschtl904",
   "license": "MIT",
@@ -41,6 +54,8 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
     "nodemon": "^3.0.1"
   }
 }
