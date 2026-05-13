@@ -1,4 +1,4 @@
 backend/.env
 backend/.env.local
 .env
-.env.local
+.env.localnode_modules/
