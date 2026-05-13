@@ -17,11 +17,9 @@
   "jest": {
     "testEnvironment": "node",
     "testMatch": ["**/__tests__/**/*.test.js"],
-    "setupFilesAfterFramework": [],
     "verbose": true,
     "collectCoverageFrom": [
-      "routes/**/*.js",
-      "!routes/index.js"
+      "routes/**/*.js"
     ]
   },
   "author": "Waschtl904",
