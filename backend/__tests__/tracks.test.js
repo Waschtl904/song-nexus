@@ -54,18 +54,23 @@ jest.mock('../middleware/cache-middleware', () => ({
   cache: { get: jest.fn(), set: jest.fn(), del: jest.fn(), keys: jest.fn(() => []), flushAll: jest.fn() },
 }));
 
-// fs-Mock: require('stream') INNERHALB der Factory (Jest-Hoisting-Regel).
-// PassThrough + setImmediate: Stream endet erst NACH pipe(), kein aborted-Error.
+// fs-Mock: setTimeout statt setImmediate damit Express zuerst pipe() aufrufen kann,
+// bevor der Stream Daten schreibt und sich schliesst -> kein aborted-Error in Supertest.
 jest.mock('fs', () => {
-  const mockStreamFactory = () => {
+  const mockStreamFactory = (path, options) => {
     const { PassThrough } = require('stream');
     const pt = new PassThrough();
-    setImmediate(() => pt.end());
+    setTimeout(() => {
+      const start = (options && options.start) || 0;
+      const end   = (options && options.end)   || 4_999_999;
+      pt.write(Buffer.alloc(Math.min(end - start + 1, 64)));
+      pt.end();
+    }, 10);
     return pt;
   };
   return {
-    existsSync: jest.fn().mockReturnValue(true),
-    statSync: jest.fn().mockReturnValue({ size: 5_000_000 }),
+    existsSync:       jest.fn().mockReturnValue(true),
+    statSync:         jest.fn().mockReturnValue({ size: 5_000_000 }),
     createReadStream: jest.fn().mockImplementation(mockStreamFactory),
   };
 });
