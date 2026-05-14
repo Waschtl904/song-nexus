@@ -1,11 +1,12 @@
 # 🎵 SONG-NEXUS
 
-> **A modern, full-stack music streaming platform with advanced authentication, real-time audio playback, and secure admin management.**
+> **A modern, full-stack music streaming platform with advanced authentication, real-time audio streaming, and PayPal payment integration.**
 
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=flat-square)
-![Version](https://img.shields.io/badge/Version-1.0-blue?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active%20Development-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-6.2.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![Tech Stack](https://img.shields.io/badge/Tech-Node.js%20|%20Express%20|%20React%20|%20PostgreSQL-informational?style=flat-square)
+![Tech Stack](https://img.shields.io/badge/Tech-Node.js%20|%20Express%20|%20PostgreSQL%20|%20Jest-informational?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-39%20passing-brightgreen?style=flat-square)
 
 ---
 
@@ -42,16 +43,17 @@ git pull origin main
 
 ## 🚀 Overview
 
-**SONG-NEXUS** is a cutting-edge music streaming application built with modern web technologies. It features:
+**SONG-NEXUS** is a music streaming application built with modern web technologies. It features:
 
-- 🔐 **Triple Authentication** - WebAuthn (Biometric), Password, Magic Link
-- 🎵 **Advanced Audio Streaming** - Real-time playback with waveform visualization
-- 💳 **Secure Payments** - PayPal integration for track purchases
-- 📊 **Full Admin Dashboard** - Secure management console with JWT authentication
-- 📤 **Track Management** - Upload, categorize, and monetize music
-- 📈 **Analytics** - Play history, user statistics, leaderboards
-- ⚡ **High Performance** - Webpack bundling, optimized API endpoints
-- 🔒 **Security First** - JWT tokens, CORS, SSL/TLS encryption
+- 🔐 **Triple Authentication** – WebAuthn (Biometric), Password, Magic Link
+- 🎵 **Advanced Audio Streaming** – HTTP Range Requests, 40s Preview for paid tracks
+- 💳 **Secure Payments** – PayPal integration for track purchases
+- 📊 **Full Admin Dashboard** – Secure management console with JWT authentication
+- 📤 **Track Management** – Upload, categorize, and monetize music
+- 📈 **Analytics** – Play history, user statistics, leaderboards
+- ⚡ **High Performance** – Webpack bundling, optimized API endpoints
+- 🔒 **Security First** – JWT tokens, CORS, Helmet, rate limiting, SSL/TLS
+- 🧪 **Fully Tested** – 39 Jest tests passing across Auth, Tracks, and Payments
 
 ---
 
@@ -61,21 +63,21 @@ git pull origin main
 
 **👉 Read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) FIRST!**
 
-This file is in the **ROOT directory** and contains:
-- ✅ Current project status (updated Jan 13, 2026)
+This file contains:
+- ✅ Current project status
 - ✅ Known issues & workarounds
 - ✅ Protected code sections (don't touch!)
 - ✅ Safe-to-modify code sections
 - ✅ Windows 11 PowerShell commands
 - ✅ Next steps & priorities
 
-**TL;DR:** Copy the content of `MASTER-PROMPT-2026-AKTUELL.md` into your Claude chat at the start of each session. This prevents regression bugs and redundancy problems.
+**TL;DR:** Copy the content of `MASTER-PROMPT-2026-AKTUELL.md` into your AI chat at the start of each session. This prevents regression bugs and redundancy problems.
 
 ### 📚 Documentation Versions
 
 ✅ **USE THESE CURRENT FILES:**
-- MASTER-PROMPT-2026-AKTUELL.md (CURRENT - Jan 13, 2026)
-- README.md (this file)
+- MASTER-PROMPT-2026-AKTUELL.md (CURRENT)
+- README.md (this file – updated May 14, 2026)
 - DATABASE.md (root level)
 - PRODUCTION-DEPLOYMENT.md (root level)
 - docs/ADMIN-GUIDE.md
@@ -102,9 +104,9 @@ This file is in the **ROOT directory** and contains:
 - [Database Schema](#database-schema)
 - [API Documentation](#api-documentation)
 - [Authentication](#authentication)
+- [Testing](#-testing)
 - [Development](#development)
 - [Deployment](#deployment)
-- [Contributing](#contributing)
 - [License](#license)
 
 ---
@@ -132,7 +134,7 @@ npm install && cd backend && npm install && cd .. && cd frontend && npm install 
 cp backend\.env.example backend\.env
 cp frontend\.env.example frontend\.env
 
-# 4. Setup database (see Full Setup Guide below)
+# 4. Setup database
 psql -U postgres
 CREATE DATABASE song_nexus_dev;
 \q
@@ -150,101 +152,61 @@ npm start
 - Backend: `https://localhost:3000`
 - Admin Hub: `https://localhost:3000/admin/`
 
-### Full Setup Guide
-
-**📖 See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) for comprehensive Windows 11 setup instructions:**
-- Detailed prerequisites
-- PowerShell commands
-- PostgreSQL setup
-- Troubleshooting
-- Daily workflow
-- sync-repo.ps1 utility script
-
-### Repository Sync
-
-```powershell
-# Keep your local repo synchronized with GitHub
-.\sync-repo.ps1
-```
+**Full guide:** See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md)
 
 ---
 
 ## ✨ Features
 
 ### 🔐 Authentication System
-- **WebAuthn Biometric** - Fingerprint/Face ID login (in development)
-- **Email & Password** - Traditional registration & login
-- **Magic Link** - One-click email authentication
-- **JWT Tokens** - 7-day expiration, configurable via `.env`
-- **Session Management** - Secure token refresh & logout
+- **WebAuthn Biometric** – Fingerprint/Face ID login (backend complete)
+- **Email & Password** – Traditional registration & login
+- **Magic Link** – One-click email authentication
+- **JWT Tokens** – 7-day expiration, configurable via `.env`
+- **Session Management** – Secure token refresh & logout
 
 ### 🎵 Audio Management
-- **Streaming Player** - Real-time audio playback with controls
-- **Waveform Visualization** - Visual track progress indicator
-- **Keyboard Shortcuts** - Play, pause, seek with hotkeys
-- **Preview Mode** - 40-second preview for paid tracks
-- **Format Support** - MP3 & WAV audio files
+- **HTTP Streaming** – Range request support (206 Partial Content)
+- **Preview Mode** – 40-second preview for paid tracks (speed-calculated byte range)
+- **Free Track Access** – Full file access for everyone, no auth required
+- **Paid Track Access** – Token + purchase verification required for full stream
+- **Security:** Invalid token → Preview only. No token → Preview only.
+- **Format Support** – MP3 & WAV audio files
 
 ### 💳 Payment Integration
-- **PayPal SDK** - Seamless checkout experience
-- **Purchase History** - Track all transactions
-- **License Management** - Personal license per purchase
-- **Payment Statistics** - Spending analytics & patterns
+- **PayPal SDK** – Seamless checkout experience
+- **Purchase History** – Track all transactions
+- **License Management** – Personal license per purchase
+- **Payment Statistics** – Spending analytics & patterns
 
 ### 🛡️ Admin Console
-- **Secure JWT Login** - Admin-only authentication
-- **Track Upload** - Upload & publish music tracks
-- **Design Editor** - Customize platform colors & branding
-- **User Management** - Admin role assignment
-- **Analytics Dashboard** - View platform statistics
+- **Secure JWT Login** – Admin-only authentication
+- **Track Upload** – Upload & publish music tracks
+- **Design Editor** – Customize platform colors & branding
+- **User Management** – Admin role assignment
+- **Analytics Dashboard** – View platform statistics
 
 ### 📊 User Features
-- **User Dashboard** - Profile, statistics, purchase history
-- **Play History** - Complete record of listened tracks
-- **Leaderboards** - Top users by plays & purchases
-- **Genre Categorization** - Organize music by genre
-
-### ⚡ Performance
-- **Webpack 5 Bundling** - Single 83.5 KiB production bundle
-- **Optimized API** - Fast endpoints with caching
-- **Range Requests** - HTTP 206 for efficient streaming
-- **CDN Ready** - Static assets easily deployable to CDN
+- **User Dashboard** – Profile, statistics, purchase history
+- **Play History** – Complete record of listened tracks
+- **Leaderboards** – Top users by plays & purchases
+- **Genre Categorization** – Organize music by genre
 
 ---
 
 ## 🛡️ Admin Hub
 
-**NEW in v1.0:** Secure admin dashboard with JWT authentication!
-
-### Access Admin Hub
+### Access
 ```
 https://localhost:3000/admin/
 ```
 
 ### Features
-- ✅ **JWT-based Login** - Secure admin authentication
-- ✅ **Role-based Access** - Only users with `role='admin'` can access
-- ✅ **Track Upload Tool** - Upload and manage music tracks (frontend/admin-upload.html)
-- ✅ **Design Editor** - Customize platform colors and branding
-- ✅ **Dev Login** - Quick authentication for localhost development
-- ✅ **Cyberpunk UI** - Modern neon-themed interface
-
-### Admin Login Methods
-
-**Option 1: Dev Login (Localhost Only)**
-1. Navigate to `https://localhost:3000/admin/`
-2. Click "Dev Login (Localhost Only)" button
-3. Automatically creates dev admin user
-4. ✅ You're logged in!
-
-**Option 2: Existing Admin Account**
-1. Make sure your database user has `role='admin'`:
-```sql
-UPDATE users SET role='admin' WHERE email='your@email.com';
-```
-2. Navigate to `https://localhost:3000/admin/`
-3. Enter credentials
-4. ✅ Access granted!
+- ✅ **JWT-based Login** – Secure admin authentication
+- ✅ **Role-based Access** – Only users with `role='admin'` can access
+- ✅ **Track Upload Tool** – Upload and manage music tracks
+- ✅ **Design Editor** – Customize platform colors and branding
+- ✅ **Dev Login** – Quick authentication for localhost development
 
 ### Admin Tools
 
@@ -253,112 +215,42 @@ UPDATE users SET role='admin' WHERE email='your@email.com';
 | **Admin Hub** | `https://localhost:3000/admin/` | Main admin console (JWT login) |
 | **Track Upload** | `frontend/admin-upload.html` | Upload music, set metadata & prices |
 | **Design Editor** | `frontend/admin/design-editor.html` | Customize colors, fonts, branding |
-| **User Admin** | Coming soon | Manage users, assign roles, view statistics |
 
-**See [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) for detailed admin documentation**
+**See [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) for detailed admin documentation.**
 
 ---
 
 ## 🛠️ Tech Stack
 
+### **Backend**
+- **Runtime:** Node.js 18+
+- **Framework:** Express.js v4
+- **Version:** 6.2.0
+- **Authentication:** WebAuthn, JWT (jsonwebtoken), bcryptjs
+- **API:** REST with 35+ endpoints
+- **Server:** HTTPS with mkcert (local SSL)
+- **Security:** Helmet, CORS, express-rate-limit, csrf-csrf, mongo-sanitize, xss-clean
+- **Testing:** Jest 29 + Supertest 7 (39 tests, all passing)
+
 ### **Frontend**
 - **Language:** JavaScript (ES6+)
 - **Build Tool:** Webpack 5
 - **Architecture:** Modular, component-based
-- **CSS:** Custom styling with optimization
 - **Bundle Size:** 83.5 KiB (production)
-
-### **Backend**
-- **Runtime:** Node.js 18+
-- **Framework:** Express.js
-- **Authentication:** WebAuthn, JWT, bcrypt
-- **API:** REST with 35+ endpoints
-- **Server:** HTTPS with mkcert (local SSL)
 
 ### **Database**
 - **System:** PostgreSQL 12+
 - **Schema:** 10 tables with 22 indexes
 - **Tables:** users, tracks, orders, purchases, play_history, play_stats, magic_links, magic_link_tokens, webauthn_credentials, design_system
-- **Connections:** Connection pooling with pg library
+- **Connections:** Connection pooling with `pg` library
 
 **See [DATABASE.md](./DATABASE.md) for complete schema documentation**
 
-### **Security**
-- **Encryption:** TLS 1.3, CORS, CSP headers
-- **Auth:** JWT Bearer tokens, biometric verification
-- **Validation:** Input sanitization, rate limiting
-- **Storage:** Environment variables for secrets
-
----
-
-## 🚀 Quick Start
-
-**⚠️ Important:** First read [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) for current status and setup details.
-
-**For Windows 11 setup:** See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) for detailed instructions.
-
-### Prerequisites
-- **Node.js** 18+ ([Download](https://nodejs.org))
-- **PostgreSQL** 12+ ([Download](https://www.postgresql.org))
-- **Git** ([Download](https://git-scm.com))
-- **Windows 11 Pro** with PowerShell
-
-### Installation
-
-1. **Clone repository**
-```bash
-git clone https://github.com/Waschtl904/song-nexus.git
-cd song-nexus
-```
-
-2. **Install dependencies**
-```bash
-npm install
-cd frontend && npm install && cd ..
-cd backend && npm install && cd ..
-```
-
-3. **Configure environment**
-```bash
-# Backend
-cp backend/.env.example backend/.env
-# Edit backend/.env with your secrets
-
-# Frontend
-cp frontend/.env.example frontend/.env
-```
-
-4. **Setup database**
-```bash
-# Create PostgreSQL database first
-psql -U postgres
-CREATE DATABASE song_nexus_dev;
-\q
-
-# Apply schema (single source of truth in ROOT)
-psql -U postgres -d song_nexus_dev -f schema.sql
-```
-
-5. **Generate SSL certificates (development)**
-```bash
-cd backend
-npm run generate-cert
-cd ..
-```
-
-6. **Start development server**
-```bash
-npm start
-# Runs Backend (port 3000) + Frontend (port 5500) with concurrently
-```
-
-7. **Access application**
-```
-Frontend:  https://localhost:5500
-Backend:   https://localhost:3000
-API:       https://localhost:3000/api
-Admin:     https://localhost:3000/admin/
-```
+### **Security Middleware**
+- TLS 1.3, CORS, CSP headers (Helmet)
+- JWT Bearer tokens, biometric verification
+- Input sanitization, rate limiting
+- Environment variables for all secrets
 
 ---
 
@@ -368,157 +260,133 @@ Admin:     https://localhost:3000/admin/
 SONG-NEXUS/
 │
 ├── 📋 Documentation (ROOT LEVEL)
-│   ├── README.md                           ✅ This file
+│   ├── README.md                           ✅ This file (updated May 14, 2026)
 │   ├── MASTER-PROMPT-2026-AKTUELL.md       🔴 START HERE EVERY SESSION!
 │   ├── DATABASE.md                         ✅ Database schema documentation
 │   ├── PRODUCTION-DEPLOYMENT.md            ✅ Deployment guide
-│   ├── schema.sql                          ✅ DATABASE SCHEMA (single source of truth)
-│   └── ...
+│   └── schema.sql                          ✅ DATABASE SCHEMA (single source of truth)
 │
-├── 📂 docs/                              (New documentation folder)
-│   ├── ADMIN-GUIDE.md                    ✅ Admin Hub documentation
-│   ├── PROJECT-STRUCTURE.md              ✅ Complete project organization
-│   └── SETUP-WINDOWS.md                  ✅ Windows 11 Pro setup guide (NEW)
+├── 📂 docs/
+│   ├── ADMIN-GUIDE.md                      ✅ Admin Hub documentation
+│   ├── PROJECT-STRUCTURE.md                ✅ Complete project organization
+│   └── SETUP-WINDOWS.md                    ✅ Windows 11 Pro setup guide
 │
-├── 📂 backend/                             Express.js REST API Server
-│   ├── 📂 routes/                         API endpoints
-│   ├── 📂 middleware/                     Express middleware
-│   ├── 📂 public/                         Static files
-│   ├── 📂 certs/                          SSL certificates
-│   ├── server.js                          Express server
-│   ├── package.json
+├── 📂 backend/                             Express.js REST API Server (v6.2.0)
+│   ├── 📂 routes/
+│   │   ├── auth.js                         Auth endpoints (register, login, verify, me, logout, refresh)
+│   │   ├── tracks.js                       Tracks + Audio streaming with access control
+│   │   └── payments.js                     PayPal integration
+│   ├── 📂 middleware/
+│   │   └── auth-middleware.js              JWT verification (sync + async)
+│   ├── 📂 __tests__/                       ✅ Jest test suite
+│   │   ├── auth.test.js                    25 tests – Auth routes
+│   │   ├── tracks.test.js                  14 tests – Tracks + Audio streaming
+│   │   ├── payments.test.js                Payments tests
+│   │   └── setup.js                        Test setup & teardown
+│   ├── 📂 public/
+│   │   └── audio/                          MP3/WAV files served by streaming endpoint
+│   ├── 📂 certs/                           SSL certificates
+│   ├── server.js                           Express server entry point
+│   ├── app.js                              Express app (exported for testing)
+│   ├── package.json                        v6.2.0 – includes npm test scripts
 │   └── .env.example
 │
 ├── 📂 frontend/                            React + Webpack Frontend
-│   ├── 📂 admin/                          ✅ Admin Console
-│   │   ├── index.html                   🔐 Admin Hub main page
-│   │   └── design-editor.html            🎨 Design editor
-│   ├── admin-upload.html                 📤 Track upload (in frontend root!)
-│   ├── 📂 js/                            JavaScript modules
-│   ├── 📂 css/                           Stylesheets
-│   ├── 📂 assets/                        Images & static
-│   ├── 📂 dist/                          Webpack output (generated)
-│   ├── webpack.config.js
-│   ├── package.json
-│   └── .env.example
+│   ├── 📂 admin/
+│   │   ├── index.html                      🔐 Admin Hub main page
+│   │   └── design-editor.html              🎨 Design editor
+│   ├── admin-upload.html                   📤 Track upload
+│   ├── 📂 js/                              JavaScript modules
+│   ├── 📂 css/                             Stylesheets
+│   ├── 📂 dist/                            Webpack output (generated)
+│   └── webpack.config.js
 │
-├── 📂 sync-repo.ps1                      ✅ Repository sync utility (PowerShell)
-├── package.json                         Root package (concurrently)
-├── .gitignore                           Git ignore patterns
-├── .env.example                         Root env template
-├── LICENSE                              MIT License
-└── schema.sql                           DATABASE SCHEMA (ROOT!)
+├── sync-repo.ps1                           ✅ Repository sync utility (PowerShell)
+├── package.json                            Root package (concurrently)
+└── schema.sql                              DATABASE SCHEMA (ROOT – single source of truth)
 ```
-
-**See [docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md) for complete project organization**
 
 ---
 
 ## 📊 Database Schema
 
-### ⚠️ CRITICAL: Database Schema Location
+### ⚠️ CRITICAL: Schema Location
 
-The SQL schema file is located at:
+✅ **CORRECT:** `ROOT/schema.sql` (CURRENT)
+❌ **WRONG:** `backend/db/schema.sql` (doesn't exist)
 
-✅ **CORRECT:** `ROOT/schema.sql` (22 KB, CURRENT)
-❌ **WRONG:** `backend/db/schema.sql` (doesn't exist, was deleted)
-
-**Always reference:**
 ```powershell
+# Always use:
 psql -U postgres -d song_nexus_dev -f schema.sql
 ```
 
-**Never use:**
-```powershell
-psql -U postgres -d song_nexus_dev -f backend/db/schema.sql  # ❌ This path is wrong!
-```
-
-### Quick Overview:
+### Quick Overview
 
 | Table | Purpose | Key Fields |
-|-------|---------|----------|
-| **users** | User accounts & credentials | id, email, username, password_hash, role, webauthn_credential |
-| **tracks** | Music metadata & files | id, name, artist, genre, audio_filename, price, is_published |
+|-------|---------|-----------|
+| **users** | User accounts | id, email, username, password_hash, role |
+| **tracks** | Music metadata | id, name, artist, genre, audio_filename, price, is_published |
 | **orders** | PayPal transactions | id, user_id, paypal_order_id, amount, status |
-| **purchases** | Track purchases per user | id, user_id, track_id, license_type, expires_at |
-| **play_history** | Track play events | id, user_id, track_id, played_at, duration_played_seconds |
+| **purchases** | Track purchases | id, user_id, track_id, license_type, expires_at |
+| **play_history** | Play events | id, user_id, track_id, played_at, duration_played_seconds |
 | **play_stats** | Advanced analytics | id, user_id, track_id, device_type, session_id |
-| **webauthn_credentials** | Biometric auth data | id, user_id, credential_id, public_key, counter |
-| **magic_links** | Email-based login | id, user_id, token, expires_at, ip_address |
-| **magic_link_tokens** | Alternative magic links | id, user_id, token, expires_at |
-| **design_system** | Theme & design tokens | id, color_primary, color_secondary, ... (27 tokens) |
+| **webauthn_credentials** | Biometric auth | id, user_id, credential_id, public_key, counter |
+| **magic_links** | Email-based login | id, user_id, token, expires_at |
+| **magic_link_tokens** | Alt magic links | id, user_id, token, expires_at |
+| **design_system** | Theme tokens | id, color_primary, color_secondary, … (27 tokens) |
 
-**Full documentation:** See [DATABASE.md](./DATABASE.md)
-
-**Schema file:** [schema.sql](./schema.sql) (✅ Single source of truth in ROOT, 10 tables, 22 optimized indexes)
+**Full docs:** See [DATABASE.md](./DATABASE.md)
 
 ---
 
 ## 📚 API Documentation
 
-Full API documentation available in the API endpoints (35 total)
-
-### Quick Reference
-
-#### **Authentication (7 endpoints)**
+### Authentication (7 endpoints)
 ```
-POST   /api/auth/register               # Create account
-POST   /api/auth/login                  # Login with password
-POST   /api/auth/verify                 # Verify JWT token
-GET    /api/auth/me                     # Get current user
-POST   /api/auth/refresh-token          # Refresh JWT
-POST   /api/auth/logout                 # Logout
-POST   /api/auth/dev-login              # Dev-only quick login
+POST   /api/auth/register         # Create account
+POST   /api/auth/login            # Login with password or email
+POST   /api/auth/verify           # Verify JWT token
+GET    /api/auth/me               # Get current user profile
+POST   /api/auth/refresh-token    # Refresh JWT
+POST   /api/auth/logout           # Logout (requires token)
+POST   /api/auth/dev-login        # Dev-only quick login
 ```
 
-#### **Admin Routes (4 endpoints - admin only)**
+### Tracks & Audio
 ```
-POST   /api/admin/tracks/upload        # Upload new track
-GET    /api/admin/tracks/list          # List all tracks
-PUT    /api/admin/tracks/:id           # Update track metadata
-DELETE /api/admin/tracks/:id           # Soft delete track
+GET    /api/tracks                # List tracks (pagination, search, genre)
+GET    /api/tracks/:id            # Track details
+GET    /api/tracks/genres/list    # Available genres
+GET    /api/tracks/audio/:file    # Stream audio (access-controlled)
 ```
 
-#### **More endpoints** (WebAuthn, Tracks, Payments, Users, Play History)
-See [backend/routes/](./backend/routes/) for complete endpoint list
+**Audio access logic:**
+- Free track → Full file (200) for everyone
+- Paid track, no token → 40s preview (206)
+- Paid track, token, no purchase → 40s preview (206)
+- Paid track, token + purchase → Full file (200)
+- Invalid/expired token → treated as no token (preview)
+
+### Admin Routes (admin role required)
+```
+POST   /api/admin/tracks/upload   # Upload new track
+GET    /api/admin/tracks/list     # List all tracks
+PUT    /api/admin/tracks/:id      # Update track metadata
+DELETE /api/admin/tracks/:id      # Soft delete track
+```
+
+### Payments
+```
+POST   /api/payments/paypal/create-order    # Create PayPal order
+POST   /api/payments/paypal/capture-order   # Capture after approval
+GET    /api/payments/history                # Purchase history (auth required)
+```
 
 ---
 
 ## 🔐 Authentication
 
-### WebAuthn (Biometric) Flow
-
-1. **Registration**
-   ```
-   User clicks "Register with Biometric"
-   ↓
-   Browser generates credential challenge
-   ↓
-   User touches fingerprint/face
-   ↓
-   Credential sent to backend
-   ↓
-   Backend verifies & stores credential
-   ↓
-   JWT token issued → User logged in
-   ```
-
-2. **Login**
-   ```
-   User clicks "Login with Biometric"
-   ↓
-   Browser requests authentication
-   ↓
-   User touches fingerprint/face
-   ↓
-   Assertion sent to backend
-   ↓
-   Backend verifies credential
-   ↓
-   JWT token issued → User logged in
-   ```
-
-### Token Structure
+### JWT Token Structure
 
 ```json
 {
@@ -532,6 +400,61 @@ See [backend/routes/](./backend/routes/) for complete endpoint list
 
 **Token Expiry:** 7 days (configurable in `.env`)
 
+### Security Guarantees (verified by tests)
+- Tokens signed with wrong secret → 403 rejected
+- Expired tokens → 403 rejected
+- Tampered role claims (e.g. `role: admin`) with wrong secret → no admin access
+- Deleted user accounts → 404 on `/me`
+
+---
+
+## 🧪 Testing
+
+**Test runner:** Jest 29 + Supertest 7  
+**All tests run in-band** (`--runInBand`) for DB isolation
+
+### Available Commands
+
+```bash
+npm test                  # Run all tests once (--runInBand --detectOpenHandles)
+npm run test:watch        # Watch mode during development
+npm run test:coverage     # Coverage report (routes/**/*.js)
+```
+
+### Test Status (as of May 14, 2026)
+
+| File | Tests | Status |
+|------|-------|--------|
+| `__tests__/auth.test.js` | 25 | ✅ All passing |
+| `__tests__/tracks.test.js` | 14 | ✅ All passing |
+| `__tests__/payments.test.js` | — | ✅ All passing |
+
+### What is tested
+
+**Auth (25 tests):**
+- Registration: success, duplicate email, missing fields, short password, short username, invalid email
+- Login: success, wrong password, user not found, empty fields, login by email
+- Token verify: valid, no token, invalid, expired
+- `/me`: with token, no token, deleted account
+- Logout: with token, without token
+- Token refresh: works, no token, user deleted
+- Security: wrong-secret token rejected, forged admin role rejected
+
+**Tracks & Audio (14 tests):**
+- List with pagination metadata
+- Empty list
+- Search via query param
+- Track details by ID
+- Track not found (404)
+- Genre list
+- Audio: free track full (200), free track with Range (206)
+- Audio: premium no token → preview (206)
+- Audio: premium token, no purchase → preview (206)
+- Audio: premium token + purchase → full (200)
+- Audio: invalid token → preview (206)
+- Empty filename → 400
+- File not found → 404
+
 ---
 
 ## 🎮 Development
@@ -540,7 +463,7 @@ See [backend/routes/](./backend/routes/) for complete endpoint list
 
 ```bash
 # Development
-npm start              # Run both backend & frontend
+npm start              # Run both backend & frontend (concurrently)
 npm run server         # Backend only
 npm run client         # Frontend only
 
@@ -548,14 +471,10 @@ npm run client         # Frontend only
 npm run build          # Webpack production build
 npm run build:dev      # Webpack dev build
 
-# Database
-npm run db:setup       # Initialize database
-npm run db:reset       # Reset all tables
-
-# Testing (when implemented)
-npm test              # Run all tests
-npm run test:unit     # Unit tests only
-npm run test:e2e      # End-to-end tests
+# Testing
+npm test               # All tests
+npm run test:watch     # Watch mode
+npm run test:coverage  # With coverage report
 ```
 
 ### Environment Variables
@@ -571,34 +490,21 @@ PAYPAL_CLIENT_ID=your-paypal-client-id
 PAYPAL_SECRET=your-paypal-secret
 ```
 
-**Frontend (.env)**
-```env
-VITE_API_URL=https://localhost:3000
-VITE_PAYPAL_CLIENT_ID=your-paypal-client-id
-VITE_ENV=development
-```
-
 ### Development Workflow
 
-1. **Make code changes**
 ```bash
-# Edit files in frontend/js/ or backend/routes/
-```
+# 1. Pull latest
+cd C:\Users\sebas\Desktop\SongSeite\backend
+git pull
 
-2. **Frontend changes auto-reload**
-```bash
-# Webpack dev server watches for changes
-```
+# 2. Make changes
 
-3. **Backend changes require restart**
-```bash
-# Press Ctrl+C, then npm start again
-```
+# 3. Run tests
+npm test
 
-4. **Commit changes**
-```bash
+# 4. Commit
 git add .
-git commit -m "feat: add new feature"
+git commit -m "feat: your change"
 git push origin main
 ```
 
@@ -608,251 +514,108 @@ git push origin main
 
 **Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
-### Quick Deployment Steps
+### Quick Steps
 
-1. **Prepare environment**
-   - Create `.env.production` with real secrets
-   - Generate secure JWT_SECRET, SESSION_SECRET
-   - Setup PayPal LIVE credentials
-
-2. **Database**
-   - Create PostgreSQL database on VPS/RDS
-   - Apply `schema.sql` to production database
-   - Setup automated backups
-
-3. **Backend**
-   - Clone repository on VPS
-   - Install dependencies with `--production` flag
-   - Start with PM2 (2+ instances for clustering)
-   - Setup SSL certificates with Let's Encrypt
-
-4. **Frontend**
-   - Build with `npm run build`
-   - Serve from Nginx with reverse proxy to backend
-   - Configure caching headers for assets
-
-5. **Monitoring**
-   - Setup error tracking (Sentry, LogRocket)
-   - Configure uptime monitoring
-   - Setup log aggregation
-   - Enable performance monitoring
-
-**Full details:** [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+1. Create `.env.production` with real secrets
+2. Setup PostgreSQL on VPS/RDS → apply `schema.sql`
+3. Clone repo, `npm install --production`
+4. Run with PM2 (2+ instances)
+5. Nginx reverse proxy with Let's Encrypt SSL
 
 ---
 
 ## 📊 Project Status
 
-### ✅ Completed (v1.0)
-- WebAuthn biometric authentication (backend complete, frontend in development)
-- Password-based auth with JWT
-- Audio streaming with preview
+### ✅ Completed
+- WebAuthn biometric auth (backend complete, frontend in development)
+- Password & email auth with JWT
+- HTTP audio streaming with Range support (206/200)
+- 40-second preview for paid tracks
 - PayPal payment integration
 - User statistics & leaderboards
 - Admin track management
 - Play history tracking
-- Database schema (10 tables, verified)
-- API documentation
-- Deployment guide
-- **NEW:** Secure Admin Hub with JWT login (v1.0.1)
-- **NEW:** Windows 11 Pro setup guide (v1.0.2)
-- **NEW:** Documentation audit & corrections (v1.0.3)
+- Database schema (10 tables, 22 indexes)
+- **Jest test suite: 39 tests all passing** (Auth, Tracks, Payments)
+- Secure Admin Hub with JWT login
+- Windows 11 Pro setup guide
 
-### 🚧 In Development (v1.1)
+### 🚧 In Development (v6.3+)
 - [ ] WebAuthn frontend stabilization
-- [ ] Design System refinement
-- [ ] Unit & E2E testing framework
+- [ ] Design system refinement
+- [ ] E2E tests (Playwright)
 - [ ] Advanced search & filtering
 - [ ] Playlist creation
-- [ ] Social features (followers, recommendations)
 
-### 🔮 Future (v2.0)
+### 🔮 Future (v7.0+)
 - [ ] Mobile app (React Native)
 - [ ] Audio processing (normalization, EQ)
-- [ ] Social sharing
+- [ ] Social features
 - [ ] Streaming analytics
 - [ ] Artist dashboard
-- [ ] Multi-region deployment
-
----
-
-## 🧪 Testing
-
-Currently in development. When implemented:
-
-```bash
-# Unit Tests
-npm run test:unit    # Backend & frontend unit tests
-
-# End-to-End Tests
-npm run test:e2e     # Full user flows
-```
-
-### Manual Testing Checklist
-
-- [ ] Register with email/password
-- [ ] Login with magic link
-- [ ] Login with WebAuthn biometric
-- [ ] Browse tracks
-- [ ] Stream audio (preview + full)
-- [ ] Purchase track via PayPal
-- [ ] View play history
-- [ ] Check user statistics
-- [ ] **Admin:** Login to Admin Hub
-- [ ] **Admin:** Upload new track
-- [ ] **Admin:** Customize design
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Please follow these steps:
-
-1. **Fork the repository**
-```bash
-git clone https://github.com/YOUR_USERNAME/song-nexus.git
-```
-
-2. **Create feature branch**
-```bash
-git checkout -b feature/your-feature-name
-```
-
-3. **Make changes & commit**
-```bash
-git commit -m "feat: describe your changes"
-```
-
-4. **Push & create Pull Request**
-```bash
-git push origin feature/your-feature-name
-```
-
-### Code Style
-- Use ES6+ syntax
-- Follow existing file structure
-- Add comments for complex logic
-- Test manually before PR
-
----
-
-## 📚 Documentation
-
-### Essential Reading (Most in ROOT!)
-- **[MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md)** - 👈 **START HERE EVERY SESSION!** (ROOT)
-- **[DATABASE.md](./DATABASE.md)** - Complete database schema with diagrams (ROOT)
-- **[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)** - Full deployment guide (ROOT)
-- **[docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md)** - Windows 11 Pro setup guide (NEW)
-- **[docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md)** - Admin Hub documentation
-- **[docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md)** - Complete project organization
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
 **Q: SSL certificate error**
 ```bash
-# Regenerate certificate
 cd backend && npm run generate-cert
 ```
 
 **Q: Database connection failed**
-```bash
-# Check PostgreSQL is running
-# Verify DATABASE_URL in .env
-# Check credentials
-```
+Check PostgreSQL is running, verify `DATABASE_URL` in `.env`, check credentials.
 
 **Q: Port 3000 already in use**
 ```bash
-# Use different port in .env
-# Or kill process: netstat -ano | findstr :3000
+netstat -ano | findstr :3000
+# Then kill the process, or change PORT in .env
 ```
 
 **Q: Webpack bundle not updating**
 ```bash
-# Clear dist folder
 rm -rf frontend/dist
 npm run build
 ```
 
 **Q: Cannot access Admin Hub**
-```bash
-# Make sure your user has role='admin'
+```sql
 UPDATE users SET role='admin' WHERE email='your@email.com';
-# Then refresh the page
 ```
 
-**Q: Node/npm/psql commands not found (Windows PowerShell)**
-See [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) Troubleshooting section for Windows-specific fixes.
+**Q: Tests fail with DB errors**
+Make sure `NODE_ENV=test` is set and your test DB exists. See `__tests__/setup.js`.
 
 ---
 
-## 📝 Roadmap
+## 📚 Documentation Index
 
-### Q1 2026
-- [x] Admin Hub with JWT login
-- [x] Windows 11 Pro setup guide
-- [x] Documentation audit & fixes
-- [ ] WebAuthn frontend hardening
-- [ ] Design system stabilization
-- [ ] Unit testing framework
-
-### Q2 2026
-- [ ] Advanced search capabilities
-- [ ] Playlist functionality
-- [ ] Social features
-- [ ] Mobile app (React Native)
-
-### Q3 2026
-- [ ] Audio processing features
-- [ ] Artist dashboard
-- [ ] Multi-region deployment
-- [ ] Analytics enhancement
+| File | Purpose |
+|------|---------|
+| [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) | 🔴 START HERE – session context |
+| [DATABASE.md](./DATABASE.md) | Complete DB schema |
+| [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md) | Deployment guide |
+| [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) | Windows 11 setup |
+| [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) | Admin Hub docs |
+| [docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md) | Project organization |
 
 ---
 
 ## 📄 License
 
-MIT License © 2025 Song-Nexus Contributors
-
-See `LICENSE` file for details.
+MIT License © 2025–2026 Song-Nexus Contributors – See `LICENSE` for details.
 
 ---
 
 ## 👤 Author
 
-**Sebastian** - Full-stack Developer
-- 🌍 Gloggnitz, Lower Austria (Vienna, AT)
-- 💻 Tool-maker turned Web Developer
-- 🎵 Music Technology Enthusiast
-- 📍 **Project Root:** `C:\Users\sebas\Desktop\SongSeite` (Windows 11 Pro)
+**Sebastian** – Tool-maker turned Web Developer  
+📍 Vienna, AT | 📧 sebastian.schmalnauer@gmx.at  
+🐛 [GitHub Issues](https://github.com/Waschtl904/song-nexus/issues)
 
 ---
 
-## 📞 Support
-
-- 📧 Email: sebastian.schmalnauer@gmx.at
-- 🐛 Issues: [GitHub Issues](https://github.com/Waschtl904/song-nexus/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/Waschtl904/song-nexus/discussions)
-
----
-
-## 🙏 Acknowledgments
-
-- WebAuthn spec & implementation
-- Express.js & Node.js community
-- PostgreSQL database
-- PayPal SDK
-- Webpack ecosystem
-
----
-
-**Last Updated:** January 13, 2026  
-**Version:** 1.0.3  
-**Status:** ✅ Production Ready  
-**Local Setup:** ✅ Windows 11 Pro Documented
-
-⭐ **If you find this project useful, please consider starring it on GitHub!**
+**Last Updated:** May 14, 2026  
+**Backend Version:** 6.2.0  
+**Status:** 🟡 Active Development  
+**Tests:** ✅ 39 passing
