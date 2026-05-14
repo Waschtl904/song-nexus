@@ -51,51 +51,49 @@ jest.mock('../middleware/cache-middleware', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// fs-Mock
+// fs-Mock v2
 //
-// Kernproblem: tracks.js ruft createReadStream() auf und piped den Stream in
-// res. Express setzt Content-Length auf die volle Dateigroesse (5 MB), Supertest
-// wartet dann auf genau diese Menge. Wir muessen daher:
+// tracks.js benutzt fs an drei Stellen im Audio-Pfad:
+//   1. fs.existsSync(filepath)           -> true zurueckgeben
+//   2. fs.statSync(filepath).size        -> 5_000_000 zurueckgeben
+//      (einmal in der Route, einmal in servePreview)
+//   3. fs.createReadStream(path, opts?)  -> Stream der sofort endet
 //
-//   1. statSync immer { size: 5_000_000 } liefern – auch nach clearAllMocks().
-//      Dafuer KEIN jest.fn() sondern eine echte Funktion die nie zurueckgesetzt
-//      wird. Wir patchen statSync erst NACH dem Mock-Aufruf per spyOn so, dass
-//      clearAllMocks() keine Auswirkung hat.
+// Das Kernproblem mit TCPSERVERWRAP:
+//   Express piped den Stream in res. Supertest haelt die TCP-Verbindung offen
+//   bis der Stream endet UND Express res.end() aufgerufen hat.
+//   Ein PassThrough-Stream der sich per process.nextTick beendet reicht nicht
+//   immer, weil Express intern noch auf das 'finish'-Event von res wartet.
 //
-//   2. createReadStream einen Stream liefern, der sich erst schließt nachdem
-//      Express alle Header gesetzt und pipe() aufgerufen hat.
-//      Ansatz: Der Stream "horcht" auf das pipe-Event und beendet sich dann.
+// Loesung: Wir verwenden einen Transform-Stream der sofort 'end' emittiert,
+//   OHNE auf das 'pipe'-Event zu warten. Express ruft .pipe(res) auf, und der
+//   Stream ist bereits beendet -> res.end() wird synchron ausgeloest.
 // ---------------------------------------------------------------------------
 jest.mock('fs', () => {
-  const { PassThrough } = require('stream');
+  const { Readable } = require('stream');
 
-  // Konstante Werte – werden nie durch clearAllMocks zurueckgesetzt.
   const MOCK_SIZE = 5_000_000;
   const MOCK_STAT = { size: MOCK_SIZE };
 
-  // Erstellt einen PassThrough-Stream, der sich beendet sobald er in ein
-  // Ziel gepiped wird (= nachdem Express alle Header gesetzt hat).
-  const makePipeAwareStream = () => {
-    const pt = new PassThrough();
-    pt.once('pipe', () => {
-      // Im naechsten Tick: minimale Daten schreiben und schliessen.
-      // Der naechste Tick stellt sicher, dass Express den Stream vollstaendig
-      // registriert hat und Supertest die Response-Header bereits sieht.
-      process.nextTick(() => {
-        pt.write(Buffer.alloc(1));
-        pt.end();
-      });
+  // Erstellt einen Readable-Stream, der beim ersten read() sofort endet.
+  // Das ist das Aequivalent eines leeren Streams – Express piped ihn in res,
+  // der Stream sendet EOF, Express schliesst die Response, Supertest ist fertig.
+  const makeEmptyStream = () => {
+    const s = new Readable({
+      read() {
+        this.push(Buffer.alloc(16)); // minimale Datenmenge
+        this.push(null);             // EOF sofort
+      },
     });
-    return pt;
+    return s;
   };
 
   return {
-    // existsSync: standardmaessig true; einzelne Tests ueberschreiben mit mockReturnValueOnce.
     existsSync: jest.fn().mockReturnValue(true),
-    // statSync: immer MOCK_STAT – jest.fn() wuerde nach clearAllMocks() undefined liefern,
-    // daher nehmen wir eine echte Funktion die ignorant gegenueber clearAllMocks ist.
-    statSync: () => MOCK_STAT,
-    createReadStream: jest.fn().mockImplementation(makePipeAwareStream),
+    // statSync als echte Funktion (nicht jest.fn), damit clearAllMocks()
+    // sie nicht zuruecksetzt und sie immer MOCK_STAT liefert.
+    statSync: (_path) => MOCK_STAT,
+    createReadStream: jest.fn().mockImplementation((_path, _opts) => makeEmptyStream()),
   };
 });
 
@@ -198,12 +196,22 @@ describe('GET /api/tracks/genres/list', () => {
 // GET /api/tracks/audio/:filename  - SECURITY CORE
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
-  // existsSync zuruecksetzen damit andere Tests nicht beeinfluss werden;
-  // statSync und createReadStream sind vom globalen Mock immer verfuegbar.
   beforeEach(() => {
     jest.clearAllMocks();
+    // existsSync nach clearAllMocks() wieder auf true setzen
     const fs = require('fs');
     fs.existsSync.mockReturnValue(true);
+    // createReadStream nach clearAllMocks() wieder mit makeEmptyStream belegen
+    const { Readable } = require('stream');
+    fs.createReadStream.mockImplementation(() => {
+      const s = new Readable({
+        read() {
+          this.push(Buffer.alloc(16));
+          this.push(null);
+        },
+      });
+      return s;
+    });
   });
 
   const freeTrack    = { id: 1, is_free: true,  free_preview_duration: 40, duration_seconds: 180 };
