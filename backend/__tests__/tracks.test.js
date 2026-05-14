@@ -19,7 +19,9 @@ process.env.FRONTEND_URL = 'http://localhost:3000';
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
-// --- Mocks ---
+// ---------------------------------------------------------------------------
+// Mocks  (ALLE vor dem ersten require('../app') deklarieren!)
+// ---------------------------------------------------------------------------
 
 jest.mock('../db', () => ({
   pool: { query: jest.fn(), end: jest.fn().mockResolvedValue(undefined) },
@@ -51,23 +53,28 @@ jest.mock('../middleware/cache-middleware', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// fs-Mock v2
+// compression-Mock
 //
-// tracks.js benutzt fs an drei Stellen im Audio-Pfad:
-//   1. fs.existsSync(filepath)           -> true zurueckgeben
-//   2. fs.statSync(filepath).size        -> 5_000_000 zurueckgeben
-//      (einmal in der Route, einmal in servePreview)
-//   3. fs.createReadStream(path, opts?)  -> Stream der sofort endet
+// Das echte compression-Middleware wartet beim ersten Schreiben auf den naechsten
+// flush, bevor es die Response committed. Bei einem gemockten Stream der sofort
+// EOF schickt, kommt dieser flush nie - Express haengt, supertest bricht ab.
 //
-// Das Kernproblem mit TCPSERVERWRAP:
-//   Express piped den Stream in res. Supertest haelt die TCP-Verbindung offen
-//   bis der Stream endet UND Express res.end() aufgerufen hat.
-//   Ein PassThrough-Stream der sich per process.nextTick beendet reicht nicht
-//   immer, weil Express intern noch auf das 'finish'-Event von res wartet.
+// Loesung: compression komplett durch Passthrough ersetzen (nur fuer Tests).
+// ---------------------------------------------------------------------------
+jest.mock('compression', () => () => (req, res, next) => next());
+
+// ---------------------------------------------------------------------------
+// fs-Mock v3
 //
-// Loesung: Wir verwenden einen Transform-Stream der sofort 'end' emittiert,
-//   OHNE auf das 'pipe'-Event zu warten. Express ruft .pipe(res) auf, und der
-//   Stream ist bereits beendet -> res.end() wird synchron ausgeloest.
+// createReadStream: Readable-Stream der synchron einen Chunk pusht und dann
+// sofort EOF signalisiert. Damit ruft Express pipe(res) auf und res.end()
+// wird unmittelbar getriggert, ohne auf weitere Daten zu warten.
+//
+// statSync: echte Funktion (kein jest.fn), damit clearAllMocks() sie nicht
+// leert. Gibt immer { size: 5_000_000 } zurueck.
+//
+// existsSync: jest.fn() damit einzelne Tests sie per mockReturnValueOnce
+// auf false setzen koennen (z.B. 404-Test).
 // ---------------------------------------------------------------------------
 jest.mock('fs', () => {
   const { Readable } = require('stream');
@@ -75,36 +82,50 @@ jest.mock('fs', () => {
   const MOCK_SIZE = 5_000_000;
   const MOCK_STAT = { size: MOCK_SIZE };
 
-  // Erstellt einen Readable-Stream, der beim ersten read() sofort endet.
-  // Das ist das Aequivalent eines leeren Streams – Express piped ihn in res,
-  // der Stream sendet EOF, Express schliesst die Response, Supertest ist fertig.
-  const makeEmptyStream = () => {
-    const s = new Readable({
+  const makeStream = () =>
+    new Readable({
       read() {
-        this.push(Buffer.alloc(16)); // minimale Datenmenge
-        this.push(null);             // EOF sofort
+        this.push(Buffer.alloc(64));
+        this.push(null); // sofort EOF
       },
     });
-    return s;
-  };
 
   return {
     existsSync: jest.fn().mockReturnValue(true),
-    // statSync als echte Funktion (nicht jest.fn), damit clearAllMocks()
-    // sie nicht zuruecksetzt und sie immer MOCK_STAT liefert.
-    statSync: (_path) => MOCK_STAT,
-    createReadStream: jest.fn().mockImplementation((_path, _opts) => makeEmptyStream()),
+    statSync: () => MOCK_STAT,                          // nicht jest.fn() !
+    createReadStream: jest.fn().mockImplementation(() => makeStream()),
   };
 });
 
+// ---------------------------------------------------------------------------
+// App + DB-Pool importieren (nach allen Mocks)
+// ---------------------------------------------------------------------------
 const app = require('../app');
 const { pool } = require('../db');
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 function makeToken(user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }) {
   return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
 }
-
 const userToken = makeToken();
+
+function resetFsMocks() {
+  const fs = require('fs');
+  const { Readable } = require('stream');
+  // existsSync nach clearAllMocks() wieder auf true
+  fs.existsSync.mockReturnValue(true);
+  // createReadStream nach clearAllMocks() neu belegen
+  fs.createReadStream.mockImplementation(() =>
+    new Readable({
+      read() {
+        this.push(Buffer.alloc(64));
+        this.push(null);
+      },
+    })
+  );
+}
 
 // ---------------------------------------------------------------------------
 // GET /api/tracks  (oeffentlich, Pagination)
@@ -193,25 +214,12 @@ describe('GET /api/tracks/genres/list', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/tracks/audio/:filename  - SECURITY CORE
+// GET /api/tracks/audio/:filename  – SECURITY CORE
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // existsSync nach clearAllMocks() wieder auf true setzen
-    const fs = require('fs');
-    fs.existsSync.mockReturnValue(true);
-    // createReadStream nach clearAllMocks() wieder mit makeEmptyStream belegen
-    const { Readable } = require('stream');
-    fs.createReadStream.mockImplementation(() => {
-      const s = new Readable({
-        read() {
-          this.push(Buffer.alloc(16));
-          this.push(null);
-        },
-      });
-      return s;
-    });
+    resetFsMocks(); // fs-Mocks nach clearAllMocks() wieder herstellen
   });
 
   const freeTrack    = { id: 1, is_free: true,  free_preview_duration: 40, duration_seconds: 180 };
@@ -219,14 +227,12 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
 
   test('SECURITY: Gratis-Track ohne Range-Header -> 200 (volle Datei)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [freeTrack] });
-
     const res = await request(app).get('/api/tracks/audio/free-song.mp3');
     expect(res.statusCode).toBe(200);
   });
 
   test('SECURITY: Gratis-Track mit Range-Header -> 206', async () => {
     pool.query.mockResolvedValueOnce({ rows: [freeTrack] });
-
     const res = await request(app)
       .get('/api/tracks/audio/free-song.mp3')
       .set('Range', 'bytes=0-');
@@ -236,24 +242,19 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
 
   test('SECURITY: Premium-Track ohne Token -> nur Preview (206)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
-
     const res = await request(app).get('/api/tracks/audio/premium-song.mp3');
     expect(res.statusCode).toBe(206);
-    const range = res.headers['content-range'];
-    expect(range).toBeDefined();
-    const endByte = parseInt(range.split('-')[1]);
+    const endByte = parseInt(res.headers['content-range'].split('-')[1]);
     expect(endByte).toBeLessThan(4_999_999);
   });
 
   test('SECURITY: Premium-Track mit Token aber OHNE Kauf -> nur Preview', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [] });
-
+      .mockResolvedValueOnce({ rows: [] }); // kein Purchase
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', `Bearer ${userToken}`);
-
     expect(res.statusCode).toBe(206);
     const endByte = parseInt(res.headers['content-range'].split('-')[1]);
     expect(endByte).toBeLessThan(4_999_999);
@@ -262,22 +263,18 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   test('SECURITY: Premium-Track mit Token UND Kauf -> volle Datei (200)', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
-
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] }); // Purchase vorhanden
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', `Bearer ${userToken}`);
-
     expect(res.statusCode).toBe(200);
   });
 
   test('SECURITY: Ungueltiger Token -> wie kein Token (Preview, 206)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
-
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', 'Bearer invalid.token.value');
-
     expect(res.statusCode).toBe(206);
     const endByte = parseInt(res.headers['content-range'].split('-')[1]);
     expect(endByte).toBeLessThan(4_999_999);
