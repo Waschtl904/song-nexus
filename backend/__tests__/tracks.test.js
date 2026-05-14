@@ -43,10 +43,6 @@ jest.mock('@paypal/checkout-server-sdk', () => ({
   },
 }));
 
-// Cache-Middleware mocken:
-// app.js nutzt: const { cacheMiddleware } = require('./middleware/cache-middleware')
-// Deshalb muss der Mock ein OBJEKT mit cacheMiddleware als Funktion exportieren.
-// cacheMiddleware(300) gibt die eigentliche Express-Middleware zurueck -> gibt next() zurueck.
 jest.mock('../middleware/cache-middleware', () => ({
   cacheMiddleware: jest.fn(() => (req, res, next) => next()),
   clearCache: jest.fn(),
@@ -54,24 +50,52 @@ jest.mock('../middleware/cache-middleware', () => ({
   cache: { get: jest.fn(), set: jest.fn(), del: jest.fn(), keys: jest.fn(() => []), flushAll: jest.fn() },
 }));
 
-// fs-Mock: setTimeout statt setImmediate damit Express zuerst pipe() aufrufen kann,
-// bevor der Stream Daten schreibt und sich schliesst -> kein aborted-Error in Supertest.
+// ---------------------------------------------------------------------------
+// fs-Mock
+//
+// Kernproblem: tracks.js ruft createReadStream() auf und piped den Stream in
+// res. Express setzt Content-Length auf die volle Dateigroesse (5 MB), Supertest
+// wartet dann auf genau diese Menge. Wir muessen daher:
+//
+//   1. statSync immer { size: 5_000_000 } liefern – auch nach clearAllMocks().
+//      Dafuer KEIN jest.fn() sondern eine echte Funktion die nie zurueckgesetzt
+//      wird. Wir patchen statSync erst NACH dem Mock-Aufruf per spyOn so, dass
+//      clearAllMocks() keine Auswirkung hat.
+//
+//   2. createReadStream einen Stream liefern, der sich erst schließt nachdem
+//      Express alle Header gesetzt und pipe() aufgerufen hat.
+//      Ansatz: Der Stream "horcht" auf das pipe-Event und beendet sich dann.
+// ---------------------------------------------------------------------------
 jest.mock('fs', () => {
-  const mockStreamFactory = (path, options) => {
-    const { PassThrough } = require('stream');
+  const { PassThrough } = require('stream');
+
+  // Konstante Werte – werden nie durch clearAllMocks zurueckgesetzt.
+  const MOCK_SIZE = 5_000_000;
+  const MOCK_STAT = { size: MOCK_SIZE };
+
+  // Erstellt einen PassThrough-Stream, der sich beendet sobald er in ein
+  // Ziel gepiped wird (= nachdem Express alle Header gesetzt hat).
+  const makePipeAwareStream = () => {
     const pt = new PassThrough();
-    setTimeout(() => {
-      const start = (options && options.start) || 0;
-      const end   = (options && options.end)   || 4_999_999;
-      pt.write(Buffer.alloc(Math.min(end - start + 1, 64)));
-      pt.end();
-    }, 10);
+    pt.once('pipe', () => {
+      // Im naechsten Tick: minimale Daten schreiben und schliessen.
+      // Der naechste Tick stellt sicher, dass Express den Stream vollstaendig
+      // registriert hat und Supertest die Response-Header bereits sieht.
+      process.nextTick(() => {
+        pt.write(Buffer.alloc(1));
+        pt.end();
+      });
+    });
     return pt;
   };
+
   return {
-    existsSync:       jest.fn().mockReturnValue(true),
-    statSync:         jest.fn().mockReturnValue({ size: 5_000_000 }),
-    createReadStream: jest.fn().mockImplementation(mockStreamFactory),
+    // existsSync: standardmaessig true; einzelne Tests ueberschreiben mit mockReturnValueOnce.
+    existsSync: jest.fn().mockReturnValue(true),
+    // statSync: immer MOCK_STAT – jest.fn() wuerde nach clearAllMocks() undefined liefern,
+    // daher nehmen wir eine echte Funktion die ignorant gegenueber clearAllMocks ist.
+    statSync: () => MOCK_STAT,
+    createReadStream: jest.fn().mockImplementation(makePipeAwareStream),
   };
 });
 
@@ -174,7 +198,13 @@ describe('GET /api/tracks/genres/list', () => {
 // GET /api/tracks/audio/:filename  - SECURITY CORE
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
-  beforeEach(() => jest.clearAllMocks());
+  // existsSync zuruecksetzen damit andere Tests nicht beeinfluss werden;
+  // statSync und createReadStream sind vom globalen Mock immer verfuegbar.
+  beforeEach(() => {
+    jest.clearAllMocks();
+    const fs = require('fs');
+    fs.existsSync.mockReturnValue(true);
+  });
 
   const freeTrack    = { id: 1, is_free: true,  free_preview_duration: 40, duration_seconds: 180 };
   const premiumTrack = { id: 2, is_free: false, free_preview_duration: 40, duration_seconds: 240 };
