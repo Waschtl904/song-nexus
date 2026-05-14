@@ -2,16 +2,24 @@
  * Payments Route Tests
  * Testet: GET /config, POST /create-order, GET /user-purchases, GET /history, GET /stats
  *
- * Strategie:
- * - db.js (pool.query + pool.connect) wird gemockt
- * - @paypal/checkout-server-sdk wird gemockt (kein echter PayPal-Call)
- * - verifyToken wird via gueltigen JWT umgangen
+ * WICHTIG: process.env muss VOR allen jest.mock() und require() Aufrufen gesetzt werden,
+ * damit auth-middleware.js den richtigen JWT_SECRET bekommt.
  */
+
+// --- ENV ZUERST (vor allem anderen) ---
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-jwt-secret-minimum-32-characters-long';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-minimum-32-chars';
+process.env.SESSION_SECRET = 'test-session-secret-minimum-32-chars';
+process.env.PAYPAL_CLIENT_ID = 'test-client-id';
+process.env.PAYPAL_CLIENT_SECRET = 'test-client-secret';
+process.env.PAYPAL_MODE = 'sandbox';
+process.env.FRONTEND_URL = 'http://localhost:3000';
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
-// --- Mocks ZUERST (vor allen requires) ---
+// --- Mocks ---
 
 jest.mock('../db', () => {
   const mockClient = {
@@ -54,25 +62,12 @@ jest.mock('@paypal/checkout-server-sdk', () => {
   };
 });
 
-// --- App + Hilfsmittel laden ---
-
-let app;
-beforeAll(() => {
-  process.env.NODE_ENV = 'test';
-  process.env.JWT_SECRET = 'test-jwt-secret-minimum-32-characters-long';
-  process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-minimum-32-chars';
-  process.env.SESSION_SECRET = 'test-session-secret-minimum-32-chars';
-  process.env.PAYPAL_CLIENT_ID = 'test-client-id';
-  process.env.PAYPAL_CLIENT_SECRET = 'test-client-secret';
-  process.env.PAYPAL_MODE = 'sandbox';
-  process.env.FRONTEND_URL = 'http://localhost:3000';
-  app = require('../app');
-});
-
+// --- App laden (nach env + mocks) ---
+const app = require('../app');
 const { pool } = require('../db');
 const paypal = require('@paypal/checkout-server-sdk');
 
-// Gueltiger JWT fuer einen normalen User und einen Admin
+// Hilfsfunktion: gueltigen JWT erstellen
 function makeToken(user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }) {
   return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
 }
@@ -122,7 +117,7 @@ describe('POST /api/payments/create-order', () => {
   });
 
   test('404 – Track existiert nicht', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] }); // Track nicht gefunden
+    pool.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .post('/api/payments/create-order')
       .set('Authorization', `Bearer ${userToken}`)
@@ -132,8 +127,8 @@ describe('POST /api/payments/create-order', () => {
 
   test('400 – Track bereits gekauft', async () => {
     pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Testsong', artist: 'Artist' }] }) // Track gefunden
-      .mockResolvedValueOnce({ rows: [{ id: 5 }] }); // bereits in purchases
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Testsong', artist: 'Artist' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] });
     const res = await request(app)
       .post('/api/payments/create-order')
       .set('Authorization', `Bearer ${userToken}`)
@@ -144,9 +139,9 @@ describe('POST /api/payments/create-order', () => {
 
   test('200 – Order erfolgreich erstellt', async () => {
     pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Testsong', artist: 'Artist' }] }) // Track
-      .mockResolvedValueOnce({ rows: [] })                                               // kein Kauf vorhanden
-      .mockResolvedValueOnce({ rows: [{ id: 42 }] });                                   // INSERT order
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Testsong', artist: 'Artist' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] });
 
     paypal._mockExecute.mockResolvedValueOnce({
       result: { id: 'PAYPAL-ORDER-123' },
