@@ -20,7 +20,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
 // ---------------------------------------------------------------------------
-// Mocks  (ALLE vor dem ersten require('../app') deklarieren!)
+// Mocks  (ALLE vor dem ersten require('../app')!)
 // ---------------------------------------------------------------------------
 
 jest.mock('../db', () => ({
@@ -49,53 +49,93 @@ jest.mock('../middleware/cache-middleware', () => ({
   cacheMiddleware: jest.fn(() => (req, res, next) => next()),
   clearCache: jest.fn(),
   clearCacheKey: jest.fn(),
-  cache: { get: jest.fn(), set: jest.fn(), del: jest.fn(), keys: jest.fn(() => []), flushAll: jest.fn() },
+  cache: {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    keys: jest.fn(() => []),
+    flushAll: jest.fn(),
+  },
 }));
 
-// ---------------------------------------------------------------------------
-// compression-Mock
-//
-// Das echte compression-Middleware wartet beim ersten Schreiben auf den naechsten
-// flush, bevor es die Response committed. Bei einem gemockten Stream der sofort
-// EOF schickt, kommt dieser flush nie - Express haengt, supertest bricht ab.
-//
-// Loesung: compression komplett durch Passthrough ersetzen (nur fuer Tests).
-// ---------------------------------------------------------------------------
 jest.mock('compression', () => () => (req, res, next) => next());
 
 // ---------------------------------------------------------------------------
-// fs-Mock v3
+// fs-Mock v4
 //
-// createReadStream: Readable-Stream der synchron einen Chunk pusht und dann
-// sofort EOF signalisiert. Damit ruft Express pipe(res) auf und res.end()
-// wird unmittelbar getriggert, ohne auf weitere Daten zu warten.
+// Das "aborted"-Problem entsteht weil:
+//   1. serveFullFile/servePreview setzen Content-Length (z.B. 5_000_000)
+//   2. createReadStream liefert unseren 64-Byte-Mock-Stream
+//   3. Node.js http-Stack erwartet 5_000_000 Bytes, bekommt 64
+//   4. Verbindung wird als unvollstaendig abgebrochen -> supertest: "aborted"
 //
-// statSync: echte Funktion (kein jest.fn), damit clearAllMocks() sie nicht
-// leert. Gibt immer { size: 5_000_000 } zurueck.
+// Loesung: Der Stream sendet GENAU so viele Bytes wie im Content-Length-Header
+// angegeben wird. Dazu liest der Stream beim ersten read() aus res.getHeader()
+// wie viele Bytes erwartet werden, und schickt genau diese Menge (in Chunks).
 //
-// existsSync: jest.fn() damit einzelne Tests sie per mockReturnValueOnce
-// auf false setzen koennen (z.B. 404-Test).
+// Da res-Objekt in createReadStream() nicht verfuegbar ist, nutzen wir einen
+// Trick: wir wrappen res.setHeader() und res.status() per Middleware, die den
+// erwarteten Content-Length-Wert in einem Kontext-Objekt ablegt. createReadStream
+// schaut diesen Wert nach und pusht genau die richtige Bytezahl.
+//
+// Einfachere Alternative die genauso funktioniert:
+// Wir patchen den Prototype von ServerResponse so, dass pipe() sofort end()
+// aufruft, anstatt auf Daten zu warten.
 // ---------------------------------------------------------------------------
 jest.mock('fs', () => {
   const { Readable } = require('stream');
 
   const MOCK_SIZE = 5_000_000;
-  const MOCK_STAT = { size: MOCK_SIZE };
 
-  const makeStream = () =>
-    new Readable({
+  // makeStream(n): Readable-Stream der genau n Bytes ausgibt und dann EOF.
+  // Maximal 1 MB pro Chunk um Stack-Overflows zu vermeiden.
+  const makeStream = (bytes = 64) => {
+    const CHUNK = Math.min(bytes, 1024 * 64); // max 64 KB pro Chunk
+    let remaining = bytes;
+    return new Readable({
       read() {
-        this.push(Buffer.alloc(64));
-        this.push(null); // sofort EOF
+        if (remaining <= 0) {
+          this.push(null);
+          return;
+        }
+        const size = Math.min(CHUNK, remaining);
+        remaining -= size;
+        this.push(Buffer.alloc(size));
+        if (remaining <= 0) this.push(null);
       },
     });
+  };
+
+  // Globaler Kontext: wird von unserem Middleware (siehe unten) gesetzt
+  // bevor createReadStream aufgerufen wird.
+  global.__mockContentLength = 64;
 
   return {
     existsSync: jest.fn().mockReturnValue(true),
-    statSync: () => MOCK_STAT,                          // nicht jest.fn() !
-    createReadStream: jest.fn().mockImplementation(() => makeStream()),
+    statSync: () => ({ size: MOCK_SIZE }),
+    createReadStream: jest.fn().mockImplementation((_path, opts) => {
+      // Wenn start/end angegeben: genau (end - start + 1) Bytes senden
+      if (opts && typeof opts.start === 'number' && typeof opts.end === 'number') {
+        return makeStream(opts.end - opts.start + 1);
+      }
+      // Kein Range: Content-Length aus globalem Kontext lesen
+      return makeStream(global.__mockContentLength || MOCK_SIZE);
+    }),
   };
 });
+
+// ---------------------------------------------------------------------------
+// Middleware-Patch: setzt global.__mockContentLength sobald Content-Length
+// auf der Response gesetzt wird. Muss VOR app-Middleware eingehaengt werden.
+// ---------------------------------------------------------------------------
+const http = require('http');
+const origSetHeader = http.ServerResponse.prototype.setHeader;
+http.ServerResponse.prototype.setHeader = function (name, value) {
+  if (name.toLowerCase() === 'content-length') {
+    global.__mockContentLength = parseInt(value, 10) || 64;
+  }
+  return origSetHeader.call(this, name, value);
+};
 
 // ---------------------------------------------------------------------------
 // App + DB-Pool importieren (nach allen Mocks)
@@ -106,7 +146,9 @@ const { pool } = require('../db');
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function makeToken(user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }) {
+function makeToken(
+  user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }
+) {
   return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
 }
 const userToken = makeToken();
@@ -114,21 +156,36 @@ const userToken = makeToken();
 function resetFsMocks() {
   const fs = require('fs');
   const { Readable } = require('stream');
-  // existsSync nach clearAllMocks() wieder auf true
+
   fs.existsSync.mockReturnValue(true);
-  // createReadStream nach clearAllMocks() neu belegen
-  fs.createReadStream.mockImplementation(() =>
-    new Readable({
+
+  fs.createReadStream.mockImplementation((_path, opts) => {
+    if (opts && typeof opts.start === 'number' && typeof opts.end === 'number') {
+      const bytes = opts.end - opts.start + 1;
+      const CHUNK = Math.min(bytes, 1024 * 64);
+      let remaining = bytes;
+      return new Readable({
+        read() {
+          if (remaining <= 0) { this.push(null); return; }
+          const size = Math.min(CHUNK, remaining);
+          remaining -= size;
+          this.push(Buffer.alloc(size));
+          if (remaining <= 0) this.push(null);
+        },
+      });
+    }
+    const bytes = global.__mockContentLength || 64;
+    return new Readable({
       read() {
-        this.push(Buffer.alloc(64));
+        this.push(Buffer.alloc(bytes));
         this.push(null);
       },
-    })
-  );
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/tracks  (oeffentlich, Pagination)
+// GET /api/tracks
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -142,7 +199,6 @@ describe('GET /api/tracks', () => {
           { id: 2, name: 'Song B', artist: 'Artist B', genre: 'House',  price_eur: '0.00', is_free: true },
         ],
       });
-
     const res = await request(app).get('/api/tracks');
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
@@ -155,7 +211,6 @@ describe('GET /api/tracks', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ total: '0' }] })
       .mockResolvedValueOnce({ rows: [] });
-
     const res = await request(app).get('/api/tracks');
     expect(res.statusCode).toBe(200);
     expect(res.body.data).toHaveLength(0);
@@ -166,7 +221,6 @@ describe('GET /api/tracks', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ total: '1' }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Findme', artist: 'X' }] });
-
     const res = await request(app).get('/api/tracks?search=Findme');
     expect(res.statusCode).toBe(200);
     expect(res.body.metadata.search).toBe('Findme');
@@ -174,7 +228,7 @@ describe('GET /api/tracks', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/tracks/:id  (oeffentlich)
+// GET /api/tracks/:id
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks/:id', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -197,7 +251,7 @@ describe('GET /api/tracks/:id', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/tracks/genres/list  (oeffentlich)
+// GET /api/tracks/genres/list
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks/genres/list', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -214,12 +268,13 @@ describe('GET /api/tracks/genres/list', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/tracks/audio/:filename  – SECURITY CORE
+// GET /api/tracks/audio/:filename  - SECURITY CORE
 // ---------------------------------------------------------------------------
 describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resetFsMocks(); // fs-Mocks nach clearAllMocks() wieder herstellen
+    resetFsMocks();
+    global.__mockContentLength = 64;
   });
 
   const freeTrack    = { id: 1, is_free: true,  free_preview_duration: 40, duration_seconds: 180 };
@@ -244,26 +299,27 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
     const res = await request(app).get('/api/tracks/audio/premium-song.mp3');
     expect(res.statusCode).toBe(206);
-    const endByte = parseInt(res.headers['content-range'].split('-')[1]);
-    expect(endByte).toBeLessThan(4_999_999);
+    const match = res.headers['content-range'].match(/bytes 0-(\d+)\//);
+    expect(match).not.toBeNull();
+    expect(parseInt(match[1])).toBeLessThan(4_999_999);
   });
 
   test('SECURITY: Premium-Track mit Token aber OHNE Kauf -> nur Preview', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [] }); // kein Purchase
+      .mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', `Bearer ${userToken}`);
     expect(res.statusCode).toBe(206);
-    const endByte = parseInt(res.headers['content-range'].split('-')[1]);
-    expect(endByte).toBeLessThan(4_999_999);
+    const match = res.headers['content-range'].match(/bytes 0-(\d+)\//);
+    expect(parseInt(match[1])).toBeLessThan(4_999_999);
   });
 
   test('SECURITY: Premium-Track mit Token UND Kauf -> volle Datei (200)', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [{ id: 99 }] }); // Purchase vorhanden
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', `Bearer ${userToken}`);
@@ -276,8 +332,8 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', 'Bearer invalid.token.value');
     expect(res.statusCode).toBe(206);
-    const endByte = parseInt(res.headers['content-range'].split('-')[1]);
-    expect(endByte).toBeLessThan(4_999_999);
+    const match = res.headers['content-range'].match(/bytes 0-(\d+)\//);
+    expect(parseInt(match[1])).toBeLessThan(4_999_999);
   });
 
   test('400 - leerer Filename nach Sanitisierung', async () => {
