@@ -1,16 +1,16 @@
 /**
  * Tracks Route Tests
  * Testet:
- *   GET /api/tracks              - Öffentliche Trackliste (Pagination)
+ *   GET /api/tracks              - Oeffentliche Trackliste (Pagination)
  *   GET /api/tracks/:id          - Einzelner Track
  *   GET /api/tracks/audio/:file  - Audio-Zugriffsschutz (KERN-SECURITY)
  *   GET /api/tracks/genres/list  - Genre-Liste
  *
  * Sicherheits-Schwerpunkt: /audio/:filename
- *   - Gratistrack              -> immer vollständig
+ *   - Gratistrack              -> immer vollstaendig
  *   - Premium + kein Token     -> nur Preview (206)
  *   - Premium + kein Kauf      -> nur Preview (206)
- *   - Premium + Kauf vorhanden -> vollständige Datei
+ *   - Premium + Kauf vorhanden -> vollstaendige Datei
  */
 
 // --- ENV VOR ALLEM (JWT-Timing-Fix) ---
@@ -25,7 +25,6 @@ process.env.FRONTEND_URL = 'http://localhost:3000';
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
-const { Readable } = require('stream');
 
 // --- Mocks ---
 
@@ -51,19 +50,24 @@ jest.mock('@paypal/checkout-server-sdk', () => ({
   },
 }));
 
-// fs mocken: existsSync und statSync immer positiv,
-// createReadStream gibt einen leeren Readable zurueck
-jest.mock('fs', () => ({
-  existsSync: jest.fn().mockReturnValue(true),
-  statSync: jest.fn().mockReturnValue({ size: 5_000_000 }), // 5 MB
-  createReadStream: jest.fn().mockImplementation(() => {
-    const r = new Readable();
-    r.push(null); // sofort EOF
+// fs mocken: Jest erlaubt keine Out-of-Scope-Variablen in jest.mock().
+// Loesung: require('stream') INNERHALB der Factory (erlaubt), kein Readable-Import oben.
+jest.mock('fs', () => {
+  // mockReadable mit 'mock'-Prefix: von Jest explizit erlaubt
+  const mockReadableFactory = () => {
+    const { Readable } = require('stream');
+    const r = new Readable({ read() {} });
+    r.push(null);
     return r;
-  }),
-}));
+  };
+  return {
+    existsSync: jest.fn().mockReturnValue(true),
+    statSync: jest.fn().mockReturnValue({ size: 5_000_000 }),
+    createReadStream: jest.fn().mockImplementation(mockReadableFactory),
+  };
+});
 
-// --- App laden ---
+// --- App + DB laden ---
 const app = require('../app');
 const { pool } = require('../db');
 
@@ -175,7 +179,6 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect([200, 206]).toContain(res.statusCode);
     const range = res.headers['content-range'];
     if (range) {
-      // Vollstaendige Datei: end-Byte muss 4999999 sein (5MB - 1)
       expect(range).toMatch(/4999999/);
     }
   });
@@ -187,7 +190,6 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(res.statusCode).toBe(206);
     const range = res.headers['content-range'];
     expect(range).toBeDefined();
-    // Preview-Ende deutlich vor 4999999
     const endByte = parseInt(range.split('-')[1]);
     expect(endByte).toBeLessThan(4_999_999);
   });
@@ -195,7 +197,7 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   test('SECURITY: Premium-Track mit gueltigem Token aber OHNE Kauf -> nur Preview', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [] });  // kein Kauf in purchases
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
@@ -209,7 +211,7 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   test('SECURITY: Premium-Track mit gueltigem Token UND Kauf -> vollstaendige Datei', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [{ id: 99 }] });  // Kauf vorhanden
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
 
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
@@ -242,7 +244,6 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   test('404 - Audio-Datei existiert nicht im Filesystem', async () => {
     const fs = require('fs');
     fs.existsSync.mockReturnValueOnce(false);
-
     const res = await request(app).get('/api/tracks/audio/ghost.mp3');
     expect(res.statusCode).toBe(404);
   });
