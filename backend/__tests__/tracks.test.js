@@ -5,15 +5,8 @@
  *   GET /api/tracks/:id          - Einzelner Track
  *   GET /api/tracks/audio/:file  - Audio-Zugriffsschutz (KERN-SECURITY)
  *   GET /api/tracks/genres/list  - Genre-Liste
- *
- * Sicherheits-Schwerpunkt: /audio/:filename
- *   - Gratistrack              -> immer vollstaendig
- *   - Premium + kein Token     -> nur Preview (206)
- *   - Premium + kein Kauf      -> nur Preview (206)
- *   - Premium + Kauf vorhanden -> vollstaendige Datei
  */
 
-// --- ENV VOR ALLEM (JWT-Timing-Fix) ---
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-minimum-32-characters-long';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-minimum-32-chars';
@@ -50,24 +43,30 @@ jest.mock('@paypal/checkout-server-sdk', () => ({
   },
 }));
 
-// fs mocken: Jest erlaubt keine Out-of-Scope-Variablen in jest.mock().
-// Loesung: require('stream') INNERHALB der Factory (erlaubt), kein Readable-Import oben.
+// Cache-Middleware komplett bypassen: gibt immer sofort next() zurueck.
+// Ohne diesen Mock wuerden gecachte Responses aus Test 1 in Test 2 ankommen.
+jest.mock('../middleware/cache-middleware', () =>
+  jest.fn(() => (req, res, next) => next())
+);
+
+// fs-Mock: require('stream') INNERHALB der Factory (Jest-Hoisting-Regel).
+// PassThrough statt Readable: hat keinen vorzeitigen EOF-Problem beim pipe().
 jest.mock('fs', () => {
-  // mockReadable mit 'mock'-Prefix: von Jest explizit erlaubt
-  const mockReadableFactory = () => {
-    const { Readable } = require('stream');
-    const r = new Readable({ read() {} });
-    r.push(null);
-    return r;
+  const mockStreamFactory = (options) => {
+    const { PassThrough } = require('stream');
+    const pt = new PassThrough();
+    // setImmediate stellt sicher, dass pipe() ZUERST registriert wird,
+    // bevor der Stream als beendet gilt.
+    setImmediate(() => pt.end());
+    return pt;
   };
   return {
     existsSync: jest.fn().mockReturnValue(true),
     statSync: jest.fn().mockReturnValue({ size: 5_000_000 }),
-    createReadStream: jest.fn().mockImplementation(mockReadableFactory),
+    createReadStream: jest.fn().mockImplementation(mockStreamFactory),
   };
 });
 
-// --- App + DB laden ---
 const app = require('../app');
 const { pool } = require('../db');
 
@@ -89,7 +88,7 @@ describe('GET /api/tracks', () => {
       .mockResolvedValueOnce({
         rows: [
           { id: 1, name: 'Song A', artist: 'Artist A', genre: 'Techno', price_eur: '1.99', is_free: false },
-          { id: 2, name: 'Song B', artist: 'Artist B', genre: 'House',  price_eur: '0.00', is_free: true  },
+          { id: 2, name: 'Song B', artist: 'Artist B', genre: 'House',  price_eur: '0.00', is_free: true },
         ],
       });
 
@@ -136,10 +135,13 @@ describe('GET /api/tracks/:id', () => {
     });
     const res = await request(app).get('/api/tracks/7');
     expect(res.statusCode).toBe(200);
+    // Route gibt result.rows[0] direkt zurueck (kein data-wrapper)
     expect(res.body.name).toBe('Testsong');
   });
 
   test('404 - Track nicht gefunden', async () => {
+    // Zwei Queries: eine fuer /genres/list-Route gibt es nicht hier,
+    // aber der Cache-Mock ist aktiv, also treffen wir wirklich die DB.
     pool.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app).get('/api/tracks/999');
     expect(res.statusCode).toBe(404);
@@ -172,22 +174,30 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   const freeTrack    = { id: 1, is_free: true,  free_preview_duration: 40, duration_seconds: 180 };
   const premiumTrack = { id: 2, is_free: false, free_preview_duration: 40, duration_seconds: 240 };
 
-  test('SECURITY: Gratis-Track - voller Zugriff ohne Token', async () => {
+  test('SECURITY: Gratis-Track - voller Zugriff ohne Token (kein range -> 200)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [freeTrack] });
 
     const res = await request(app).get('/api/tracks/audio/free-song.mp3');
-    expect([200, 206]).toContain(res.statusCode);
-    const range = res.headers['content-range'];
-    if (range) {
-      expect(range).toMatch(/4999999/);
-    }
+    // Kein Range-Header -> serveFullFile ohne range -> res.status bleibt 200
+    expect(res.statusCode).toBe(200);
   });
 
-  test('SECURITY: Premium-Track ohne Token -> nur Preview', async () => {
+  test('SECURITY: Gratis-Track mit Range-Header -> 206', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [freeTrack] });
+
+    const res = await request(app)
+      .get('/api/tracks/audio/free-song.mp3')
+      .set('Range', 'bytes=0-');
+    expect(res.statusCode).toBe(206);
+    expect(res.headers['content-range']).toMatch(/bytes 0-4999999\/5000000/);
+  });
+
+  test('SECURITY: Premium-Track ohne Token -> nur Preview (206)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
 
     const res = await request(app).get('/api/tracks/audio/premium-song.mp3');
     expect(res.statusCode).toBe(206);
+    // Preview: end-Byte muss KLEINER als 4999999 sein
     const range = res.headers['content-range'];
     expect(range).toBeDefined();
     const endByte = parseInt(range.split('-')[1]);
@@ -197,7 +207,7 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
   test('SECURITY: Premium-Track mit gueltigem Token aber OHNE Kauf -> nur Preview', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] }); // keine Kaufhistorie
 
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
@@ -208,23 +218,20 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(endByte).toBeLessThan(4_999_999);
   });
 
-  test('SECURITY: Premium-Track mit gueltigem Token UND Kauf -> vollstaendige Datei', async () => {
+  test('SECURITY: Premium-Track mit gueltigem Token UND Kauf -> vollstaendige Datei (200)', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [premiumTrack] })
-      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] }); // Kauf vorhanden
 
     const res = await request(app)
       .get('/api/tracks/audio/premium-song.mp3')
       .set('Authorization', `Bearer ${userToken}`);
 
-    expect([200, 206]).toContain(res.statusCode);
-    const range = res.headers['content-range'];
-    if (range) {
-      expect(range).toMatch(/4999999/);
-    }
+    // Kein Range-Header -> serveFullFile ohne range -> 200
+    expect(res.statusCode).toBe(200);
   });
 
-  test('SECURITY: Ungueltiger Token -> wie kein Token behandelt (Preview)', async () => {
+  test('SECURITY: Ungueltiger Token -> wie kein Token (Preview, 206)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
 
     const res = await request(app)
