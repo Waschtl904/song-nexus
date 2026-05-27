@@ -146,6 +146,14 @@
                     filter: blur(8px);
                 "></div>
             </div>
+            <nav class="header-nav" aria-label="Hauptnavigation">
+                <a href="transparency.html" class="nav-link" aria-label="Transparenzbericht öffnen"
+                    style="color: var(--color-primary); font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 0.85rem; text-decoration: none; padding: 6px 12px; border: 1px solid var(--color-primary); border-radius: 4px; transition: background 0.2s, color 0.2s;"
+                    onmouseover="this.style.background='var(--color-primary)';this.style.color='#0a0e1a';"
+                    onmouseout="this.style.background='transparent';this.style.color='var(--color-primary)';">
+                    📊 Transparenz
+                </a>
+            </nav>
             <div class="header-actions">
                 <button class="theme-toggle" id="themeToggle" aria-label="Dunkelmodus / Hellmodus umschalten"
                     aria-pressed="true">🌙</button>
@@ -360,6 +368,7 @@
                     <li><a href="/" aria-label="Zur Startseite">Startseite</a></li>
                     <li><a href="blog/" aria-label="Zum Blog">Blog</a></li>
                     <li><a href="/docs/" aria-label="Zur Dokumentation">Dokumentation</a></li>
+                    <li><a href="transparency.html" aria-label="Transparenzbericht" style="color: var(--color-primary);">📊 Transparenz</a></li>
                 </ul>
             </div>
             <div class="footer-section">
