@@ -423,7 +423,7 @@
             <div class="notice-title teal-text">Quellcode-verifiziert</div>
             Diese Tabelle basiert auf einer Analyse von <code>backend/server.js</code> und
             <code>frontend/js/api-client.js</code>.
-            Letzte Prüfung: <span class="teal-text">Mai 2026</span>.
+            Letzte Prüfung: <span class="teal-text">Juni 2026</span>.
             Eigene Prüfung: <a href="https://github.com/Waschtl904/song-nexus" target="_blank" rel="noopener noreferrer" class="text-link">github.com/Waschtl904/song-nexus</a>
         </div>
 
@@ -439,10 +439,17 @@
             </thead>
             <tbody>
                 <tr class="cookie-row">
+                    <td><code>auth_token</code></td>
+                    <td>HttpOnly Cookie</td>
+                    <td>15 Minuten (Access) / 7 Tage (Refresh)</td>
+                    <td>JWT-Authentifizierungstoken. <strong>Nur gesetzt wenn eingeloggt.</strong> HttpOnly — kein JavaScript-Zugriff möglich. Kein Tracking-Inhalt.</td>
+                    <td><span class="badge no">Nein</span></td>
+                </tr>
+                <tr class="cookie-row">
                     <td><code>connect.sid</code></td>
                     <td>Session-Cookie</td>
                     <td>15 Minuten</td>
-                    <td>Login-Session (WebAuthn/JWT). Nur gesetzt wenn eingeloggt.</td>
+                    <td>WebAuthn-Challenge-Session (temporär, nur während Login-Vorgang). Nur gesetzt wenn eingeloggt.</td>
                     <td><span class="badge no">Nein</span></td>
                 </tr>
                 <tr class="cookie-row">
