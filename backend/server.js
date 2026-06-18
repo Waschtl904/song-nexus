@@ -774,8 +774,11 @@ async function debugDatabaseContent() {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
+const { verifyMailer } = require('./utils/mailer');
+
 warmupDatabase().then(async () => {
     await debugDatabaseContent();
+    await verifyMailer(); // SMTP-Verbindung testen (nur Warnung bei Fehler, kein Abbruch)
     if (httpsOptions && USE_HTTPS) {
         const server = https.createServer(httpsOptions, app);
         server.listen(PORT, HOST, () => {

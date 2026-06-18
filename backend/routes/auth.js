@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../db');
 const { verifyToken, generateJWT } = require('../middleware/auth-middleware');
+const { sendPasswordResetEmail } = require('../utils/mailer');
 const router = express.Router();
 
 // ============================================================================
@@ -288,11 +289,8 @@ router.post('/password-reset/request', [
       [user.id, token, expiresAt]
     );
 
-    // TODO: E-Mail versenden (Nodemailer konfigurieren)
-    // Im Entwicklungsmodus Token im Log ausgeben:
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`🔑 Password Reset Token für ${email}: ${token}`);
-    }
+    // E-Mail versenden (dev: nur Log, prod: echte E-Mail via Nodemailer)
+    await sendPasswordResetEmail(user.email, token, process.env.FRONTEND_URL || 'http://localhost:3000');
 
     res.status(200).json({ message: 'OK' });
   } catch (err) {
