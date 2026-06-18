@@ -260,6 +260,114 @@ router.post('/refresh-token', verifyToken, async (req, res) => {
   }
 });
 
+// ============================================================================
+// 🔑 POST /api/auth/password-reset/request — Reset-Token anfordern
+// ============================================================================
+router.post('/password-reset/request', [
+  body('email').isEmail().normalizeEmail().withMessage('Ungültige E-Mail'),
+], async (req, res) => {
+  // Immer 200 zurückgeben (verhindert User-Enumeration)
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(200).json({ message: 'OK' });
+
+  const { email } = req.body;
+  try {
+    const result = await pool.query('SELECT id, email, username FROM users WHERE email = $1 AND is_active = true', [email]);
+    if (result.rows.length === 0) return res.status(200).json({ message: 'OK' });
+
+    const user = result.rows[0];
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 Stunde
+
+    // Token in DB speichern (Spalte wird ggf. angelegt)
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3, created_at = NOW()`,
+      [user.id, token, expiresAt]
+    );
+
+    // TODO: E-Mail versenden (Nodemailer konfigurieren)
+    // Im Entwicklungsmodus Token im Log ausgeben:
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`🔑 Password Reset Token für ${email}: ${token}`);
+    }
+
+    res.status(200).json({ message: 'OK' });
+  } catch (err) {
+    console.error('Password reset request error:', err);
+    res.status(200).json({ message: 'OK' }); // Kein Fehler nach außen
+  }
+});
+
+// ============================================================================
+// 🔑 POST /api/auth/password-reset/verify — Token prüfen
+// ============================================================================
+router.post('/password-reset/verify', [
+  body('token').notEmpty().trim(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Token fehlt' });
+
+  const { token } = req.body;
+  try {
+    const result = await pool.query(
+      `SELECT prt.user_id, prt.expires_at, u.email
+       FROM password_reset_tokens prt
+       JOIN users u ON u.id = prt.user_id
+       WHERE prt.token = $1`,
+      [token]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Ungültiger Token' });
+    if (new Date(result.rows[0].expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token abgelaufen. Bitte neu anfordern.' });
+    }
+    res.json({ valid: true });
+  } catch (err) {
+    console.error('Password reset verify error:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// ============================================================================
+// 🔑 POST /api/auth/password-reset/confirm — Neues Passwort setzen
+// ============================================================================
+router.post('/password-reset/confirm', [
+  body('token').notEmpty().trim(),
+  body('newPassword').isLength({ min: 8 }).withMessage('Mindestens 8 Zeichen'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { token, newPassword } = req.body;
+  try {
+    const result = await pool.query(
+      `SELECT prt.user_id, prt.expires_at
+       FROM password_reset_tokens prt
+       WHERE prt.token = $1`,
+      [token]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Ungültiger Token' });
+    if (new Date(result.rows[0].expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token abgelaufen' });
+    }
+
+    const userId = result.rows[0].user_id;
+    const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '10');
+    const hashedPassword = await bcrypt.hash(newPassword, bcryptRounds);
+
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, userId]);
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+
+    console.log(`✅ Passwort erfolgreich zurückgesetzt für User ID ${userId}`);
+    res.json({ message: 'Passwort erfolgreich geändert' });
+  } catch (err) {
+    console.error('Password reset confirm error:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 module.exports = router;
 
 // ============================================================================

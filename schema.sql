@@ -450,3 +450,16 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES 
 -- ============================================================================
 -- PostgreSQL database dump complete
 -- ============================================================================
+
+-- ============================================================================
+-- Passwort-Reset Tokens (hinzugefügt Juni 2026)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token      VARCHAR(128) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens(token);

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meine Käufe — SONG-NEXUS</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles/main.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%2305080d' width='32' height='32'/%3E%3Cpolygon points='16,2 28,9 28,23 16,30 4,23 4,9' fill='none' stroke='%2300ffcc' stroke-width='2'/%3E%3Ctext x='16' y='22' font-size='14' fill='%2300ffcc' text-anchor='middle' font-family='monospace'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
+  <style>
+    .purchases-page { max-width: 860px; margin-inline: auto; padding: 4rem 1.5rem 6rem; }
+    .purchases-page h1 { font-family: var(--font-display); font-size: var(--text-2xl); color: var(--color-primary); letter-spacing: .08em; text-shadow: 0 0 10px var(--color-primary-glow); margin-bottom: .5rem; }
+    .purchases-page .subtitle { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: 3rem; max-width: 100%; }
+
+    /* Login-Hinweis */
+    .login-prompt {
+      background: rgba(0,255,204,.04);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+    .login-prompt p { color: var(--color-text-muted); font-size: var(--text-sm); margin-bottom: 1.5rem; max-width: 100%; }
+
+    /* Ladeanimation */
+    .loading-state { text-align: center; padding: 4rem 0; color: var(--color-text-faint); font-size: var(--text-sm); }
+    .loading-state::before { content: '> '; color: var(--color-primary); }
+
+    /* Leerer Zustand */
+    .empty-state { text-align: center; padding: 4rem 0; color: var(--color-text-faint); }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: .4; }
+    .empty-state p { font-size: var(--text-sm); max-width: 100%; }
+
+    /* Kauf-Tabelle */
+    .purchases-table { width: 100%; border-collapse: collapse; }
+    .purchases-table thead tr { border-bottom: 1px solid var(--color-border); }
+    .purchases-table th {
+      font-family: var(--font-body);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: var(--color-text-faint);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: .75rem 1rem;
+      text-align: left;
+    }
+    .purchases-table td {
+      padding: 1rem;
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      border-bottom: 1px solid rgba(0,255,204,.05);
+      vertical-align: middle;
+    }
+    .purchases-table tr:hover td { background: rgba(0,255,204,.03); }
+    .track-name-cell { color: var(--color-text); font-weight: 500; }
+    .price-cell { color: var(--color-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .date-cell { color: var(--color-text-faint); font-size: var(--text-xs); }
+    .status-badge {
+      display: inline-block;
+      padding: .2rem .6rem;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: .06em;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .status-badge.completed { background: rgba(0,255,204,.1); color: var(--color-success); border: 1px solid rgba(0,255,204,.2); }
+    .status-badge.pending   { background: rgba(255,170,0,.1); color: var(--color-warning); border: 1px solid rgba(255,170,0,.2); }
+    .status-badge.failed    { background: rgba(255,68,102,.1); color: var(--color-error);   border: 1px solid rgba(255,68,102,.2); }
+
+    /* Zusammenfassung */
+    .summary-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1rem;
+      background: rgba(0,255,204,.04);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+    .summary-stat { display: flex; flex-direction: column; gap: .15rem; }
+    .summary-stat-value { font-family: var(--font-display); font-size: var(--text-lg); color: var(--color-primary); font-weight: 700; text-shadow: 0 0 8px var(--color-primary-glow); }
+    .summary-stat-label { font-size: var(--text-xs); color: var(--color-text-faint); text-transform: uppercase; letter-spacing: .08em; }
+
+    /* Download-Button */
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .3rem .75rem;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: .04em;
+      color: var(--color-primary);
+      background: transparent;
+      border: 1px solid rgba(0,255,204,.25);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background .16s, border-color .16s;
+      text-transform: uppercase;
+    }
+    .btn-download:hover { background: rgba(0,255,204,.08); border-color: var(--color-primary); }
+  </style>
+</head>
+<body>
+  <div id="heroBackground" class="hero-background-container" aria-hidden="true">
+    <picture>
+      <source srcset="./assets/images/Hintergrundbild 1.webp" type="image/webp">
+      <img src="./assets/images/Hintergrundbild 1.jpeg" alt="" class="hero-background-image" loading="lazy">
+    </picture>
+  </div>
+
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo-section" style="text-decoration:none;">
+        <svg class="logo-svg" width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <polygon points="16,2 28.8,9.5 28.8,22.5 16,30 3.2,22.5 3.2,9.5" fill="none" stroke="#00ffcc" stroke-width="1.5"/>
+          <text x="16" y="22" font-size="13" fill="#00ffcc" text-anchor="middle" font-family="monospace">♪</text>
+        </svg>
+        <span id="neonSign">SONG-NEXUS</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="nav-link">Home</a>
+      </nav>
+      <div class="header-actions">
+        <div id="userInfo" class="user-info" style="display:none;">
+          <span id="userDisplay">user@nexus</span>
+          <button class="button button-sm button-ghost" id="logoutBtn">Logout</button>
+        </div>
+        <button id="authButton" class="button button-sm">Login</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="purchases-page">
+      <h1>// MEINE KÄUFE</h1>
+      <p class="subtitle">Alle von dir erworbenen Tracks — jederzeit verfügbar.</p>
+
+      <!-- Wird per JS gesteuert -->
+      <div id="purchasesContainer">
+        <div class="loading-state" id="loadingState">Lade Kaufhistorie...</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-bottom" style="max-width:860px; margin-inline:auto; padding-inline:1.5rem;">
+      <span>SONG-NEXUS · © 2025 Sebastian Schmalnauer</span>
+      <span class="accent">
+        <a href="./impressum.html" style="color:inherit;">Impressum</a> &nbsp;·&nbsp;
+        <a href="./datenschutz.html" style="color:inherit;">Datenschutz</a>
+      </span>
+    </div>
+  </footer>
+
+  <style id="design-system-styles"></style>
+  <script src="./dist/app.bundle.js"></script>
+  <script>
+    const container = document.getElementById('purchasesContainer');
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('de-AT', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function formatPrice(cents) {
+      if (!cents && cents !== 0) return '—';
+      return (cents / 100).toFixed(2).replace('.', ',') + ' €';
+    }
+
+    function renderLoginPrompt() {
+      container.innerHTML = `
+        <div class="login-prompt">
+          <p>Bitte melde dich an, um deine Kaufhistorie zu sehen.</p>
+          <button class="button" onclick="document.getElementById('authButton').click()">
+            Jetzt anmelden
+          </button>
+        </div>`;
+    }
+
+    function renderEmpty() {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">♪</div>
+          <p>Du hast noch keine Tracks gekauft.<br>
+          Stöbere auf der <a href="/">Startseite</a> und unterstütze die Musik.</p>
+        </div>`;
+    }
+
+    function renderPurchases(purchases) {
+      const total = purchases.reduce((sum, p) => sum + (p.amount_cents || 0), 0);
+      const completed = purchases.filter(p => p.status === 'completed').length;
+
+      container.innerHTML = `
+        <div class="summary-bar">
+          <div class="summary-stat">
+            <span class="summary-stat-value">${purchases.length}</span>
+            <span class="summary-stat-label">Käufe gesamt</span>
+          </div>
+          <div class="summary-stat">
+            <span class="summary-stat-value">${completed}</span>
+            <span class="summary-stat-label">Abgeschlossen</span>
+          </div>
+          <div class="summary-stat">
+            <span class="summary-stat-value">${formatPrice(total)}</span>
+            <span class="summary-stat-label">Ausgegeben</span>
+          </div>
+        </div>
+        <table class="purchases-table" aria-label="Kaufhistorie">
+          <thead>
+            <tr>
+              <th>Track</th>
+              <th>Datum</th>
+              <th>Preis</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${purchases.map(p => `
+              <tr>
+                <td class="track-name-cell">${p.track_title || p.track_id || '—'}</td>
+                <td class="date-cell">${p.created_at ? formatDate(p.created_at) : '—'}</td>
+                <td class="price-cell">${formatPrice(p.amount_cents)}</td>
+                <td>
+                  <span class="status-badge ${p.status || 'pending'}">
+                    ${p.status === 'completed' ? 'Bezahlt' : p.status === 'failed' ? 'Fehler' : 'Ausstehend'}
+                  </span>
+                </td>
+                <td>
+                  ${p.status === 'completed' ? `
+                    <button class="btn-download" onclick="playTrack('${p.track_id}')">
+                      ▶ Play
+                    </button>` : ''}
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function playTrack(trackId) {
+      // Ruft den globalen Player auf, falls verfügbar
+      if (typeof window.AudioPlayer !== 'undefined' && window.AudioPlayer.play) {
+        window.AudioPlayer.play(trackId);
+      } else {
+        window.location.href = `/?play=${trackId}`;
+      }
+    }
+
+    async function loadPurchases() {
+      try {
+        const res = await fetch('/api/payments/history', { credentials: 'include' });
+        if (res.status === 401) { renderLoginPrompt(); return; }
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        const purchases = data.purchases || data || [];
+        if (purchases.length === 0) { renderEmpty(); return; }
+        renderPurchases(purchases);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p style="color: var(--color-error);">Fehler beim Laden der Käufe. Bitte später erneut versuchen.</p>
+          </div>`;
+      }
+    }
+
+    // Auth-Status abwarten, dann Käufe laden
+    function initPage() {
+      if (typeof Auth !== 'undefined') {
+        Auth.init && Auth.init();
+        // Kurze Verzögerung damit Auth-Status geladen wird
+        setTimeout(loadPurchases, 600);
+      } else {
+        setTimeout(initPage, 100);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPage);
+    } else {
+      initPage();
+    }
+
+    // Theme Toggle
+    (function () {
+      const html = document.documentElement;
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    })();
+  </script>
+</body>
+</html>
