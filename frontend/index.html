@@ -1,646 +1,570 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en" data-theme="dark">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description"
-        content="🎵 SONG-NEXUS – Kostenlose, werbefreie Musikstreaming-Plattform. Keine Cookies, kein Tracking, reine Audio-Qualität.">
-    <meta name="keywords" content="musik streaming, kostenlos, keine werbung, datenschutz, open source">
-    <meta name="theme-color" content="#0a0e1a">
-    <meta name="color-scheme" content="dark light">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SONG-NEXUS — AI-generated metal music. Stream and buy terminal-grade tracks. No ads, no cookies, no tracking.">
+  <meta name="keywords" content="metal music, AI music, streaming, buy music, no ads, programmer music">
+  <meta name="theme-color" content="#0a0c0a">
+  <meta name="color-scheme" content="dark light">
 
-    <!-- Open Graph (Social Sharing) -->
-    <meta property="og:title" content="🎵 SONG-NEXUS – Kostenlose Musikstreaming">
-    <meta property="og:description"
-        content="Höre Musik frei, ohne Werbung, ohne Cookies, ohne Tracking. Barrierefreie Streaming-Plattform.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://song-nexus.com">
-    <meta property="og:image"
-        content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect fill='%230a0e1a' width='200' height='200'/><text x='50%' y='50%' font-size='100' fill='%2300ff00' text-anchor='middle' dy='.3em'>♪</text></svg>">
+  <!-- Open Graph -->
+  <meta property="og:title" content="SONG-NEXUS — AI Metal Music Platform">
+  <meta property="og:description" content="Terminal-grade metal music. AI-generated. No ads. No tracking. Stream or buy.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://song-nexus.com">
+  <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect fill='%230a0c0a' width='200' height='200'/><text x='50%25' y='50%25' font-size='80' fill='%2300cc44' text-anchor='middle' dy='.35em'>⬡</text></svg>">
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="🎵 SONG-NEXUS – Musikstreaming">
-    <meta name="twitter:description" content="Musik frei hören, ohne Werbung, ohne Tracking.">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SONG-NEXUS — AI Metal Music Platform">
+  <meta name="twitter:description" content="Terminal-grade metal. AI-generated. Stream free or buy.">
 
-    <!-- Canonical URL (für SEO) -->
-    <link rel="canonical" href="https://song-nexus.com">
+  <link rel="canonical" href="https://song-nexus.com">
 
-    <!-- Performance: Preconnect zu Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Favicon — hex + note SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%230a0c0a' width='32' height='32'/%3E%3Cpolygon points='16,2 28,9 28,23 16,30 4,23 4,9' fill='none' stroke='%2300cc44' stroke-width='2'/%3E%3Ctext x='16' y='22' font-size='14' fill='%2300cc44' text-anchor='middle' font-family='monospace'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
 
-    <!-- Performance: DNS Prefetch für API -->
-    <link rel="dns-prefetch" href="https://api.paypal.com">
+  <!-- Preconnect for Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- ✅ Performance: Preload optimierte Bilder (WebP + JPEG) -->
-    <link rel="preload" as="image" href="./assets/images/Hintergrundbild 1.webp" type="image/webp">
-    <link rel="preload" as="image" href="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
+  <!-- Google Fonts: Orbitron (display/logo) + JetBrains Mono (body/UI) -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <title>🎵 SONG-NEXUS – Musikstreaming-Plattform</title>
+  <title>SONG-NEXUS — AI Metal Music Platform</title>
 
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%2300ff00'>♪</text></svg>">
+  <!-- Main stylesheet (replaces all multi-file imports) -->
+  <link rel="stylesheet" href="./styles/main.css">
 
-    <!-- Fonts -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
-        rel="stylesheet">
-
-    <!-- ✅ CSS - KORREKT VERLINKT (Relative Pfade) -->
-    <link rel="stylesheet" href="./styles/index.css">
-
-    <!-- 🎨 DESIGN-SYSTEM STYLES (wird dynamisch geladen) -->
-    <style id="design-system-styles">
-        /* Design-System Farben & Bilder werden hier injiziert */
-    </style>
+  <!-- 🎨 DESIGN-SYSTEM STYLES (injected dynamically by runtime loader) -->
+  <style id="design-system-styles">
+    /* Design-System variables are injected here at runtime */
+  </style>
 </head>
 
 <body>
-    <!-- ✅ OPTIMIERTES HERO-HINTERGRUNDBILD MIT PICTURE ELEMENT -->
-    <div id="heroBackground" class="hero-background-container" role="img" aria-label="Cyberpunk Musik Hintergrund">
-        <picture>
-            <source srcset="./assets/images/Hintergrundbild 1.webp" type="image/webp">
-            <source srcset="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
-            <img src="./assets/images/Hintergrundbild 1.jpeg"
-                alt="Cyberpunk Stadt Hintergrund - Neon und Stadt-Szenerie" class="hero-background-image" loading="lazy"
-                decoding="async">
-        </picture>
+
+  <!-- =========================================================================
+       HERO BACKGROUND CONTAINER — kept for JS compatibility, hidden via CSS
+       ========================================================================= -->
+  <div id="heroBackground" class="hero-background-container" role="presentation" aria-hidden="true">
+    <picture>
+      <source srcset="./assets/images/Hintergrundbild 1.webp" type="image/webp">
+      <source srcset="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
+      <img src="./assets/images/Hintergrundbild 1.jpeg"
+           alt="" class="hero-background-image"
+           loading="lazy" decoding="async">
+    </picture>
+  </div>
+
+  <!-- =========================================================================
+       STICKY AUDIO PLAYER — floating bottom-right
+       ========================================================================= -->
+  <div id="stickyPlayer" class="sticky-player" data-draggable role="region" aria-label="Audio Player">
+
+    <div class="player-header" id="playerHeader">
+      <div class="now-playing">
+        <div class="track-name">Ready to play...</div>
+        <div class="track-artist">Select a track</div>
+      </div>
+      <div class="player-btn-group">
+        <button id="playerMinimize" class="player-btn" aria-label="Minimize player" title="Minimize">−</button>
+        <button id="playerClose" class="player-btn" aria-label="Close player" title="Close">✕</button>
+      </div>
     </div>
 
-    <!-- ========================================================================
-         🎵 STICKY PLAYER (Always visible bottom-right)
-         ======================================================================== -->
-    <div id="stickyPlayer" class="sticky-player" data-draggable role="region" aria-label="Audio-Player">
-        <div class="player-header" id="playerHeader">
-            <div class="now-playing">
-                <div class="track-name">Bereit zum Abspielen...</div>
-                <div class="track-artist">Wählen Sie einen Track</div>
-            </div>
-            <div class="player-btn-group">
-                <button id="playerMinimize" class="player-btn" aria-label="Player minimieren"
-                    title="Minimieren">−</button>
-                <button id="playerClose" class="player-btn" aria-label="Player schließen" title="Schließen">✕</button>
-            </div>
-        </div>
+    <div id="playerContent" class="player-content">
 
-        <div id="playerContent" class="player-content">
-            <!-- Waveform Visualizer -->
-            <canvas id="playerWaveform" class="waveform" aria-hidden="true" width="300" height="60"></canvas>
+      <!-- Waveform visualizer -->
+      <canvas id="playerWaveform" class="waveform" aria-hidden="true" width="300" height="48"></canvas>
 
-            <!-- Time Display -->
-            <div class="time-display">
-                <span id="playerCurrentTime" aria-live="polite">0:00</span>
-                <div id="playerSeekBar" class="seek-bar" role="slider" aria-label="Track-Position" aria-valuemin="0"
-                    aria-valuemax="100" aria-valuenow="0" tabindex="0">
-                </div>
-                <span id="playerDuration" aria-label="Gesamtdauer">0:00</span>
-            </div>
+      <!-- Seek / time display -->
+      <div class="time-display">
+        <span id="playerCurrentTime" aria-live="polite">0:00</span>
+        <div id="playerSeekBar" class="seek-bar"
+             role="slider" aria-label="Track position"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+             tabindex="0"></div>
+        <span id="playerDuration" aria-label="Total duration">0:00</span>
+      </div>
 
-            <!-- Preview Badge -->
-            <div id="previewBadge" class="preview-badge" style="display: none;" role="alert">
-                📢 40s VORSCHAU • Kaufen zum Freischalten
-            </div>
+      <!-- Preview badge -->
+      <div id="previewBadge" class="preview-badge" style="display: none;" role="alert">
+        PREVIEW · 40s · Purchase to unlock full track
+      </div>
 
-            <!-- Controls -->
-            <div class="player-controls">
-                <button id="playerPlayBtn" class="btn-control" aria-label="Abspielen" title="Abspielen">▶️</button>
-                <button id="playerPauseBtn" class="btn-control" style="display: none;" aria-label="Pausieren"
-                    title="Pausieren">⏸️</button>
-                <button id="playerStopBtn" class="btn-control" aria-label="Stoppen" title="Stoppen">⏹️</button>
-                <button id="playerLoopBtn" class="btn-control" aria-label="Schleife" title="Schleife">🔄</button>
-                <button id="playerMuteBtn" class="btn-control" aria-label="Stummschalten"
-                    title="Stummschalten">🔊</button>
-            </div>
+      <!-- Controls -->
+      <div class="player-controls">
+        <button id="playerPlayBtn"  class="btn-control" aria-label="Play"  title="Play">▶</button>
+        <button id="playerPauseBtn" class="btn-control" style="display: none;" aria-label="Pause" title="Pause">⏸</button>
+        <button id="playerStopBtn"  class="btn-control" aria-label="Stop"  title="Stop">⏹</button>
+        <button id="playerLoopBtn"  class="btn-control" aria-label="Loop"  title="Loop">↺</button>
+        <button id="playerMuteBtn"  class="btn-control" aria-label="Mute"  title="Mute">🔊</button>
+      </div>
 
-            <!-- Volume Slider -->
-            <div class="volume-control">
-                <label for="playerVolumeSlider" class="volume-label">Lautstärke:</label>
-                <input id="playerVolumeSlider" type="range" min="0" max="100" value="80" class="volume-slider"
-                    aria-label="Lautstärkeregler" aria-valuemin="0" aria-valuemax="100">
-            </div>
-        </div>
+      <!-- Volume -->
+      <div class="volume-control">
+        <label for="playerVolumeSlider" class="volume-label">VOL</label>
+        <input id="playerVolumeSlider" type="range" min="0" max="100" value="80"
+               class="volume-slider"
+               aria-label="Volume" aria-valuemin="0" aria-valuemax="100">
+      </div>
 
-        <!-- ✅ Resize Handle (unten rechts) -->
-        <div class="player-resize-handle" id="playerResizeHandle" aria-label="Player vergrößern/verkleinern"></div>
     </div>
 
-    <!-- ========================================================================
-         HEADER
-         ======================================================================== -->
-    <header role="banner">
-        <div class="header-content">
-            <div class="logo-section">
-                <h1 id="neonSign">♪ SONG-NEXUS</h1>
-                <div class="neon-grime" style="
-                    position: absolute;
-                    top: -10px;
-                    left: 0;
-                    width: 100%;
-                    height: 120%;
-                    pointer-events: none;
-                    background: radial-gradient(circle at 30% 40%, rgba(0,0,0,0.25), transparent),
-                                radial-gradient(circle at 70% 60%, rgba(0,0,0,0.2), transparent),
-                                radial-gradient(circle at 20% 80%, rgba(80,40,0,0.15), transparent);
-                    filter: blur(8px);
-                "></div>
-            </div>
-            <nav class="header-nav" aria-label="Hauptnavigation">
-                <a href="transparency.html" class="nav-link" aria-label="Transparenzbericht öffnen"
-                    style="color: var(--color-primary); font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 0.85rem; text-decoration: none; padding: 6px 12px; border: 1px solid var(--color-primary); border-radius: 4px; transition: background 0.2s, color 0.2s;"
-                    onmouseover="this.style.background='var(--color-primary)';this.style.color='#0a0e1a';"
-                    onmouseout="this.style.background='transparent';this.style.color='var(--color-primary)';">
-                    📊 Transparenz
-                </a>
-            </nav>
-            <div class="header-actions">
-                <button class="theme-toggle" id="themeToggle" aria-label="Dunkelmodus / Hellmodus umschalten"
-                    aria-pressed="true">🌙</button>
-                <div id="userInfo" class="user-info" style="display: none;" role="complementary">
-                    <span id="userDisplay">👤 Benutzer</span>
-                    <button class="button button-sm" id="logoutBtn" aria-label="Abmelden">Abmelden</button>
-                </div>
-                <button id="authButton" class="button button-sm" aria-label="Anmeldung öffnen">Anmelden</button>
-            </div>
+    <!-- Resize handle -->
+    <div class="player-resize-handle" id="playerResizeHandle" aria-label="Resize player"></div>
+
+  </div>
+
+  <!-- =========================================================================
+       HEADER
+       ========================================================================= -->
+  <header role="banner">
+    <div class="header-content">
+
+      <!-- Logo -->
+      <div class="logo-section">
+        <!-- Hex + musical note SVG logo -->
+        <svg class="logo-svg" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <polygon
+            points="16,2 28.8,9.5 28.8,22.5 16,30 3.2,22.5 3.2,9.5"
+            fill="none"
+            stroke="#00cc44"
+            stroke-width="1.5"
+          />
+          <text x="16" y="22" font-size="13" fill="#00cc44" text-anchor="middle" font-family="monospace">♪</text>
+        </svg>
+        <h1 id="neonSign">SONG-NEXUS</h1>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="header-nav" aria-label="Main navigation">
+        <a href="transparency.html" class="nav-link">Transparency</a>
+        <a href="blog/" class="nav-link">Blog</a>
+      </nav>
+
+      <!-- Actions -->
+      <div class="header-actions">
+        <!-- Theme toggle -->
+        <button class="theme-toggle" id="themeToggle"
+                aria-label="Switch to light mode" aria-pressed="false"
+                data-theme-toggle>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
+        <!-- User info (hidden until logged in) -->
+        <div id="userInfo" class="user-info" style="display: none;" role="complementary">
+          <span id="userDisplay">user@nexus</span>
+          <button class="button button-sm button-ghost" id="logoutBtn" aria-label="Log out">Logout</button>
         </div>
-    </header>
+
+        <!-- Auth trigger -->
+        <button id="authButton" class="button button-sm" aria-label="Open authentication">
+          Login
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       MAIN CONTENT
+       ========================================================================= -->
+  <main class="container" role="main">
 
     <!-- ========================================================================
-         MAIN CONTENT
+         HERO SECTION
          ======================================================================== -->
-    <main class="container" role="main">
+    <section class="hero hero-inner" aria-labelledby="hero-heading">
 
-        <!-- ====================================================================
-             🎬 HERO SECTION
-             ==================================================================== -->
-        <section class="hero" aria-labelledby="hero-heading">
-            <h2 id="hero-heading">Willkommen bei SONG-NEXUS</h2>
-            <p class="hero-subtitle">
-                🎵 Musikstreaming ohne Werbung, ohne Cookies, ohne Tracking.<br>
-                <strong>Optional anmelden für persönliche Funktionen.</strong>
+      <p class="hero-prompt">init song-nexus --mode=stream</p>
+
+      <h2 id="hero-heading" class="hero-heading">// WELCOME TO SONG-NEXUS</h2>
+
+      <p class="hero-subtitle">
+        AI-generated metal music for <span class="highlight">nerds, programmers, and the terminally uncompromising</span>.
+        Stream free. Buy to own. No ads. No cookies. No tracking.
+      </p>
+
+      <div class="hero-meta">
+        <div class="hero-stat">
+          <span class="hero-stat-value">∞</span>
+          <span class="hero-stat-label">Tracks</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value">0</span>
+          <span class="hero-stat-label">Ads</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value">0</span>
+          <span class="hero-stat-label">Cookies</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         AUTH MODAL
+         ======================================================================== -->
+    <div id="authModal" class="modal-overlay" style="display: none;"
+         role="dialog" aria-labelledby="auth-modal-title" aria-modal="true">
+      <div class="modal-content">
+
+        <h2 id="auth-modal-title">// AUTH</h2>
+        <p>Optional: Sign in to unlock history, playlists, and premium features.</p>
+
+        <!-- Tabs -->
+        <div class="tabs" role="tablist">
+          <button class="tab-btn active" data-tab="webauthn"
+                  aria-selected="true" role="tab"
+                  aria-controls="webauthn-tab" id="tab-webauthn">
+            Biometric
+          </button>
+          <button class="tab-btn" data-tab="password"
+                  aria-selected="false" role="tab"
+                  aria-controls="password-tab" id="tab-password">
+            Password
+          </button>
+          <button class="tab-btn" data-tab="magic-link"
+                  aria-selected="false" role="tab"
+                  aria-controls="magic-link-tab" id="tab-magic">
+            Email Link
+          </button>
+        </div>
+
+        <!-- WebAuthn Tab -->
+        <div id="webauthn-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-webauthn">
+          <div style="text-align: center; padding: 20px 0;">
+            <button class="button" id="webauthnBtn" aria-label="Sign in with fingerprint">
+              Use Biometric
+            </button>
+            <p style="color: var(--color-text-faint); margin-top: 12px; font-size: var(--text-xs);">
+              First time? <a href="#" id="toggleBioRegisterBtn">Register with biometric</a>
             </p>
-        </section>
-
-        <!-- ====================================================================
-             🔐 OPTIONAL AUTH MODAL
-             ==================================================================== -->
-        <div id="authModal" class="modal-overlay" style="display: none;" role="dialog"
-            aria-labelledby="auth-modal-title" aria-modal="true">
-            <div class="modal-content">
-                <h2 id="auth-modal-title">🔐 Authentifizierung</h2>
-                <p style="color: var(--color-text-secondary); font-size: 0.9rem;">
-                    Optional: Melden Sie sich an, um Verlauf, Wiedergabelisten und Premium-Funktionen zu nutzen.
-                </p>
-
-                <!-- Tabs -->
-                <div class="tabs" role="tablist">
-                    <button class="tab-btn active" data-tab="webauthn" aria-selected="true" role="tab"
-                        aria-controls="webauthn-tab" id="tab-webauthn">👆 Fingerabdruck</button>
-                    <button class="tab-btn" data-tab="password" aria-selected="false" role="tab"
-                        aria-controls="password-tab" id="tab-password">🔑 Passwort</button>
-                    <button class="tab-btn" data-tab="magic-link" aria-selected="false" role="tab"
-                        aria-controls="magic-link-tab" id="tab-magic">📧 E-Mail</button>
-                </div>
-
-                <!-- WebAuthn Tab -->
-                <div id="webauthn-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-webauthn">
-                    <div style="text-align: center; padding: 20px 0;">
-                        <button class="button" id="webauthnBtn" aria-label="Mit Fingerabdruck anmelden">👆 Fingerabdruck
-                            verwenden</button>
-                        <p style="color: var(--color-text-secondary); margin-top: 12px; font-size: 0.85rem;">
-                            Erste Anmeldung? <a href="#" id="toggleBioRegisterBtn"
-                                style="color: var(--color-primary); cursor: pointer;">Mit Fingerabdruck registrieren</a>
-                        </p>
-                        <div id="bioRegisterModal"
-                            style="display: none; margin-top: 16px; padding: 16px; border: 1px solid var(--color-primary); border-radius: 4px;">
-                            <h3 style="color: var(--color-primary); margin-bottom: 12px;">📝 Registrierung</h3>
-                            <input type="text" id="bioRegUsername" placeholder="Benutzername" class="form-control"
-                                aria-label="Benutzername">
-                            <input type="email" id="bioRegEmail" placeholder="E-Mail" class="form-control"
-                                aria-label="E-Mail-Adresse">
-                            <button class="button" id="registerBiometricBtn"
-                                style="width: 100%; margin-top: 12px;">Registrieren</button>
-                        </div>
-                        <div id="bioStatus" class="status-message" role="alert" aria-live="polite"></div>
-                    </div>
-                </div>
-
-                <!-- PASSWORD LOGIN/REGISTER TAB -->
-                <div id="password-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-password">
-                    <!-- LOGIN FORM (Default) -->
-                    <div id="passwordLoginForm">
-                        <form id="passwordLoginFormElement" data-form="password-login" novalidate>
-                            <div class="form-group">
-                                <label for="loginEmail">E-Mail oder Benutzername</label>
-                                <input type="text" id="loginEmail" placeholder="ihre@email.com oder benutzername"
-                                    required class="form-control" aria-required="true">
-                            </div>
-                            <div class="form-group">
-                                <label for="loginPassword">Passwort</label>
-                                <input type="password" id="loginPassword" placeholder="••••••••" required
-                                    class="form-control" aria-required="true">
-                            </div>
-                            <button type="submit" class="button" style="width: 100%;">🔐 Anmelden</button>
-                        </form>
-                        <p style="color: var(--color-text-secondary); margin-top: 12px; font-size: 0.85rem;">
-                            Noch kein Konto? <a href="#" id="togglePasswordRegisterBtn"
-                                style="color: var(--color-primary); cursor: pointer;">Jetzt registrieren</a>
-                        </p>
-                        <div id="passwordStatus" class="status-message" role="alert" aria-live="polite"></div>
-                    </div>
-
-                    <!-- REGISTRATION FORM (Hidden by default) -->
-                    <div id="passwordRegisterForm" style="display: none;">
-                        <form id="passwordRegisterFormElement" novalidate>
-                            <div class="form-group">
-                                <label for="regUsername">Benutzername</label>
-                                <input type="text" id="regUsername" placeholder="dein_name" required
-                                    class="form-control" aria-required="true">
-                                <small style="color: var(--color-text-secondary);">3-20 Zeichen, alphanumerisch</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="regEmail">E-Mail-Adresse</label>
-                                <input type="email" id="regEmail" placeholder="deine@email.com" required
-                                    class="form-control" aria-required="true">
-                            </div>
-                            <div class="form-group">
-                                <label for="regPassword">Passwort</label>
-                                <input type="password" id="regPassword" placeholder="••••••••" required
-                                    class="form-control" aria-required="true">
-                                <small style="color: var(--color-text-secondary);">Mindestens 8 Zeichen</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="regPasswordConfirm">Passwort wiederholen</label>
-                                <input type="password" id="regPasswordConfirm" placeholder="••••••••" required
-                                    class="form-control" aria-required="true">
-                            </div>
-                            <button type="submit" class="button"
-                                style="width: 100%; background: var(--color-primary);">✅
-                                Registrieren</button>
-                            <button type="button" id="cancelPasswordRegisterBtn" class="button"
-                                style="width: 100%; margin-top: 8px; background: var(--color-text-secondary);">❌
-                                Abbrechen</button>
-                        </form>
-                        <div id="registerStatus" class="status-message" role="alert" aria-live="polite"></div>
-                    </div>
-                </div>
-
-                <!-- Magic Link Tab -->
-                <div id="magic-link-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-magic">
-                    <div class="form-group">
-                        <label for="magicEmail">E-Mail-Adresse</label>
-                        <input type="email" id="magicEmail" placeholder="ihre@email.com" class="form-control"
-                            aria-label="E-Mail-Adresse" aria-required="true">
-                    </div>
-                    <button class="button" id="magicLinkBtn" style="width: 100%;">📧 Anmeldelink senden</button>
-                    <div id="magicStatus" class="status-message" role="alert" aria-live="polite"></div>
-
-                    <!-- Manual Magic Link Verification -->
-                    <div
-                        style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--color-primary); opacity: 0.8;">
-                        <p style="color: var(--color-text-secondary); font-size: 0.85rem; margin-bottom: 12px;">
-                            📌 Oder gib den Token manuell ein:
-                        </p>
-                        <div class="form-group">
-                            <label for="magicToken">Verifikations-Token</label>
-                            <input type="text" id="magicToken" placeholder="Token aus der E-Mail einfügen..."
-                                class="form-control" aria-label="Magic Link Token" aria-required="false">
-                        </div>
-                        <button class="button" id="magicVerifyBtn"
-                            style="width: 100%; background: var(--color-primary);">✅ Token
-                            verifizieren</button>
-                    </div>
-                    <div id="magicVerifyStatus" class="status-message" role="alert" aria-live="polite"></div>
-                </div>
-
-                <!-- Close Modal Button -->
-                <button class="button button-secondary" id="closeAuthModalBtn" style="width: 100%; margin-top: 20px;"
-                    aria-label="Authentifizierungsmodal schließen">Schließen</button>
+            <div id="bioRegisterModal" style="display: none; margin-top: 16px;">
+              <h3>Register</h3>
+              <input type="text" id="bioRegUsername" placeholder="username" class="form-control" aria-label="Username" style="margin-bottom: 8px;">
+              <input type="email" id="bioRegEmail" placeholder="email@example.com" class="form-control" aria-label="Email address" style="margin-bottom: 8px;">
+              <button class="button" id="registerBiometricBtn" style="width: 100%;">Register</button>
             </div>
+            <div id="bioStatus" class="status-message" role="alert" aria-live="polite"></div>
+          </div>
         </div>
 
-        <!-- ====================================================================
-             🎵 FEATURED TRACKS
-             ==================================================================== -->
-        <section class="featured-section" aria-labelledby="tracks-heading">
-            <h2 id="tracks-heading">🎵 Beliebte Tracks</h2>
-            <p class="section-subtitle">Musik, keine Anmeldung erforderlich. 40 Sekunden Vorschau für
-                Premium-Tracks.</p>
-            <div id="tracksList" class="track-grid" role="region" aria-label="Beliebte Tracks" aria-live="polite"
-                aria-busy="true">
-                <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px;">
-                    <p style="color: var(--color-text-secondary);">⏳ Tracks werden geladen...</p>
-                </div>
-            </div>
-        </section>
+        <!-- Password Tab -->
+        <div id="password-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-password">
+          <!-- Login form (default) -->
+          <div id="passwordLoginForm">
+            <form id="passwordLoginFormElement" data-form="password-login" novalidate>
+              <div class="form-group">
+                <label for="loginEmail">Email or username</label>
+                <input type="text" id="loginEmail" placeholder="user@example.com"
+                       required class="form-control" aria-required="true">
+              </div>
+              <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="••••••••"
+                       required class="form-control" aria-required="true">
+              </div>
+              <button type="submit" class="button" style="width: 100%;">Sign In</button>
+            </form>
+            <p style="color: var(--color-text-faint); margin-top: 12px; font-size: var(--text-xs);">
+              No account? <a href="#" id="togglePasswordRegisterBtn">Register</a>
+            </p>
+            <div id="passwordStatus" class="status-message" role="alert" aria-live="polite"></div>
+          </div>
 
-        <!-- ====================================================================
-             📝 BLOG PREVIEW
-             ==================================================================== -->
-        <section class="blog-section" aria-labelledby="blog-heading">
-            <h2 id="blog-heading">📝 Neueste aus dem Blog</h2>
-            <div id="blogList" class="track-grid" role="region" aria-label="Blog-Beiträge" aria-live="polite"
-                aria-busy="true">
-                <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px;">
-                    <p style="color: var(--color-text-secondary);">⏳ Blog-Beiträge werden geladen...</p>
-                </div>
-            </div>
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="blog/" class="button" aria-label="Alle Blog-Beiträge anzeigen">📖 Alle Beiträge →</a>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- ========================================================================
-         FOOTER
-         ======================================================================== -->
-    <footer role="contentinfo">
-        <div class="footer-content">
-            <div class="footer-section">
-                <h3>🎵 SONG-NEXUS</h3>
-                <p>Kostenlose, werbefreie Musikstreaming ohne Tracking.</p>
-            </div>
-            <div class="footer-section">
-                <h3>Links</h3>
-                <ul>
-                    <li><a href="/" aria-label="Zur Startseite">Startseite</a></li>
-                    <li><a href="blog/" aria-label="Zum Blog">Blog</a></li>
-                    <li><a href="/docs/" aria-label="Zur Dokumentation">Dokumentation</a></li>
-                    <li><a href="transparency.html" aria-label="Transparenzbericht" style="color: var(--color-primary);">📊 Transparenz</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h3>Rechtlich</h3>
-                <ul>
-                    <li><a href="/LICENSE" aria-label="Lizenzinformationen">Lizenz</a></li>
-                    <li><a href="https://github.com/Waschtl904/song-nexus" aria-label="GitHub Repository"
-                            rel="noopener noreferrer" target="_blank">GitHub</a></li>
-                    <li><a href="/privacy-policy/" aria-label="Datenschutzerklärung">Datenschutz</a></li>
-                </ul>
-            </div>
+          <!-- Register form (hidden by default) -->
+          <div id="passwordRegisterForm" style="display: none;">
+            <form id="passwordRegisterFormElement" novalidate>
+              <div class="form-group">
+                <label for="regUsername">Username</label>
+                <input type="text" id="regUsername" placeholder="your_handle"
+                       required class="form-control" aria-required="true">
+                <small>3–20 chars, alphanumeric</small>
+              </div>
+              <div class="form-group">
+                <label for="regEmail">Email</label>
+                <input type="email" id="regEmail" placeholder="you@example.com"
+                       required class="form-control" aria-required="true">
+              </div>
+              <div class="form-group">
+                <label for="regPassword">Password</label>
+                <input type="password" id="regPassword" placeholder="••••••••"
+                       required class="form-control" aria-required="true">
+                <small>Minimum 8 characters</small>
+              </div>
+              <div class="form-group">
+                <label for="regPasswordConfirm">Confirm password</label>
+                <input type="password" id="regPasswordConfirm" placeholder="••••••••"
+                       required class="form-control" aria-required="true">
+              </div>
+              <button type="submit" class="button" style="width: 100%;">Create Account</button>
+              <button type="button" id="cancelPasswordRegisterBtn" class="button button-secondary"
+                      style="width: 100%; margin-top: 8px;">Cancel</button>
+            </form>
+            <div id="registerStatus" class="status-message" role="alert" aria-live="polite"></div>
+          </div>
         </div>
-        <p style="text-align: center; color: var(--color-text-secondary); font-size: 0.75rem; margin-top: 20px;">
-            🎵 SONG-NEXUS v8.0 ES6 Modules • Gebaut mit ❤️ • © 2025 Sebastian | ♿ WCAG 2.2 Barrierefrei |
-            <span style="color: var(--color-primary);">🍪 Keine Cookies • 📊 Kein Tracking</span>
-        </p>
-    </footer>
+
+        <!-- Magic Link Tab -->
+        <div id="magic-link-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-magic">
+          <div class="form-group">
+            <label for="magicEmail">Email address</label>
+            <input type="email" id="magicEmail" placeholder="you@example.com"
+                   class="form-control" aria-label="Email" aria-required="true">
+          </div>
+          <button class="button" id="magicLinkBtn" style="width: 100%;">Send Login Link</button>
+          <div id="magicStatus" class="status-message" role="alert" aria-live="polite"></div>
+
+          <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+            <p style="color: var(--color-text-faint); font-size: var(--text-xs); margin-bottom: 12px;">
+              Or enter token manually:
+            </p>
+            <div class="form-group">
+              <label for="magicToken">Verification token</label>
+              <input type="text" id="magicToken" placeholder="Paste token from email..."
+                     class="form-control" aria-label="Magic link token">
+            </div>
+            <button class="button" id="magicVerifyBtn" style="width: 100%;">Verify Token</button>
+          </div>
+          <div id="magicVerifyStatus" class="status-message" role="alert" aria-live="polite"></div>
+        </div>
+
+        <!-- Close button -->
+        <button class="button button-secondary" id="closeAuthModalBtn"
+                style="width: 100%; margin-top: 20px;"
+                aria-label="Close authentication modal">
+          Close
+        </button>
+
+      </div>
+    </div>
 
     <!-- ========================================================================
-         🎨 DESIGN-SYSTEM RUNTIME LOADER v3.1 (Relative path + API Proxy)
+         FEATURED TRACKS
          ======================================================================== -->
-    <script>
-        /**
-         * DESIGN-SYSTEM RUNTIME LOADER v3.1
-         * 
-         * ✅ FIXED: Uses relative path /api/design-system (via frontend proxy)
-         * 1. Try to load from API via frontend proxy (PostgreSQL - has latest changes)
-         * 2. Fallback to webpack-generated _design-tokens.css (build-time defaults)
-         * 
-         * Benefits:
-         * - Works through frontend server proxy (no direct backend calls)
-         * - CORS + credentials handled by proxy
-         * - Design-Editor changes reflected immediately (API)
-         * - If API fails, CSS still works (Webpack fallback)
-         */
+    <section class="featured-section" aria-labelledby="tracks-heading">
+      <div class="section-header">
+        <h2 id="tracks-heading" class="section-title">Featured Tracks</h2>
+        <span class="section-subtitle">40s preview for premium tracks · No login required</span>
+      </div>
 
-        async function loadDesignSystemFromAPI() {
-            try {
-                console.log('🎨 Design System Runtime Loader v3.1 starting...');
-
-                // ✅ CRITICAL: Use RELATIVE path (proxied through frontend server)
-                const apiUrl = '/api/design-system';
-                console.log('🌐 Attempting to load from API proxy:', apiUrl);
-
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include',
-                    timeout: 5000
-                });
-
-                console.log('📊 API Response Status:', response.status);
-
-                if (!response.ok) {
-                    console.log(`⚠️ API returned ${response.status}`);
-                    console.log('💾 Using webpack-generated _design-tokens.css instead');
-                    return false;
-                }
-
-                // ✅ Parse the API response
-                const designSystem = await response.json();
-                console.log('✅ Design System loaded from API:', designSystem);
-
-                // ✅ Extract nested structures CORRECTLY
-                const colors = designSystem.colors || {};
-                const typography = designSystem.typography || {};
-                const spacing = designSystem.spacing || {};
-                const radius = designSystem.radius || {};
-                const components = designSystem.components || {};
-
-                console.log('   ✅ Colors:', colors);
-                console.log('   ✅ Typography:', typography);
-                console.log('   ✅ Spacing:', spacing);
-                console.log('   ✅ Radius:', radius);
-
-                // ✅ Generate CSS Variables (matching webpack loader output format)
-                let cssVariables = 'html {\n';
-
-                // ✅ COLORS (aus colors-Objekt!)
-                cssVariables += '  /* Colors from PostgreSQL API via Proxy */\n';
-                if (colors.primary) cssVariables += `  --color-primary: ${colors.primary};\n`;
-                if (colors.secondary) cssVariables += `  --color-secondary: ${colors.secondary};\n`;
-                if (colors.accent_teal) cssVariables += `  --color-accent-teal: ${colors.accent_teal};\n`;
-                if (colors.accent_green) cssVariables += `  --color-accent-green: ${colors.accent_green};\n`;
-                if (colors.accent_red) cssVariables += `  --color-accent-red: ${colors.accent_red};\n`;
-                if (colors.text_primary) cssVariables += `  --color-text-primary: ${colors.text_primary};\n`;
-                if (colors.background) cssVariables += `  --color-background: ${colors.background};\n`;
-
-                // ✅ TYPOGRAPHY (aus typography-Objekt!)
-                cssVariables += '  /* Typography from PostgreSQL API via Proxy */\n';
-                if (typography.font_family_base) {
-                    cssVariables += `  --font-family-base: ${typography.font_family_base};\n`;
-                }
-                if (typography.font_sizes?.base) {
-                    cssVariables += `  --font-size-base: ${typography.font_sizes.base};\n`;
-                }
-                if (typography.font_weights?.normal) {
-                    cssVariables += `  --font-weight-normal: ${typography.font_weights.normal};\n`;
-                }
-                if (typography.font_weights?.bold) {
-                    cssVariables += `  --font-weight-bold: ${typography.font_weights.bold};\n`;
-                }
-
-                // ✅ LAYOUT (aus spacing/radius-Objekten!)
-                cssVariables += '  /* Layout from PostgreSQL API via Proxy */\n';
-                if (spacing['8']) {
-                    cssVariables += `  --space-8: ${spacing['8']};\n`;
-                }
-                if (radius.base) {
-                    cssVariables += `  --radius-base: ${radius.base};\n`;
-                }
-
-                // ✅ BUTTONS (aus components!)
-                cssVariables += '  /* Buttons from PostgreSQL API via Proxy */\n';
-                if (components.buttons?.primary?.background) {
-                    cssVariables += `  --button-primary-background: ${components.buttons.primary.background};\n`;
-                }
-                if (components.buttons?.primary?.padding) {
-                    cssVariables += `  --button-primary-padding: ${components.buttons.primary.padding};\n`;
-                }
-                if (components.buttons?.primary?.border_radius) {
-                    cssVariables += `  --button-primary-border-radius: ${components.buttons.primary.border_radius};\n`;
-                }
-
-                cssVariables += '}\n';
-
-                // ✅ Inject into <style> tag (OVERWRITES webpack defaults)
-                const styleElement = document.getElementById('design-system-styles');
-                if (styleElement) {
-                    styleElement.textContent = cssVariables;
-                    console.log('✅ Design System CSS injected from API (via proxy)');
-                    console.log('   Primary Color:', colors.primary);
-                    console.log('   Secondary Color:', colors.secondary);
-                    return true;
-                } else {
-                    console.error('❌ design-system-styles element not found!');
-                    return false;
-                }
-
-            } catch (err) {
-                console.error('❌ Design System API Error:', err.message);
-                console.log('💾 Falling back to webpack-generated _design-tokens.css');
-                return false;
-            }
-        }
-
-        // ============================================================================
-        // EXECUTE LOADER
-        // ============================================================================
-
-        console.log('');
-        console.log('╔════════════════════════════════════════════╗');
-        console.log('║  🎨 DESIGN-SYSTEM LOADER v3.1 ACTIVE            ║');
-        console.log('║  Via Frontend Proxy → API → Webpack CSS Fallback ║');
-        console.log('╚════════════════════════════════════════════╝');
-        console.log('');
-
-        // Load immediately if DOM is ready, otherwise wait
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', async () => {
-                const success = await loadDesignSystemFromAPI();
-                if (!success) {
-                    console.log('💾 Using webpack-generated CSS from _design-tokens.css');
-                }
-            });
-        } else {
-            // DOM already loaded
-            loadDesignSystemFromAPI().then(success => {
-                if (!success) {
-                    console.log('💾 Using webpack-generated CSS from _design-tokens.css');
-                }
-            });
-        }
-    </script>
-
+      <div id="tracksList" class="track-grid"
+           role="region" aria-label="Featured tracks"
+           aria-live="polite" aria-busy="true">
+        <div class="track-loading">Loading tracks...</div>
+      </div>
+    </section>
 
     <!-- ========================================================================
-         ✅ WEBPACK BUNDLE (All modules: Auth, WebAuthn, Player, Tracks, etc.)
+         BLOG PREVIEW
          ======================================================================== -->
-    <script src="./dist/app.bundle.js"></script>
+    <section class="blog-section" aria-labelledby="blog-heading">
+      <div class="section-header">
+        <h2 id="blog-heading" class="section-title">Latest Posts</h2>
+      </div>
 
-    <!-- ========================================================================
-         🔧 CRITICAL FIX: Ensure Auth module is fully initialized
-         ======================================================================== -->
-    <script>
-        console.log('🔧 HTML Script: Ensuring Auth system is fully initialized...');
+      <div id="blogList" class="track-grid"
+           role="region" aria-label="Blog posts"
+           aria-live="polite" aria-busy="true">
+        <div class="track-loading">Loading posts...</div>
+      </div>
 
-        function ensureAuthInitialized() {
-            // Check if Auth module exists (from bundle)
-            if (typeof Auth === 'undefined') {
-                console.warn('⚠️ Auth module not yet available, retrying in 50ms...');
-                setTimeout(ensureAuthInitialized, 50);
-                return;
-            }
+      <div class="blog-more">
+        <a href="blog/" class="button button-secondary" aria-label="View all blog posts">
+          View All Posts →
+        </a>
+      </div>
+    </section>
 
-            console.log('✅ Auth module found in window object');
+  </main>
 
-            // Call Auth.init() to attach event listeners
-            if (typeof Auth.init === 'function') {
-                console.log('📋 Calling Auth.init()...');
-                Auth.init();
-                console.log('✅ Auth.init() completed');
-            } else {
-                console.error('❌ Auth.init is not a function');
-            }
+  <!-- =========================================================================
+       FOOTER
+       ========================================================================= -->
+  <footer role="contentinfo">
+    <div class="footer-content">
+      <div class="footer-section">
+        <h3>Song-Nexus</h3>
+        <p>AI-generated metal music. Stream free or buy. No ads. No tracking. Built for the terminally uncompromising.</p>
+      </div>
+      <div class="footer-section">
+        <h3>Navigate</h3>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="blog/">Blog</a></li>
+          <li><a href="/docs/">Docs</a></li>
+          <li><a href="transparency.html">Transparency</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h3>Legal</h3>
+        <ul>
+          <li><a href="/LICENSE">License</a></li>
+          <li><a href="https://github.com/Waschtl904/song-nexus" rel="noopener noreferrer" target="_blank">GitHub</a></li>
+          <li><a href="/privacy-policy/">Privacy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>SONG-NEXUS v8.0 · © 2025 Sebastian</span>
+      <span class="accent">No cookies &nbsp;·&nbsp; No tracking &nbsp;·&nbsp; WCAG 2.2</span>
+    </div>
+  </footer>
 
-            // Also setup close button for modal
-            const closeBtn = document.getElementById('closeAuthModalBtn');
-            const authModal = document.getElementById('authModal');
-            if (closeBtn && authModal) {
-                closeBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    authModal.style.display = 'none';
-                    console.log('✅ Modal closed via close button');
-                });
-            }
+  <!-- =========================================================================
+       DESIGN-SYSTEM RUNTIME LOADER v3.1
+       ========================================================================= -->
+  <script>
+    /**
+     * DESIGN-SYSTEM RUNTIME LOADER v3.1
+     * 1. Try API via frontend proxy (PostgreSQL — latest changes)
+     * 2. Fallback to webpack-generated _design-tokens.css
+     */
+    async function loadDesignSystemFromAPI() {
+      try {
+        console.log('Design System Runtime Loader v3.1 starting...');
+        const apiUrl = '/api/design-system';
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include'
+        });
+        if (!response.ok) { return false; }
+        const designSystem = await response.json();
+        const colors = designSystem.colors || {};
+        const typography = designSystem.typography || {};
+        const spacing = designSystem.spacing || {};
+        const radius = designSystem.radius || {};
+        const components = designSystem.components || {};
+        let cssVariables = 'html {\n';
+        if (colors.primary) cssVariables += `  --color-primary: ${colors.primary};\n`;
+        if (colors.secondary) cssVariables += `  --color-secondary: ${colors.secondary};\n`;
+        if (colors.accent_teal) cssVariables += `  --color-accent-teal: ${colors.accent_teal};\n`;
+        if (colors.accent_green) cssVariables += `  --color-accent-green: ${colors.accent_green};\n`;
+        if (colors.accent_red) cssVariables += `  --color-accent-red: ${colors.accent_red};\n`;
+        if (colors.text_primary) cssVariables += `  --color-text-primary: ${colors.text_primary};\n`;
+        if (colors.background) cssVariables += `  --color-background: ${colors.background};\n`;
+        if (typography.font_family_base) cssVariables += `  --font-family-base: ${typography.font_family_base};\n`;
+        if (typography.font_sizes?.base) cssVariables += `  --font-size-base: ${typography.font_sizes.base};\n`;
+        if (typography.font_weights?.normal) cssVariables += `  --font-weight-normal: ${typography.font_weights.normal};\n`;
+        if (typography.font_weights?.bold) cssVariables += `  --font-weight-bold: ${typography.font_weights.bold};\n`;
+        if (spacing['8']) cssVariables += `  --space-8: ${spacing['8']};\n`;
+        if (radius.base) cssVariables += `  --radius-base: ${radius.base};\n`;
+        if (components.buttons?.primary?.background) cssVariables += `  --button-primary-background: ${components.buttons.primary.background};\n`;
+        if (components.buttons?.primary?.padding) cssVariables += `  --button-primary-padding: ${components.buttons.primary.padding};\n`;
+        if (components.buttons?.primary?.border_radius) cssVariables += `  --button-primary-border-radius: ${components.buttons.primary.border_radius};\n`;
+        cssVariables += '}\n';
+        const styleElement = document.getElementById('design-system-styles');
+        if (styleElement) { styleElement.textContent = cssVariables; return true; }
+        return false;
+      } catch (err) {
+        console.warn('Design System API unavailable, using CSS defaults.');
+        return false;
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => loadDesignSystemFromAPI());
+    } else {
+      loadDesignSystemFromAPI();
+    }
+  </script>
+
+  <!-- =========================================================================
+       WEBPACK BUNDLE (Auth, WebAuthn, Player, Tracks, etc.)
+       ========================================================================= -->
+  <script src="./dist/app.bundle.js"></script>
+
+  <!-- =========================================================================
+       AUTH MODULE INIT
+       ========================================================================= -->
+  <script>
+    function ensureAuthInitialized() {
+      if (typeof Auth === 'undefined') {
+        setTimeout(ensureAuthInitialized, 50);
+        return;
+      }
+      if (typeof Auth.init === 'function') {
+        Auth.init();
+      }
+      const closeBtn = document.getElementById('closeAuthModalBtn');
+      const authModal = document.getElementById('authModal');
+      if (closeBtn && authModal) {
+        closeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          authModal.style.display = 'none';
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(ensureAuthInitialized, 1000));
+    } else {
+      setTimeout(ensureAuthInitialized, 1000);
+    }
+  </script>
+
+  <!-- =========================================================================
+       MAGIC LINK HANDLER
+       ========================================================================= -->
+  <script>
+    if (window.location.pathname === '/auth/magic-link' ||
+        window.location.pathname.includes('auth/magic-link')) {
+      const handleMagicLink = async () => {
+        if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
+          try { await Auth.verifyMagicLinkFromUrl(); }
+          catch (err) { console.error('Magic link verification failed:', err); }
         }
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', handleMagicLink);
+      } else {
+        setTimeout(handleMagicLink, 500);
+      }
+    }
+  </script>
 
-        // Trigger initialization after DOM is ready and bundle has loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(ensureAuthInitialized, 1000);
-            });
-        } else {
-            // DOM already loaded
-            setTimeout(ensureAuthInitialized, 1000);
-        }
-    </script>
+  <!-- =========================================================================
+       THEME TOGGLE — inline so it runs before paint
+       ========================================================================= -->
+  <script>
+    (function () {
+      const html = document.documentElement;
+      // Read system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialTheme = prefersDark ? 'dark' : 'light';
+      html.setAttribute('data-theme', initialTheme);
 
-    <!-- ========================================================================
-         ✅ MAGIC LINK HANDLER
-         ======================================================================== -->
-    <script>
-        console.log('🔐 Checking current URL for Magic Link:', window.location.pathname);
+      const toggle = document.getElementById('themeToggle');
+      if (!toggle) return;
 
-        if (window.location.pathname === '/auth/magic-link' ||
-            window.location.pathname.includes('auth/magic-link')) {
+      let currentTheme = initialTheme;
 
-            console.log('🔐🔐🔐 MAGIC LINK PAGE DETECTED! 🔐🔐🔐');
+      // Set initial icon
+      function setIcon(theme) {
+        toggle.innerHTML = theme === 'dark'
+          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+        toggle.setAttribute('aria-label', 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode');
+        toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+      }
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', async () => {
-                    console.log('🔐 DOM loaded, calling Auth.verifyMagicLinkFromUrl()...');
-                    if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
-                        try {
-                            const result = await Auth.verifyMagicLinkFromUrl();
-                            console.log('✅ Magic link result:', result);
-                        } catch (err) {
-                            console.error('❌ Magic link verification failed:', err);
-                        }
-                    } else {
-                        console.error('❌ Auth module not loaded yet!');
-                    }
-                });
-            } else {
-                setTimeout(async () => {
-                    console.log('🔐 DOM already loaded, calling Auth.verifyMagicLinkFromUrl()...');
-                    if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
-                        try {
-                            const result = await Auth.verifyMagicLinkFromUrl();
-                            console.log('✅ Magic link result:', result);
-                        } catch (err) {
-                            console.error('❌ Magic link verification failed:', err);
-                        }
-                    }
-                }, 500);
-            }
-        }
-    </script>
+      setIcon(currentTheme);
+
+      toggle.addEventListener('click', () => {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', currentTheme);
+        setIcon(currentTheme);
+      });
+    })();
+  </script>
 
 </body>
 
