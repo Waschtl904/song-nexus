@@ -526,35 +526,50 @@ header {
   gap: var(--space-5);
 }
 
-/* Track-Karte — dunkle, leicht transparente Karte wie im Screenshot */
+/* Track-Karte — Glasoptik: transparent im Normalzustand, blur beim Hover */
 .track-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: rgba(0, 255, 204, 0.03);   /* fast unsichtbar */
+  border: 1px solid rgba(0, 255, 204, 0.15);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+  backdrop-filter: blur(0px);             /* kein Blur im Normalzustand */
+  -webkit-backdrop-filter: blur(0px);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition),
+    backdrop-filter 200ms ease;
   position: relative;
   overflow: hidden;
 }
 
+/* Glasschicht — unsichtbar im Normalzustand */
 .track-card::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(0,255,204,0.04) 0%, transparent 60%);
+  background: linear-gradient(135deg, rgba(0,255,204,0.06) 0%, rgba(5,10,25,0.55) 100%);
+  opacity: 0;
+  transition: opacity 200ms ease;
   pointer-events: none;
 }
 
 .track-card:hover {
+  background: rgba(5, 12, 28, 0.72);      /* eintrüben */
   border-color: var(--color-primary);
-  box-shadow: 0 0 16px var(--color-primary-glow), 0 4px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 0 18px var(--color-primary-glow), 0 4px 24px rgba(0,0,0,0.55);
   transform: translateY(-2px);
+  backdrop-filter: blur(14px);            /* Blur aktivieren */
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.track-card:hover::before {
+  opacity: 1;                             /* Glasschicht einblenden */
 }
 
 .track-title {
