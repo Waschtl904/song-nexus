@@ -19,6 +19,7 @@ const https = require('https');
 const rfs = require('rotating-file-stream');
 const crypto = require('crypto');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
@@ -213,6 +214,9 @@ app.use((req, res, next) => {
     );
     next();
 });
+
+// Cookie-Parser MUSS vor Session und Routes kommen
+app.use(cookieParser());
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

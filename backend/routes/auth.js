@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../db');
-const { verifyToken, generateJWT } = require('../middleware/auth-middleware');
+const { verifyToken, generateJWT, setAuthCookie, clearAuthCookie } = require('../middleware/auth-middleware');
 const { sendPasswordResetEmail } = require('../utils/mailer');
 const router = express.Router();
 
@@ -49,13 +49,14 @@ router.post('/register', [
     const user = result.rows[0];
     console.log(`✅ User registered: ${user.username} (${user.email})`);
 
-    // 4️⃣ Generate JWT token
+    // 4️⃣ Generate JWT token + als HttpOnly Cookie setzen
     const token = generateJWT(user);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       message: 'User registered successfully',
       user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token,
+      token, // Beibehalten für Rückwärtskompatibilität (wird in späterer Version entfernt)
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -124,14 +125,15 @@ router.post('/login', [
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
     console.log(`✅ Password valid, last_login updated: ${user.username}`);
 
-    // 4️⃣ Generate JWT token
+    // 4️⃣ Generate JWT token + als HttpOnly Cookie setzen
     const token = generateJWT(user);
     console.log(`✅ JWT token generated for user: ${user.username}`);
+    setAuthCookie(res, token);
 
     res.json({
       message: 'Login successful',
       user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token,
+      token, // Beibehalten für Rückwärtskompatibilität
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -175,14 +177,15 @@ router.post('/dev-login', async (req, res) => {
 
     user = userResult.rows[0];
 
-    // 2️⃣ Generate token
+    // 2️⃣ Generate token + als HttpOnly Cookie setzen
     const token = generateJWT(user);
+    setAuthCookie(res, token);
 
     res.json({
       success: true,
       message: '✅ Dev login successful',
       user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token,
+      token, // Beibehalten für Rückwärtskompatibilität
     });
   } catch (err) {
     console.error('❌ Dev login error:', err);
@@ -229,8 +232,8 @@ router.get('/me', verifyToken, async (req, res) => {
 // ============================================================================
 
 router.post('/logout', verifyToken, (req, res) => {
-  // Stateless: Just acknowledge logout (token removed on client)
   console.log(`✅ User ${req.user.id} logged out`);
+  clearAuthCookie(res); // HttpOnly Cookie löschen
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
@@ -252,9 +255,10 @@ router.post('/refresh-token', verifyToken, async (req, res) => {
 
     const user = result.rows[0];
     const token = generateJWT(user);
+    setAuthCookie(res, token); // Cookie erneuern
 
     console.log(`✅ Token refreshed for user: ${user.username}`);
-    res.json({ token });
+    res.json({ token }); // Beibehalten für Rückwärtskompatibilität
   } catch (err) {
     console.error('❌ Refresh token error:', err);
     res.status(500).json({ error: 'Failed to refresh token' });

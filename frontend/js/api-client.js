@@ -103,26 +103,14 @@ export class APIClient {
 
     static async logout() {
         try {
-            console.log('🚪 Logout: Preparing logout...');
-            // 🔧 FIXED: Capture token FIRST before clearing
-            const currentToken = this.getToken();
-            
-            if (!currentToken) {
-                console.warn('⚠️ No token found, clearing locally');
-                this.clearToken();
-                return;
-            }
-            
-            console.log('🚪 Logout: Sending request to backend WITH token...');
-            // Send logout request WITH the current token
-            await this.post('/auth/logout', {}, currentToken);
+            console.log('🚪 Logout: Sending request to backend...');
+            // Cookie wird vom Browser automatisch mitgeschickt (credentials: 'include')
+            // Backend löscht den HttpOnly Cookie serverseitig
+            await this.post('/auth/logout', {});
             console.log('✅ Logout successful from backend');
-            
-            // THEN clear token locally after successful backend response
-            this.clearToken();
+            this.clearToken(); // Lokale Kopie bereinigen (Legacy)
         } catch (err) {
             console.error('❌ Logout error:', err.message);
-            // Still clear token locally even if backend call fails
             this.clearToken();
             throw err;
         }
@@ -233,21 +221,28 @@ export class APIClient {
     }
 
     static setToken(token) {
-        setAuthToken(token);
+        // Token wird jetzt primär als HttpOnly Cookie vom Backend gesetzt.
+        // Lokale Kopie nur noch als Legacy-Fallback für Übergangszeitraum.
+        if (token) setAuthToken(token);
     }
 
     static getToken() {
+        // Gibt localStorage-Token zurück (Legacy).
+        // In Zukunft: /api/auth/me aufrufen statt Token lokal lesen.
         return getAuthToken();
     }
 
     static clearToken() {
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('auth_token');
-            console.log('✅ Auth token cleared');
+            localStorage.removeItem('user');
+            console.log('✅ Lokale Auth-Daten gelöscht');
         }
     }
 
     static isAuthenticated() {
+        // Primär: localStorage-Check (Legacy)
+        // In Zukunft: /api/auth/me als Quelle der Wahrheit
         return !!this.getToken();
     }
 }
