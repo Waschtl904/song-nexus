@@ -88,8 +88,8 @@
     .summary-stat-value { font-family: var(--font-display); font-size: var(--text-lg); color: var(--color-primary); font-weight: 700; text-shadow: 0 0 8px var(--color-primary-glow); }
     .summary-stat-label { font-size: var(--text-xs); color: var(--color-text-faint); text-transform: uppercase; letter-spacing: .08em; }
 
-    /* Download-Button */
-    .btn-download {
+    /* Action-Buttons (Play / Download) */
+    .btn-action {
       display: inline-flex;
       align-items: center;
       gap: .35rem;
@@ -102,10 +102,15 @@
       border: 1px solid rgba(0,255,204,.25);
       border-radius: 4px;
       cursor: pointer;
-      transition: background .16s, border-color .16s;
+      transition: background .16s, border-color .16s, opacity .16s;
       text-transform: uppercase;
+      font-family: var(--font-body);
     }
-    .btn-download:hover { background: rgba(0,255,204,.08); border-color: var(--color-primary); }
+    .btn-action:hover { background: rgba(0,255,204,.08); border-color: var(--color-primary); }
+    .btn-action:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-action + .btn-action { margin-left: .4rem; }
+    .btn-action.btn-dl { color: var(--color-secondary, #cc00ff); border-color: rgba(204,0,255,.25); }
+    .btn-action.btn-dl:hover { background: rgba(204,0,255,.08); border-color: var(--color-secondary, #cc00ff); }
   </style>
 </head>
 <body>
@@ -236,10 +241,13 @@
                     ${p.status === 'completed' ? 'Bezahlt' : p.status === 'failed' ? 'Fehler' : 'Ausstehend'}
                   </span>
                 </td>
-                <td>
+                <td style="white-space:nowrap;">
                   ${p.status === 'completed' ? `
-                    <button class="btn-download" onclick="playTrack('${p.track_id}')">
+                    <button class="btn-action" onclick="playTrack('${p.track_id}')" title="Track abspielen">
                       ▶ Play
+                    </button>
+                    <button class="btn-action btn-dl" id="dl-${p.track_id}" onclick="downloadTrack('${p.track_id}', this)" title="MP3 herunterladen">
+                      ⬇ Download
                     </button>` : ''}
                 </td>
               </tr>`).join('')}
@@ -253,6 +261,67 @@
         window.AudioPlayer.play(trackId);
       } else {
         window.location.href = `/?play=${trackId}`;
+      }
+    }
+
+    async function downloadTrack(trackId, btn) {
+      if (btn.disabled) return;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ ...';
+
+      try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/payments/download/${trackId}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers,
+        });
+
+        if (res.status === 401) {
+          alert('Bitte melde dich an, um den Track herunterzuladen.');
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+        if (res.status === 403) {
+          alert('Kein Kaufnachweis für diesen Track gefunden.');
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || 'Fehler beim Download. Bitte später erneut versuchen.');
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+
+        const { download_url, track_name } = await res.json();
+
+        // Unsichtbaren <a>-Tag auslösen → Browser startet Download
+        const a = document.createElement('a');
+        a.href = download_url;
+        a.download = (track_name || 'track').replace(/[^a-zA-Z0-9\s\-_.äöüÄÖÜß]/g, '').replace(/\s+/g, '_') + '.mp3';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        btn.textContent = '✓ Geladen';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 3000);
+
+      } catch (err) {
+        console.error('Download error:', err);
+        alert('Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.');
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     }
 

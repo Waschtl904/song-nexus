@@ -312,6 +312,121 @@ router.get('/stats', verifyToken, async (req, res) => {
   }
 });
 
+// ============================================================================
+// ⬇️  GET /api/payments/download/:trackId - Sicherer Datei-Download
+// ============================================================================
+// Nur für eingeloggte User, die den Track gekauft haben.
+// Generiert einen temporären signierten Token (10 Min) und leitet weiter.
+
+const crypto = require('crypto');
+
+// Einfacher In-Memory Token Store (reicht für Single-Server; für Multi-Server → Redis)
+const downloadTokens = new Map();
+
+// Aufräumen: abgelaufene Tokens alle 5 Minuten entfernen
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of downloadTokens.entries()) {
+    if (data.expiresAt < now) downloadTokens.delete(token);
+  }
+}, 5 * 60 * 1000);
+
+router.get('/download/:trackId', verifyToken, async (req, res) => {
+  const trackId = parseInt(req.params.trackId);
+  const userId  = req.user.id;
+
+  if (isNaN(trackId)) return res.status(400).json({ error: 'Ungültige Track-ID' });
+
+  try {
+    // 1️⃣ Kaufprüfung
+    const purchaseResult = await pool.query(
+      `SELECT p.id, t.audio_filename, t.name, t.artist
+       FROM purchases p
+       JOIN tracks t ON t.id = p.track_id
+       WHERE p.user_id = $1 AND p.track_id = $2
+       LIMIT 1`,
+      [userId, trackId]
+    );
+
+    if (purchaseResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Kein Kaufnachweis für diesen Track' });
+    }
+
+    const { audio_filename, name, artist } = purchaseResult.rows[0];
+
+    // 2️⃣ Signierten Einmal-Token generieren (gültig 10 Minuten)
+    const token = crypto.randomBytes(32).toString('hex');
+    downloadTokens.set(token, {
+      userId,
+      trackId,
+      audio_filename,
+      trackName: `${artist} - ${name}`,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    console.log(`⬇️  Download-Token erstellt: User ${userId} → Track ${trackId} (${audio_filename})`);
+
+    res.json({
+      download_url: `/api/payments/download-file/${token}`,
+      expires_in:   600,
+      track_name:   `${artist} - ${name}`,
+    });
+  } catch (err) {
+    console.error('❌ Download token error:', err);
+    res.status(500).json({ error: 'Serverfehler beim Download' });
+  }
+});
+
+// ============================================================================
+// ⬇️  GET /api/payments/download-file/:token - Dateiauslieferung via Token
+// ============================================================================
+// Kein Auth-Header nötig — Token ist der Beweis. Einmalig verwendbar.
+
+const path_mod = require('path');
+const fs_mod   = require('fs');
+
+router.get('/download-file/:token', async (req, res) => {
+  const { token } = req.params;
+  const tokenData = downloadTokens.get(token);
+
+  if (!tokenData) {
+    return res.status(403).send('Download-Link ungültig oder abgelaufen.');
+  }
+
+  if (tokenData.expiresAt < Date.now()) {
+    downloadTokens.delete(token);
+    return res.status(403).send('Download-Link abgelaufen. Bitte neu anfordern.');
+  }
+
+  // Token sofort löschen — Einmalverwendung
+  downloadTokens.delete(token);
+
+  const filepath = path_mod.join(__dirname, '../public/audio', tokenData.audio_filename);
+
+  if (!fs_mod.existsSync(filepath)) {
+    console.error(`❌ Audiodatei nicht gefunden: ${filepath}`);
+    return res.status(404).send('Audiodatei nicht gefunden.');
+  }
+
+  // Sicherer Dateiname für den Browser
+  const safeFilename = tokenData.trackName
+    .replace(/[^a-zA-Z0-9\s\-_.äöüÄÖÜß]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 100) + '.mp3';
+
+  const stat = fs_mod.statSync(filepath);
+
+  console.log(`⬇️  Download: "${safeFilename}" für User ${tokenData.userId}`);
+
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Length', stat.size);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  fs_mod.createReadStream(filepath).pipe(res);
+});
+
 module.exports = router;
 
 // ============================================================================
