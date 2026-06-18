@@ -243,10 +243,10 @@
                 </td>
                 <td style="white-space:nowrap;">
                   ${p.status === 'completed' ? `
-                    <button class="btn-action" onclick="playTrack('${p.track_id}')" title="Track abspielen">
+                    <button class="btn-action" data-action="play" data-track-id="${p.track_id}" title="Track abspielen">
                       ▶ Play
                     </button>
-                    <button class="btn-action btn-dl" id="dl-${p.track_id}" onclick="downloadTrack('${p.track_id}', this)" title="MP3 herunterladen">
+                    <button class="btn-action btn-dl" id="dl-${p.track_id}" data-action="download" data-track-id="${p.track_id}" title="MP3 herunterladen">
                       ⬇ Download
                     </button>` : ''}
                 </td>
@@ -341,6 +341,17 @@
           </div>`;
       }
     }
+
+    // Event-Delegation für Play/Download-Buttons (kein onclick= nötig)
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const trackId = btn.dataset.trackId;
+      if (!trackId) return;
+      if (action === 'play') playTrack(trackId);
+      if (action === 'download') downloadTrack(trackId, btn);
+    });
 
     // Auth-Status abwarten, dann Käufe laden
     function initPage() {

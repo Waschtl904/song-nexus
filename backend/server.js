@@ -133,7 +133,7 @@ app.use((req, res, next) => {
     next();
 });
 
-const getCSPDirectives = () => {
+const getCSPDirectives = (nonce) => {
     const connectSrc = [
         "'self'",
         "https://localhost:*",
@@ -143,7 +143,9 @@ const getCSPDirectives = () => {
         "wss://localhost:*",
         "ws://localhost:*",
         "https://api.paypal.com",
-        "https://api.sandbox.paypal.com"
+        "https://api.sandbox.paypal.com",
+        "https://www.paypal.com",
+        "https://www.sandbox.paypal.com",
     ];
 
     if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
@@ -152,32 +154,65 @@ const getCSPDirectives = () => {
         console.log(`✅ Added ngrok to CSP connectSrc: ${ngrokOrigin}`);
     }
 
+    // In Produktion: echte Domain aus Umgebungsvariable
+    if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
+        connectSrc.push(process.env.FRONTEND_URL);
+    }
+
     return {
-        defaultSrc: ["'self'", "https:", "http:"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        // defaultSrc bewusst eng: nur 'self', kein wildes https:/http:
+        defaultSrc: ["'self'"],
+        // Scripts: Nonce für inline <script>-Blöcke + 'self' für gebündelte Dateien
+        // 'unsafe-inline' wird von Browsern ignoriert wenn nonce present → sicher
+        scriptSrc: ["'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
+        // scriptSrcAttr (onclick= etc.) komplett verbieten — kein inline Event-Handler nötig
+        scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        mediaSrc: ["'self'", "https://localhost:*", "http://localhost:*"],
-        imgSrc: ["'self'", "data:", "https:", "http:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        mediaSrc: ["'self'", "https://localhost:*", "http://localhost:*", "blob:"],
+        imgSrc: ["'self'", "data:", "https:"],
         connectSrc: connectSrc,
+        // Framing komplett verbieten — verhindert Clickjacking
         frameSrc: ["'none'"],
+        frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
+        // Upgrade insecure requests in Produktion
+        ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: [] } : {}),
     };
 };
 
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: getCSPDirectives(),
-        reportUri: ['/api/csp-report'],
-    },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
-    noSniff: true,
-    xssFilter: true,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    hidePoweredBy: true,
-}));
+app.use((req, res, next) => {
+    // Nonce pro Request generieren (bereits oben als res.locals.nonce gesetzt)
+    helmet({
+        contentSecurityPolicy: {
+            directives: getCSPDirectives(res.locals.nonce),
+            reportOnly: false,
+        },
+        // Clickjacking-Schutz: verhindert Einbettung in fremde iframes
+        frameguard: { action: 'deny' },
+        hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+        noSniff: true,
+        // xssFilter ist deprecated in modernen Browsern, CSP reicht
+        xssFilter: false,
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+        hidePoweredBy: true,
+        // Verhindert MIME-Type-Sniffing bei Audio/Downloads
+        crossOriginResourcePolicy: { policy: 'same-site' },
+        crossOriginOpenerPolicy: { policy: 'same-origin' },
+        // Permissions Policy: Kamera/Mikro/Geolocation sperren
+        permittedCrossDomainPolicies: false,
+    })(req, res, next);
+});
+
+// Permissions-Policy Header manuell setzen (Helmet deckt das nicht vollständig ab)
+app.use((req, res, next) => {
+    res.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=(self), usb=(), bluetooth=()'
+    );
+    next();
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
