@@ -80,7 +80,7 @@
 </head>
 
 <body>
-    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+    <button class="theme-toggle" data-action="toggle-theme" title="Toggle Theme">🌙</button>
 
     <div class="container">
         <div class="cancel-container">
@@ -104,10 +104,10 @@
             </p>
 
             <div class="button-group">
-                <button class="button" onclick="goBack()" id="backBtn">
+                <button class="button" data-action="go-back" id="backBtn">
                     ⬅️ Go Back
                 </button>
-                <button class="button button-secondary" onclick="goHome()" id="homeBtn">
+                <button class="button button-secondary" data-action="go-home" id="homeBtn">
                     🏠 Back to Home
                 </button>
             </div>
@@ -239,6 +239,16 @@
                 disableNavButtons();
             }
         });
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        switch (btn.dataset.action) {
+            case 'toggle-theme': toggleTheme(); break;
+            case 'go-back':      goBack();      break;
+            case 'go-home':      goHome();      break;
+        }
+    });
     </script>
 </body>
 

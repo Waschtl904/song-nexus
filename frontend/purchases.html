@@ -186,7 +186,7 @@
       container.innerHTML = `
         <div class="login-prompt">
           <p>Bitte melde dich an, um deine Kaufhistorie zu sehen.</p>
-          <button class="button" onclick="document.getElementById('authButton').click()">
+          <button class="button" data-action="open-auth">
             Jetzt anmelden
           </button>
         </div>`;
@@ -351,6 +351,7 @@
       if (!trackId) return;
       if (action === 'play') playTrack(trackId);
       if (action === 'download') downloadTrack(trackId, btn);
+      if (action === 'open-auth') document.getElementById('authButton')?.click();
     });
 
     // Auth-Status abwarten, dann Käufe laden

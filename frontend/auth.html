@@ -200,17 +200,17 @@
                 <input type="password" id="password" placeholder="••••••••" required>
             </div>
 
-            <button onclick="handleLogin()">Login</button>
+            <button data-action="login">Login</button>
 
             <div class="divider">oder</div>
 
-            <button onclick="handleWebAuthn()" class="webauthn-button">
+            <button data-action="webauthn" class="webauthn-button">
                 🔐 WebAuthn / Biometrie
             </button>
 
             <div class="toggle-auth">
                 Kein Konto?
-                <button onclick="toggleForm('register')">Jetzt registrieren</button>
+                <button data-action="show-register">Jetzt registrieren</button>
             </div>
         </div>
 
@@ -236,11 +236,11 @@
                 <input type="password" id="regPasswordConfirm" placeholder="••••••••" required>
             </div>
 
-            <button onclick="handleRegister()">Registrieren</button>
+            <button data-action="register">Registrieren</button>
 
             <div class="toggle-auth">
                 Du hast bereits ein Konto?
-                <button onclick="toggleForm('login')">Zum Login</button>
+                <button data-action="show-login">Zum Login</button>
             </div>
         </div>
 
@@ -365,6 +365,19 @@
         }
 
         // Check if already logged in
+        // Event-Delegation — ersetzt alle onclick= Attribute
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            switch (btn.dataset.action) {
+                case 'login':         handleLogin();           break;
+                case 'webauthn':      handleWebAuthn();        break;
+                case 'register':      handleRegister();        break;
+                case 'show-register': toggleForm('register');  break;
+                case 'show-login':    toggleForm('login');     break;
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('auth_token');
             if (token) {
