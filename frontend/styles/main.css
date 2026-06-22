@@ -245,10 +245,11 @@ header {
   top: 0;
   z-index: 100;
   height: var(--header-height);
-  background: rgba(2, 5, 12, 0.80);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
+  /* Fast transparent — Hintergrundbild scheint durch wie im alten Design */
+  background: rgba(2, 5, 12, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0, 255, 204, 0.08);
 }
 
 .header-content {
@@ -528,24 +529,24 @@ header {
 
 /* Track-Karte — Glasoptik: transparent im Normalzustand, blur beim Hover */
 .track-card {
-  background: rgba(0, 255, 204, 0.03);   /* fast unsichtbar */
-  border: 1px solid rgba(0, 255, 204, 0.15);
+  /* Alt: dunkle, matter Karte — wirkt schwerer und seriöser */
+  background: rgba(4, 8, 20, 0.72);
+  border: 1px solid rgba(0, 255, 204, 0.08);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  backdrop-filter: blur(0px);             /* kein Blur im Normalzustand */
-  -webkit-backdrop-filter: blur(0px);
+  /* Blur schon im Normalzustand — wie im alten Design */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition:
     background var(--transition),
     border-color var(--transition),
     box-shadow var(--transition),
-    transform var(--transition),
-    backdrop-filter 200ms ease;
+    transform var(--transition);
   position: relative;
   overflow: hidden;
-  /* Einheitliche Höhe: alle Cards gleich hoch, Button immer unten */
   height: 100%;
 }
 
@@ -579,12 +580,10 @@ header {
 }
 
 .track-card:hover {
-  background: rgba(5, 12, 28, 0.72);      /* eintrüben */
-  border-color: var(--color-primary);
-  box-shadow: 0 0 18px var(--color-primary-glow), 0 4px 24px rgba(0,0,0,0.55);
+  background: rgba(4, 12, 28, 0.88);
+  border-color: rgba(0, 255, 204, 0.35);
+  box-shadow: 0 0 18px var(--color-primary-glow), 0 4px 24px rgba(0,0,0,0.65);
   transform: translateY(-2px);
-  backdrop-filter: blur(14px);            /* Blur aktivieren */
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .track-card:hover::before {

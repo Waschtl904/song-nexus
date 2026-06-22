@@ -160,20 +160,17 @@ export class TracksLoader {
             <div class="track-header">
               <div class="track-info">
                 <h3 class="track-title">${this.escapeHtml(track.name || track.title)}</h3>
-                <p class="track-artist">${this.escapeHtml(track.artist || 'Unknown')}</p>
+                ${track.artist && track.artist !== 'Unknown' && track.artist !== 'New' ? `<p class="track-artist">${this.escapeHtml(track.artist)}</p>` : ''}
                 <div class="track-meta">
-                  <span class="track-duration">⏱️ ${duration}</span>
-                  <span class="track-genre">${this.escapeHtml(track.genre || 'Other')}</span>
+                  <span class="track-duration">${duration}</span>
+                  <span class="track-genre">${this.escapeHtml(track.genre || '')}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Price & Badge -->
+            <!-- Price & Status -->
             <div class="track-footer">
-              <span class="track-price">${priceDisplay}</span>
-              <span class="track-badge ${badgeClass}">
-                ${track.is_free ? '🎵 FREE' : '💰 PAID'}
-              </span>
+              <span class="track-price ${track.is_free ? 'free' : ''}">${priceDisplay}</span>
             </div>
 
             <!-- Play Button -->
