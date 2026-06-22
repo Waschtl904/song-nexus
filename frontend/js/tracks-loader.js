@@ -160,7 +160,7 @@ export class TracksLoader {
             <div class="track-header">
               <div class="track-info">
                 <h3 class="track-title">${this.escapeHtml(track.name || track.title)}</h3>
-                ${track.artist && track.artist !== 'Unknown' && track.artist !== 'New' ? `<p class="track-artist">${this.escapeHtml(track.artist)}</p>` : ''}
+                ${track.artist && !['Unknown', 'New', 'comp', 'unknown', 'new'].includes(track.artist.trim()) ? `<p class="track-artist">${this.escapeHtml(track.artist)}</p>` : ''}
                 <div class="track-meta">
                   <span class="track-duration">${duration}</span>
                   <span class="track-genre">${this.escapeHtml(track.genre || '')}</span>
