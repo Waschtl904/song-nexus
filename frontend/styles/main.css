@@ -545,6 +545,25 @@ header {
     backdrop-filter 200ms ease;
   position: relative;
   overflow: hidden;
+  /* Einheitliche Höhe: alle Cards gleich hoch, Button immer unten */
+  height: 100%;
+}
+
+.track-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Track-Footer + Play-Button immer am unteren Rand */
+.track-footer {
+  margin-top: auto;
+}
+
+/* Play-Button immer auf gleicher Linie */
+.button-metal-play {
+  display: block;
+  margin: 12px auto 0 !important;
 }
 
 /* Glasschicht — unsichtbar im Normalzustand */

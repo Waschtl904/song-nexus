@@ -209,7 +209,6 @@ export class TracksLoader {
                     playBtn.style.height = `${height}px`;
                     playBtn.style.backgroundSize = 'cover';
                     playBtn.style.backgroundRepeat = 'no-repeat';
-                    // FIX: Use background-position to crop transparent edges
                     playBtn.style.backgroundPosition = 'center 20%';
                     playBtn.style.backgroundColor = 'transparent';
                     playBtn.style.border = 'none';
@@ -218,6 +217,22 @@ export class TracksLoader {
                     playBtn.style.display = 'block';
                     playBtn.style.margin = '8px auto 0';
                     playBtn.style.overflow = 'hidden';
+
+                    // Individuelle Abnutzung per Track-ID (deterministisch)
+                    // Jeder Track bekommt immer dieselbe Variation, aber anders als andere
+                    const id = track.id || 0;
+                    const variations = [
+                        // hue-rotate, brightness, contrast, saturate, sepia
+                        'brightness(0.88) contrast(1.12) saturate(0.80) sepia(0.10)',  // leicht verblasst
+                        'brightness(1.05) contrast(0.95) saturate(1.15) hue-rotate(5deg)',  // frisch
+                        'brightness(0.82) contrast(1.20) saturate(0.65) sepia(0.22)',  // stark verrostet
+                        'brightness(0.95) contrast(1.08) saturate(0.90) hue-rotate(-8deg)',  // kühl
+                        'brightness(1.10) contrast(0.90) saturate(1.25) sepia(0.05)',  // poliert
+                        'brightness(0.78) contrast(1.25) saturate(0.55) sepia(0.35)',  // alt & abgenutzt
+                        'brightness(0.92) contrast(1.05) saturate(1.05) hue-rotate(12deg)',  // warm
+                        'brightness(1.02) contrast(1.15) saturate(0.75) sepia(0.15)',  // patina
+                    ];
+                    playBtn.style.filter = variations[id % variations.length];
 
                     console.log(`🎬 Play button styled: ${imageUrl} (${width}x${height}) with background-position adjustment`);
 
