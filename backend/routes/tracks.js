@@ -164,11 +164,21 @@ router.get('/audio/:filename', async (req, res) => {
       console.log('✅ FREE TRACK - Full access for everyone');
     } else {
       // 🔐 PREMIUM TRACK: Check token & purchase
+      // Token aus der Kopfzeile ODER dem Cookie.
+      //
+      // Das Cookie ist hier nicht optional: Der Player laedt ueber ein
+      // <audio src="...">-Element, und ein solcher Abruf kann keine
+      // Authorization-Kopfzeile mitschicken. Ohne diesen Rueckfall bekaeme
+      // ein Kaeufer dauerhaft nur die Vorschau seines eigenen Songs.
       const authHeader = req.headers.authorization || '';
-      console.log(`🔑 Auth header present: ${!!authHeader}`);
+      const cookieToken = req.cookies?.auth_token || '';
+      const token = authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7)
+        : cookieToken;
 
-      if (authHeader.startsWith('Bearer ')) {
-        const token = authHeader.slice(7);
+      console.log(`🔑 Token vorhanden: ${!!token} (${authHeader ? 'Kopfzeile' : cookieToken ? 'Cookie' : 'keines'})`);
+
+      if (token) {
         console.log(`🔑 Token present: ${token.substring(0, 20)}...`);
 
         try {
@@ -193,7 +203,7 @@ router.get('/audio/:filename', async (req, res) => {
           console.warn('⚠️ Token verification failed:', e.message);
         }
       } else {
-        console.log('❌ No token provided - 40s preview only');
+        console.log('❌ Kein Token (weder Kopfzeile noch Cookie) - nur 40s Vorschau');
       }
     }
 

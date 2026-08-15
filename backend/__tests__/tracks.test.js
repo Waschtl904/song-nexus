@@ -336,6 +336,51 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(parseInt(match[1])).toBeLessThan(4_999_999);
   });
 
+  // -------------------------------------------------------------------------
+  // Cookie statt Kopfzeile
+  // -------------------------------------------------------------------------
+  // Der Player laedt ueber <audio src="...">. Ein solcher Abruf kann keine
+  // Authorization-Kopfzeile mitschicken, nur das Cookie. Ohne diesen Weg
+  // bekaeme ein Kaeufer dauerhaft nur die Vorschau seines eigenen Songs.
+  test('SECURITY: Premium-Track mit Kauf, Token NUR im Cookie -> volle Datei (200)', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [premiumTrack] })
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });   // Kauf gefunden
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Cookie', `auth_token=${userToken}`);
+    expect(res.statusCode).toBe(200);
+  });
+
+  test('SECURITY: Cookie ohne Kauf -> nur Vorschau (206)', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [premiumTrack] })
+      .mockResolvedValueOnce({ rows: [] });             // kein Kauf
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Cookie', `auth_token=${userToken}`);
+    expect(res.statusCode).toBe(206);
+  });
+
+  test('SECURITY: unbrauchbares Cookie -> wie kein Token (Vorschau, 206)', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Cookie', 'auth_token=voelliger.unsinn.hier');
+    expect(res.statusCode).toBe(206);
+  });
+
+  test('SECURITY: Kopfzeile hat Vorrang, bleibt aber gleichwertig geprueft', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [premiumTrack] })
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Authorization', `Bearer ${userToken}`)
+      .set('Cookie', 'auth_token=voelliger.unsinn.hier');
+    expect(res.statusCode).toBe(200);
+  });
+
   test('400 - leerer Filename nach Sanitisierung', async () => {
     const res = await request(app).get('/api/tracks/audio/%20');
     expect(res.statusCode).toBe(400);

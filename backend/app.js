@@ -16,6 +16,7 @@ const compression = require('compression');
 const path = require('path');
 const crypto = require('crypto');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
@@ -33,6 +34,20 @@ app.use(helmet({
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// cookie-parser: war bisher nur in server.js eingebunden.
+//
+// Damit war req.cookies in Tests immer undefined, und jede Pruefung, die auf
+// dem Cookie beruht, konnte nicht getestet werden - etwa der Zugriff auf
+// gekaufte Audiodateien, der ueber <audio src="..."> nur das Cookie
+// mitschicken kann.
+//
+// Allgemeiner: app.js hat 88 Zeilen, server.js ueber 900. Was nur in
+// server.js steht, laeuft im Betrieb, wird aber von keinem Test beruehrt.
+// Genau in dieser Luecke lag die offene statische Auslieferung von
+// /public/audio, die den Kaufschutz umging - bei gruenen Tests.
+app.use(cookieParser());
+
 app.use(compression());
 
 // CORS (offen im Test-Modus)
