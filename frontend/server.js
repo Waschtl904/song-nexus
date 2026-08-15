@@ -21,7 +21,13 @@ const app = express();
 // ===== HTTPS CERTIFICATE SETUP =====
 let httpsOptions = null;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const USE_HTTPS = process.env.USE_HTTPS === 'true' || true;
+// USE_HTTPS war vorher: process.env.USE_HTTPS === 'true' || true
+// Durch das "|| true" war der Ausdruck IMMER true - die Umgebungsvariable
+// hatte keinerlei Wirkung. .env.production.example setzt USE_HTTPS=false,
+// weil hinter nginx TLS von nginx terminiert wird; das wurde ignoriert.
+// Jetzt: standardmaessig HTTPS (lokale Entwicklung unveraendert), aber
+// mit USE_HTTPS=false abschaltbar.
+const USE_HTTPS = process.env.USE_HTTPS !== 'false';
 const PORT = process.env.PORT || 5500;
 const HOST = process.env.HOST || 'localhost';
 const BACKEND_URL = process.env.BACKEND_URL || 'https://localhost:3000';
@@ -65,12 +71,16 @@ if (!httpsOptions && fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSigne
     }
 }
 
-// No certificates found - CRITICAL ERROR
-if (!httpsOptions) {
+// Zertifikate sind nur noetig, wenn HTTPS tatsaechlich verwendet wird.
+// Vorher brach der Server hier immer ab, auch wenn er - wie hinter nginx -
+// nur einfaches HTTP auf localhost sprechen soll. Auf dem VPS gibt es keine
+// mkcert-Zertifikate, der Start waere also mit exit(1) gescheitert.
+if (USE_HTTPS && !httpsOptions) {
     console.error('\n❌ CRITICAL ERROR: HTTPS Certificates not found!');
     console.error('\n📍 Checked paths:');
     console.error(`   1. ${mkcertCertPath}`);
     console.error(`   2. ${selfSignedCertPath}`);
+    console.error('\n💡 Hinter einem Reverse Proxy wie nginx: USE_HTTPS=false setzen.');
     process.exit(1);
 }
 
@@ -389,15 +399,26 @@ app.use((err, req, res, next) => {
     res.status(err.status || 500).json(errorResponse);
 });
 
-// ===== START HTTPS SERVER =====
+// ===== START SERVER (HTTPS oder HTTP) =====
 try {
-    const server = https.createServer(httpsOptions, app);
+    const protokoll = USE_HTTPS ? 'https' : 'http';
+    const server = USE_HTTPS
+        ? https.createServer(httpsOptions, app)
+        : http.createServer(app);
+
+    if (!USE_HTTPS) {
+        console.log('');
+        console.log('ℹ️  HTTP-Modus (USE_HTTPS=false).');
+        console.log('   Vorgesehen fuer den Betrieb hinter einem Reverse Proxy,');
+        console.log('   der TLS terminiert. Niemals direkt aus dem Internet erreichbar machen.');
+    }
+
     server.listen(PORT, HOST, () => {
         console.log('');
         console.log('╔═══════════════════════════════════════════════════════╗');
         console.log('║ 🎵 SONG-NEXUS FRONTEND - HTTPS SERVER v2.0            ║');
         console.log('╠═══════════════════════════════════════════════════════╣');
-        console.log(`║ 🔐 URL: https://${HOST}:${PORT}${' '.repeat(18 - String(PORT).length)}║`);
+        console.log(`║ 🔐 URL: ${protokoll}://${HOST}:${PORT}${' '.repeat(18 - String(PORT).length)}║`);
         console.log('║ ✅ HTTPS Enabled (mkcert)                             ║');
         console.log(`║ 📁 Static: ${path.basename(__dirname)}${' '.repeat(42 - path.basename(__dirname).length)}║`);
         console.log(`║ 🔗 API Proxy: /api → ${BACKEND_URL}${' '.repeat(30 - BACKEND_URL.length)}║`);

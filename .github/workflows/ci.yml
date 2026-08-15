@@ -70,11 +70,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Abhängigkeiten installieren
         working-directory: frontend
-        # Kein npm ci: frontend/package-lock.json ist nicht versioniert.
-        run: npm install --no-audit --no-fund
+        # frontend/package-lock.json ist seit diesem PR versioniert,
+        # daher npm ci für reproduzierbare Installationen.
+        run: npm ci
 
       - name: Production-Build
         working-directory: frontend
