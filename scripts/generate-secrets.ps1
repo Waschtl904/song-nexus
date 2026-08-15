@@ -105,6 +105,24 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 
 Write-Host ""
 Write-Host "Geschrieben nach: $Ausgabedatei" -ForegroundColor Green
+
+# Sicherheitsnetz: pruefen, dass die Datei wirklich von .gitignore erfasst ist.
+# Beim ersten Anlauf war sie es NICHT - das Muster *-secrets.txt greift bei
+# "secrets-neu.txt" nicht, und die Datei mit den Live-Secrets lag ungeschuetzt
+# im Arbeitsverzeichnis. Ein "git add ." haette sie mitgenommen.
+try {
+    $null = git check-ignore -- $Ausgabedatei 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "!!! WARNUNG !!!" -ForegroundColor Red
+        Write-Host "$Ausgabedatei wird von .gitignore NICHT erfasst." -ForegroundColor Red
+        Write-Host "Datei sofort loeschen oder .gitignore ergaenzen, bevor du committest." -ForegroundColor Red
+    } else {
+        Write-Host "Von .gitignore erfasst - kein Commit-Risiko." -ForegroundColor DarkGray
+    }
+} catch {
+    Write-Host "Hinweis: git nicht verfuegbar, .gitignore-Pruefung uebersprungen." -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "Naechste Schritte:" -ForegroundColor Cyan
 Write-Host "  1. Werte nach .env.production uebertragen (bzw. auf dem VPS)"
