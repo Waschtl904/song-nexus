@@ -130,7 +130,19 @@ export function getAudioUrl(trackId) {
     }
     // ✅ FIXED: trackId already contains .mp3 extension!
     // Don't add .mp3 again!
-    return `${API_BASE_URL.replace('/api', '')}/public/audio/${trackId}`;
+    // Geschuetzte Route, NICHT /public/audio.
+    //
+    // /public/audio war eine statische Auslieferung ohne jede Pruefung: ein
+    // Aufruf ohne Anmeldung lieferte die vollstaendige Datei eines
+    // Premium-Tracks, MD5-identisch mit dem Original. Da /api/tracks den
+    // Dateinamen oeffentlich herausgibt, genuegte die Trackliste, um jeden
+    // Kauf zu umgehen.
+    //
+    // /api/tracks/audio/:filename prueft is_free, Token und Kauf und liefert
+    // sonst nur die 40-Sekunden-Vorschau. Genau diese Route ist auch die,
+    // fuer die es Tests gibt - der Player benutzte sie bisher nicht, weshalb
+    // die gruenen SECURITY-Tests eine Sicherheit vorgaben, die es nicht gab.
+    return `${API_BASE_URL}/tracks/audio/${trackId}`;
 }
 
 // ============================================================================

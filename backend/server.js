@@ -799,26 +799,33 @@ app.post('/api/csp-report', (req, res) => {
 console.log('✅ All API routes registered');
 
 // ============================================================================
-// 🎵 STATIC AUDIO DIRECTORY
+// 🎵 AUDIODATEIEN — bewusst KEINE statische Auslieferung mehr
 // ============================================================================
-
-app.use('/public/audio', (req, res, next) => {
-    // Ohne FRONTEND_URL keinen Entwicklungs-Ursprung erlauben: Audiodateien
-    // werden gleichursprünglich ausgeliefert, ein falscher Wert hier hilft
-    // niemandem und verschleiert eine fehlende Konfiguration.
-    if (process.env.FRONTEND_URL) {
-        res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
-    }
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    next();
-});
-
-app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
-console.log('✅ Static audio directory enabled');
+//
+// Hier stand:
+//     app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
+//
+// Das war eine offene Tür. Am laufenden Server nachgemessen:
+//
+//     GET /api/tracks/audio/premium.mp3   ohne Anmeldung -> 206, 640.601 Byte (Vorschau)
+//     GET /public/audio/premium.mp3       ohne Anmeldung -> 200, 960.931 Byte, vollständig
+//
+// Die zweite Antwort war MD5-identisch mit der Originaldatei. Da
+// GET /api/tracks den Dateinamen öffentlich herausgibt, genügte die
+// Trackliste, um jeden Kauf zu umgehen — ohne Konto, ohne Token.
+//
+// Erschwerend: Der Player benutzte genau diesen ungeschützten Weg. Die
+// Tests für /api/tracks/audio/:filename waren grün und prüften eine Route,
+// die im Betrieb niemand aufrief. Grüne Tests haben hier Sicherheit
+// vorgetäuscht, die es nicht gab.
+//
+// Audiodateien laufen ab jetzt ausschließlich über
+// GET /api/tracks/audio/:filename mit Prüfung von is_free, Token und Kauf.
+// Ein Aufruf von /public/audio/... liefert 404.
+//
+// Falls jemals wieder eine statische Auslieferung gebraucht wird: nur für
+// Dateien, die tatsächlich für alle frei sind, und in einem eigenen
+// Verzeichnis — nicht in demselben, in dem die Premium-Dateien liegen.
 
 // ============================================================================
 // 📄 SERVE STATIC FRONTEND FILES

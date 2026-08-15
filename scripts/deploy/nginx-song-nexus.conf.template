@@ -87,12 +87,23 @@ server {
         proxy_read_timeout 60s;
     }
 
-    # Audio-Auslieferung: Streaming, daher ohne Zwischenpuffer
-    location /public/audio/ {
+    # Audio-Auslieferung laeuft ueber /api/tracks/audio/ und braucht
+    # eigene Einstellungen: kein Zwischenpuffer, damit der Player sofort
+    # Ton bekommt, und ein hoher Zeitgrenzwert fuer lange Dateien.
+    #
+    # Die Reihenfolge in der Datei spielt hier keine Rolle: bei Prefix-Regeln
+    # waehlt nginx die LAENGSTE Uebereinstimmung, also diese und nicht
+    # location /api/. Nur bei regulaeren Ausdruecken zaehlt die Reihenfolge.
+    #
+    # Die frueher hier stehende Weiterleitung fuer /public/audio/ ist
+    # entfallen: das Backend liefert Audiodateien nicht mehr statisch aus,
+    # weil dieser Weg den Kaufschutz vollstaendig umging.
+    location /api/tracks/audio/ {
         proxy_pass         http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
         proxy_buffering    off;
