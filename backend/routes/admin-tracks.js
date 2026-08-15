@@ -146,15 +146,37 @@ router.post(
             const isFreeBool = is_free === 'true' || is_free === true;
             console.log('✅ is_free parsed:', isFreeBool);
 
-            // ✅ Price handling: Free tracks = 0.00, otherwise use provided price
+            // Preisbehandlung.
+            //
+            // Vorher lautete die Bedingung `if (!isFreeBool && price_eur)`.
+            // Fehlte price_eur im Formular, blieb priceNum bei 0.00 — ohne
+            // jede Fehlermeldung. Ergebnis: ein Track mit is_free = false und
+            // price_eur = 0.00. Der ist weder anhoerbar (nur 40 Sekunden
+            // Vorschau) noch kaufbar (kein Preis). Er steht im Katalog und
+            // fuehrt ins Leere.
+            //
+            // Genau so ist Track 24 "keepers" in der Entwicklungsdatenbank
+            // entstanden.
+            //
+            // Ein Track ist entweder gratis oder er hat einen Preis. Etwas
+            // dazwischen gibt es nicht.
             let priceNum = 0.00;
-            if (!isFreeBool && price_eur) {
+            if (!isFreeBool) {
                 priceNum = parseFloat(price_eur);
-                if (isNaN(priceNum) || priceNum < 0) {
+                if (!Number.isFinite(priceNum) || priceNum <= 0) {
                     await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
                     return res.status(400).json({
                         success: false,
-                        error: 'price_eur muss eine positive Zahl sein!'
+                        error: 'Ein Track, der nicht gratis ist, braucht einen Preis groesser als 0. Entweder is_free setzen oder price_eur angeben.',
+                        code: 'PRICE_REQUIRED'
+                    });
+                }
+                if (priceNum > 100) {
+                    await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
+                    return res.status(400).json({
+                        success: false,
+                        error: 'price_eur darf hoechstens 100 betragen.',
+                        code: 'PRICE_TOO_HIGH'
                     });
                 }
             }
@@ -414,8 +436,19 @@ router.put(
                 values.push(artist);
             }
             if (price_eur !== undefined) {
+                // Vorher wanderte parseFloat ungeprueft in die Abfrage. Ein
+                // Textwert wurde damit zu NaN und loeste einen
+                // Datenbankfehler aus statt einer verstaendlichen Antwort.
+                const neuerPreis = parseFloat(price_eur);
+                if (!Number.isFinite(neuerPreis) || neuerPreis < 0 || neuerPreis > 100) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'price_eur muss eine Zahl zwischen 0 und 100 sein.',
+                        code: 'PRICE_INVALID'
+                    });
+                }
                 updates.push(`price_eur = $${paramIndex++}`);
-                values.push(parseFloat(price_eur));
+                values.push(neuerPreis);
             }
             if (genre !== undefined) {
                 updates.push(`genre = $${paramIndex++}`);
