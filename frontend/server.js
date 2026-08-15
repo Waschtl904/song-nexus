@@ -328,18 +328,54 @@ app.use(express.static(path.join(__dirname), {
 
 console.log('📁 Static files directory:', path.join(__dirname));
 
-// ===== FALLBACK TO index.html (SPA SUPPORT) - MUST BE LAST! =====
+// ============================================================================
+// FALLBACK - MUST BE LAST! (Issue #10)
+// ============================================================================
+//
+// Vorher lieferte diese Route für JEDEN unbekannten Pfad index.html mit
+// Status 200 aus. Das ist ein sogenannter Soft-404 und schlechter als ein
+// echter Fehler:
+//
+//   - Ein toter Link fällt niemandem auf, weil scheinbar etwas funktioniert.
+//     Genau so blieb der Footer-Link /docs/ monatelang unbemerkt.
+//   - Suchmaschinen indexieren beliebig viele Adressen mit identischem
+//     Inhalt als Duplicate Content.
+//   - Ein Tippfehler in einem Rechtslink, etwa /datenschutzz.html, sieht wie
+//     eine funktionierende Seite aus, obwohl die Pflichtangabe fehlt.
+//
+// SONG-NEXUS ist eine klassische Mehrseiten-Anwendung ohne Client-Router,
+// ein SPA-Fallback war also von Anfang an nicht nötig.
+//
+// Neues Verhalten:
+//   1. /purchases -> liefert purchases.html   (bequeme URLs ohne Endung)
+//   2. alles übrige -> 404.html mit Status 404
+// ============================================================================
 app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, 'index.html');
-    if (!fs.existsSync(indexPath)) {
-        console.error(`❌ index.html not found at: ${indexPath}`);
-        return res.status(404).json({
-            error: 'index.html not found',
-            path: indexPath
-        });
+    const angefragt = req.path;
+
+    // 1) Bequeme URL ohne .html-Endung auflösen, z. B. /impressum
+    if (/^\/[a-zA-Z0-9_-]+\/?$/.test(angefragt)) {
+        const name = angefragt.replace(/\//g, '');
+        const kandidat = path.join(__dirname, `${name}.html`);
+
+        // path.join plus die Zeichenklasse oben schliessen Traversal aus;
+        // zur Sicherheit trotzdem prüfen, dass wir im Verzeichnis bleiben.
+        if (kandidat.startsWith(__dirname) && fs.existsSync(kandidat)) {
+            console.log(`↗️  ${angefragt} -> ${name}.html`);
+            return res.sendFile(kandidat);
+        }
     }
 
-    res.sendFile(indexPath);
+    // 2) Echter 404
+    console.warn(`❓ 404: ${req.method} ${angefragt}`);
+
+    const notFoundPath = path.join(__dirname, '404.html');
+    if (fs.existsSync(notFoundPath)) {
+        return res.status(404).sendFile(notFoundPath);
+    }
+
+    // Letzter Ausweg, falls 404.html fehlt
+    res.status(404).type('text/plain').send('404 - Seite nicht gefunden');
 });
 
 // ===== ERROR HANDLING =====
