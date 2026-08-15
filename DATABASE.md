@@ -1,5 +1,14 @@
 # Song-Nexus: Datenbankdokumentation
 
+> **Führende Schema-Datei: `schema_clean.sql` (Root).**
+> `schema.sql` im Root ist veraltet und enthält Redundanzen — nicht verwenden.
+> `backend/db/schema.sql` existiert nicht.
+> Migrationstooling fehlt noch (Issue #19); Änderungen liegen als SQL in `migrations/`.
+>
+> Geprüft am 15.08.2026.
+
+
+
 **Letzte Verifikation:** 13. Mai 2026 (Live-DB-Audit via pgAdmin4)  
 **Schema-Version:** v1.1  
 **PostgreSQL:** 18.1  

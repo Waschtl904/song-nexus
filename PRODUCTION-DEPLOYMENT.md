@@ -25,6 +25,33 @@
 
 ---
 
+## ⚠️ Vor dem Start lesen (ergänzt 15.08.2026)
+
+Diese Anleitung stammt aus Februar 2026. Vier Punkte, die damals fehlten und
+beim Deployment sonst Zeit kosten:
+
+1. **`npm run build` im Frontend ist Pflicht.**
+   `frontend/dist/` steht in `.gitignore`, das Bundle wird nie mitgeliefert.
+   Ohne Build lädt `index.html` ein nicht existierendes `dist/app.bundle.js`.
+
+2. **`USE_HTTPS=false` hinter nginx.**
+   nginx terminiert TLS, der Frontend-Server soll einfaches HTTP auf localhost
+   sprechen. Bis PR #35 war diese Variable wirkungslos (`|| true` im Code) und
+   der Server brach ohne Zertifikate mit `exit(1)` ab.
+
+3. **`TRUST_PROXY=true` setzen.**
+   Ohne diese Einstellung sieht Express hinter nginx nur die Proxy-IP. Das
+   Rate-Limiting würde dann alle Besucher als denselben Client behandeln.
+
+4. **`PAYMENTS_ENABLED` nicht setzen.**
+   Der Verkauf ist fail-closed und bleibt aus. Erst einschalten, wenn PayPal
+   live ist (#11), der Webhook steht (#12) und AGB samt Widerrufsbelehrung
+   veröffentlicht sind (#14).
+
+Der detailliertere, neuere Leitfaden ist `docs/DEPLOYMENT-HETZNER.md`.
+
+---
+
 ## ✅ Pre-Deployment Checklist
 
 ### Code Quality
@@ -52,7 +79,7 @@
 
 ### Infrastructure
 - [ ] Server/VPS provisioned (2GB RAM minimum, 20GB storage)
-- [ ] Node.js 18+ installed
+- [ ] Node.js **>= 22** installiert (Pflicht: nodemailer 9 und webpack-dev-server 6)
 - [ ] PostgreSQL 12+ installed and running
 - [ ] Reverse proxy (Nginx/Apache) configured
 - [ ] Firewall rules configured (ports 80, 443 only)
@@ -206,7 +233,8 @@ psql -h localhost -U song_nexus_user -d song_nexus_prod
 # Download schema from repository
 wget https://raw.githubusercontent.com/Waschtl904/song-nexus/main/schema.sql
 
-# Apply schema (ROOT/schema.sql is the single source of truth)
+# Schema einspielen - schema_clean.sql ist die fuehrende Datei!
+# (schema.sql im Root ist VERALTET und enthaelt Redundanzen)
 psql -h your-db-host -U song_nexus_user -d song_nexus_prod -f schema.sql
 
 # Verify tables created

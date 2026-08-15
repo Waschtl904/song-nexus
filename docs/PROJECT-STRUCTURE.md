@@ -26,14 +26,15 @@ SONG-NEXUS/
 │   ├── MASTER-PROMPT-2026-AKTUELL.md          🔴 USE THIS EVERY SESSION!
 │   ├── DATABASE.md                            ✅ Database schema
 │   ├── PRODUCTION-DEPLOYMENT.md               ✅ Deployment guide
-│   ├── schema.sql                             ✅ DATABASE SCHEMA (single source of truth)
+│   ├── schema_clean.sql                       ✅ DATABASE SCHEMA (fuehrend)
+│   ├── schema.sql                             ⚠️ VERALTET, nicht verwenden
 │   ├── LICENSE                                MIT License
 │   └── ...
 │
 ├── 📋 Deprecated Documentation (IGNORE THESE)
-│   ├── MASTER-PROMPT-2026-DEFINITIVE.md       ❌ Old version
-│   ├── MASTER-CONTEXT-PROMPT.md               ❌ Old version
-│   ├── REPOSITORY-STRUCTURE.md                ❌ Use PROJECT-STRUCTURE.md instead
+│   ├── MASTER-PROMPT-2026-DEFINITIVE.md       🗑️ ENTFERNT am 15.08.2026
+│   ├── MASTER-CONTEXT-PROMPT.md               🗑️ ENTFERNT am 15.08.2026
+│   ├── REPOSITORY-STRUCTURE.md                🗑️ ENTFERNT am 15.08.2026
 │   └── CODE_QUALITY_AUDIT.md                  ❌ Outdated
 │
 ├── 📂 docs/                                   (New documentation folder)
@@ -62,7 +63,7 @@ SONG-NEXUS/
 │   ├── package-lock.json                      Locked versions
 │   ├── .env.example                           Environment template
 │   ├── .gitignore                             Git ignore patterns
-│   └── ⚠️ NOTE: NO /db/ folder! schema.sql is in ROOT!
+│   └── ⚠️ HINWEIS: kein /db/-Ordner! schema_clean.sql liegt im ROOT
 │
 ├── 📂 frontend/                               Webpack + HTML Frontend
 │   ├── 📂 admin/                              🔴 CORRECTED: Admin pages
@@ -202,9 +203,9 @@ psql -U postgres -d song_nexus_dev -f backend/db/schema.sql  ❌
 - `docs/PROJECT-STRUCTURE.md` (this file)
 
 ❌ **IGNORE (Legacy/outdated):**
-- `MASTER-PROMPT-2026-DEFINITIVE.md` (old version)
-- `MASTER-CONTEXT-PROMPT.md` (old version)
-- `REPOSITORY-STRUCTURE.md` (use PROJECT-STRUCTURE.md instead)
+- `MASTER-PROMPT-2026-DEFINITIVE.md` — 🗑️ am 15.08.2026 entfernt
+- `MASTER-CONTEXT-PROMPT.md` — 🗑️ am 15.08.2026 entfernt
+- `REPOSITORY-STRUCTURE.md` — 🗑️ am 15.08.2026 entfernt
 - `CODE_QUALITY_AUDIT.md` (outdated)
 
 ---
@@ -213,7 +214,8 @@ psql -U postgres -d song_nexus_dev -f backend/db/schema.sql  ❌
 
 | File/Folder | Location | Purpose |
 |-------------|----------|----------|
-| **schema.sql** | `ROOT/` | ✅ Database schema (single source of truth) |
+| **schema_clean.sql** | `ROOT/` | ✅ Datenbankschema (fuehrend) |
+| **schema.sql** | `ROOT/` | ⚠️ Veraltet, enthaelt Redundanzen |
 | **MASTER-PROMPT-2026-AKTUELL.md** | `ROOT/` | 🔴 Start every session with this! |
 | **DATABASE.md** | `ROOT/` | Database documentation |
 | **PRODUCTION-DEPLOYMENT.md** | `ROOT/` | Deployment guide |
@@ -253,7 +255,7 @@ backend/
 └── .gitignore
 
 ⚠️ DATABASE SCHEMA:
-   schema.sql is in ROOT, NOT in backend/db/
+   schema_clean.sql liegt im ROOT, NICHT in backend/db/
 ```
 
 ---
@@ -307,9 +309,9 @@ ROOT/
 ├── LICENSE                                MIT License
 │
 ├── (deprecated, ignore these)
-├── MASTER-PROMPT-2026-DEFINITIVE.md       ❌ Old version
-├── MASTER-CONTEXT-PROMPT.md               ❌ Old version
-├── REPOSITORY-STRUCTURE.md                ❌ Use PROJECT-STRUCTURE.md
+├── MASTER-PROMPT-2026-DEFINITIVE.md       🗑️ ENTFERNT am 15.08.2026
+├── MASTER-CONTEXT-PROMPT.md               🗑️ ENTFERNT am 15.08.2026
+├── REPOSITORY-STRUCTURE.md                🗑️ ENTFERNT am 15.08.2026
 └── CODE_QUALITY_AUDIT.md                  ❌ Outdated
 ```
 
@@ -397,3 +399,35 @@ docs/
 **Last Updated:** January 13, 2026  
 **Accuracy:** 99% (✅ all major issues corrected)  
 **Maintainer:** Sebastian
+
+
+---
+
+## Änderungen seit August 2026
+
+Geprüft am 15.08.2026 gegen den Code auf `dev/v1.0`.
+
+### Neu hinzugekommen
+| Pfad | Zweck |
+|---|---|
+| `.github/workflows/ci.yml` | CI: Tests, `npm audit`, Frontend-Build, Secret-Scan |
+| `scripts/generate-secrets.ps1` | Secrets erzeugen (Windows), prüft sich selbst gegen `.gitignore` |
+| `migrations/` | SQL-Migrationen, u. a. Cleanup zu Issue #1 |
+| `backend/scripts/seed-dev-admin.js` | CLI-Ersatz für den entfernten `dev-login`-Endpunkt |
+| `frontend/404.html` | echte Fehlerseite mit Status 404 |
+| `frontend/blog/index.html`, `frontend/blog/blog.js` | Blog-Übersicht aus `posts.json` |
+| `LAUNCH-PLAN.md` | Weg zum Launch, 4 Milestones |
+
+### Entfernt — nicht wieder anlegen
+| Pfad | Grund |
+|---|---|
+| `backend/routes/auth-simple.js` | zweiter, ungehärteter Auth-Pfad ohne Validierung und Cookie-Logik (Issue #4) |
+| `frontend/webpack/design-config-loader.js` | zweite, nie eingebundene Implementierung des `@ref`-Auflösers samt gleichem Bug |
+| `POST /api/auth/dev-login` in `backend/routes/auth.js` | legte Admin-Accounts ohne Guard an (Issue #1) |
+
+### Generierte Dateien
+| Pfad | Versioniert? |
+|---|---|
+| `frontend/dist/` | nein (`.gitignore`) — `npm run build` nötig |
+| `frontend/styles/_design-tokens.css` | ja, wird aber bei jedem Build neu geschrieben |
+| `frontend/package-lock.json` | ja (seit PR #35), CI nutzt `npm ci` |

@@ -2,7 +2,8 @@
 
 **Erstellt:** 15. August 2026
 **Basis:** Code-Audit auf Branch `dev/v1.0` (nicht auf Doku-Basis — die Doku war veraltet)
-**Reifegrad:** ~80 % production-ready
+**Reifegrad:** ~90 % production-ready (Stand 15.08.2026 abends)
+**Fortschritt:** M1 und M2 codeseitig abgeschlossen, offen ist das Deployment
 
 ---
 
@@ -13,7 +14,7 @@ Die Doku im Repo unterschätzt den echten Fortschritt. Verifizierte Fakten:
 | Behauptung in der Doku | Realität im Code |
 |---|---|
 | `main` ist der aktuelle Stand | `main` ist **17 Commits hinter** `dev/v1.0` (letzter Stand dort: 22. Juni 2026) |
-| 39 Jest-Tests | **53 Tests, 3 Suites, alle grün** (lokal ausgeführt am 15.08.2026) |
+| 39 Jest-Tests | **67 Tests, 3 Suites, alle grün** (Stand 15.08.2026, nach den neuen Sicherheits- und Zahlungstests) |
 | Keine Rechtsseiten | `impressum.html` + `datenschutz.html` existieren auf `dev/v1.0` mit echten Daten |
 | JWT im localStorage | Migriert auf **HttpOnly-Cookie** |
 | Kein Deployment-Guide | `docs/DEPLOYMENT-HETZNER.md` (634 Zeilen) + `docs/SECURITY-GUIDE.md` (1121 Zeilen) |
@@ -34,6 +35,34 @@ Der teure Teil (Recht, Zahlungen, Steuer) blockiert nicht den Live-Gang. Reihenf
 M1 Sicherheit  →  M2 Soft-Launch (gratis)  →  M3 Monetarisierung  →  M4 Betrieb
    ~1 Woche         ~1–2 Wochen                 ~2–3 Wochen            laufend
 ```
+
+
+---
+
+## ✅ Fortschritt (Stand 15. August 2026, 17:40)
+
+Elf PRs gemergt. Erledigt:
+
+| Issue | Was |
+|---|---|
+| #1 | `dev-login` entfernt, 6 Regressionstests |
+| #3 | 11 Vulnerabilities → 0, multer 2.x, nodemailer 9.x |
+| #4 | `auth-simple.js` entfernt |
+| #8 | `PAYMENTS_ENABLED`, fail-closed |
+| #10 | Totlinks, 404-Seite, Rechtslinks auf allen Seiten |
+| #17 | CI mit 4 Jobs |
+
+Zusätzlich behoben, ohne eigenes Issue:
+- `.gitignore` war halb UTF-16 → `.env.production` war ungeschützt
+- `secrets-neu.txt` wurde nicht ignoriert
+- `setInterval` ohne `unref` hing die CI auf
+- `USE_HTTPS` war durch `|| true` wirkungslos → hätte das VPS-Deployment gekippt
+- `dotenv` fehlte in `frontend/package.json` → PM2-Start wäre abgebrochen
+- `@ref`-Auflösung erzeugte ungültiges CSS
+- toter Doppel-Code in `webpack/design-config-loader.js` entfernt
+
+**Noch offen bis Soft-Launch:** #6 (VPS), #7 (Backups), #24 (Token-Widerruf), #5 (Merge nach `main`).
+Alle vier sind Server- bzw. Organisationsarbeit, keine Feature-Entwicklung.
 
 ---
 
@@ -60,7 +89,7 @@ Ziel: Die Seite ist erreichbar, mit Gratis-Tracks. Kein Zahlungsverkehr.
 6. [#6](https://github.com/Waschtl904/song-nexus/issues/6) Hetzner-VPS nach `docs/DEPLOYMENT-HETZNER.md` aufsetzen (nginx, PM2, Let's Encrypt, PostgreSQL)
 7. [#7](https://github.com/Waschtl904/song-nexus/issues/7) DB-Backup-Cron **inklusive getestetem Restore** (ein Backup ohne Restore-Test ist kein Backup)
 8. [#8](https://github.com/Waschtl904/song-nexus/issues/8) Soft-Launch-Schalter: Kauf-UI ausblenden, nur Gratis-Tracks ausliefern
-9. [#9](https://github.com/Waschtl904/song-nexus/issues/9) Doku auf Wahrheit bringen (README, MASTER-PROMPT: 53 Tests, `dev/v1.0`-Stand)
+9. [#9](https://github.com/Waschtl904/song-nexus/issues/9) Doku auf Wahrheit bringen (README, MASTER-PROMPT: echte Testzahl, `dev/v1.0`-Stand) — ✅ erledigt am 15.08.2026
 10. [#10](https://github.com/Waschtl904/song-nexus/issues/10) Totlinks in `index.html` beheben (`/docs/`, `/privacy-policy/`, mehrere `href="#"`)
 
 ## 💳 M3 — Monetarisierung scharf schalten (~2–3 Wochen)
