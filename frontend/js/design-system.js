@@ -1,11 +1,11 @@
 // ============================================================================
 // 🎨 DESIGN-SYSTEM.JS v1.0 - ES6 MODULE
-// Loads Design System from Backend API (https://localhost:3000)
+// Lädt das Design-System von der Schnittstelle (relativer Pfad)
 // ============================================================================
 
 export const DesignSystem = {
     config: null,
-    apiUrl: 'https://localhost:3000/api/design-system',
+    apiUrl: '/api/design-system',   // relativ, siehe Begründung in config.js
 
     async init() {
         console.log('🎨 Design System module initializing...');

@@ -11,7 +11,7 @@
 
 let designConfig = {};
 let originalConfig = {};
-const apiBaseUrl = 'https://localhost:3000/api'; 
+const apiBaseUrl = '/api';   // relativ, siehe Begründung in config.js
 
 // CSS Variable mapping
 const cssVariableMap = {
