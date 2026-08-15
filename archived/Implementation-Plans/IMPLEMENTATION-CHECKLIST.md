@@ -6,7 +6,7 @@
 
 ## Note
 This file has been archived. Timeline was from 20 Dec 2025 - it is now 5 Jan 2026.
-For current status, see MASTER-PROMPT-2026-DEFINITIVE.md
+For current status, see MASTER-PROMPT-2026-AKTUELL.md
 
 ---
 
