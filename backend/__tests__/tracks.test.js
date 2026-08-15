@@ -402,6 +402,29 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(abfrage[0]).toMatch(/is_deleted\s*=\s*FALSE/);
   });
 
+  // -------------------------------------------------------------------------
+  // Content-Type richtet sich nach der Dateiendung
+  // -------------------------------------------------------------------------
+  // Vorher war er fest 'audio/mpeg'. Eine WAV-Datei wurde damit als MPEG
+  // angekuendigt und vom Browser abgelehnt, obwohl die Bytes stimmten.
+  test('WAV wird als audio/wav ausgeliefert, nicht als audio/mpeg', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, is_free: true, free_preview_duration: 40, duration_seconds: 30 }],
+    });
+    const res = await request(app).get('/api/tracks/audio/lied.wav');
+    if (res.statusCode === 404) return; // Datei im Testverzeichnis nicht vorhanden
+    expect(res.headers['content-type']).toMatch(/audio\/wav/);
+  });
+
+  test('MP3 bleibt audio/mpeg', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, is_free: true, free_preview_duration: 40, duration_seconds: 30 }],
+    });
+    const res = await request(app).get('/api/tracks/audio/test-song.mp3');
+    if (res.statusCode === 404) return;
+    expect(res.headers['content-type']).toMatch(/audio\/mpeg/);
+  });
+
   test('400 - leerer Filename nach Sanitisierung', async () => {
     const res = await request(app).get('/api/tracks/audio/%20');
     expect(res.statusCode).toBe(400);

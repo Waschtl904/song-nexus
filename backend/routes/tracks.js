@@ -226,7 +226,12 @@ router.get('/audio/:filename', async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
-    res.setHeader('Content-Type', 'audio/mpeg');
+    // Der Content-Type war fest 'audio/mpeg' — auch bei .wav-Dateien.
+    // Zwei deiner Tracks liegen als WAV vor; der Browser bekam eine
+    // RIFF/WAVE-Datei als MPEG angekuendigt. Dass dein Browser den
+    // Content-Type auswertet, hat er schon einmal gezeigt:
+    // "HTTP-Content-Type text/html wird nicht unterstuetzt".
+    res.setHeader('Content-Type', audioContentType(filename));
     res.setHeader('Accept-Ranges', 'bytes');
 
     if (hasFullAccess) {
@@ -314,12 +319,38 @@ function serveFullFile(filepath, filename, filesize, range, res) {
 // HELPER: Serve 40 Sekunden Preview
 // ============================================================================
 
+// Content-Type nach Dateiendung. Ein falscher Typ laesst den Browser die
+// Datei ablehnen, obwohl die Bytes in Ordnung sind.
+const AUDIO_TYPEN = {
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.oga': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.opus': 'audio/opus',
+  '.webm': 'audio/webm',
+};
+
+function audioContentType(filename) {
+  const endung = path.extname(String(filename || '')).toLowerCase();
+  return AUDIO_TYPEN[endung] || 'application/octet-stream';
+}
+
 function servePreview(filepath, filename, track, req, res) {
   try {
     const stat = fs.statSync(filepath);
     const filesize = stat.size;
     const PREVIEW_SECONDS = 40;
-    let avgBytesPerSecond = 128000;
+
+    // Notwert, falls duration_seconds fehlt. Vorher stand hier fest 128000 —
+    // die Datenrate einer 128-kbit-MP3. Bei einer WAV-Datei (44,1 kHz,
+    // stereo, 16 bit = 176400 Byte/s) haette die "40-Sekunden-Vorschau"
+    // knapp 29 Sekunden ergeben.
+    let avgBytesPerSecond = path.extname(String(filename || '')).toLowerCase() === '.wav'
+      ? 176400
+      : 128000;
 
     if (track && track.duration_seconds && track.duration_seconds > 0) {
       avgBytesPerSecond = Math.floor(filesize / track.duration_seconds);
