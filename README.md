@@ -514,7 +514,12 @@ git push origin main
 
 ## 🚀 Deployment
 
-**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+**Deployment auf Hetzner-VPS (operativ, deutsch):**
+[docs/DEPLOYMENT-HETZNER.md](./docs/DEPLOYMENT-HETZNER.md) — mit Skripten unter
+`scripts/deploy/`, die sich am Ende selbst überprüfen.
+
+**Allgemeine Fassung (englisch, auch Managed-DB):**
+[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
 ### Quick Steps
 
@@ -597,7 +602,8 @@ Make sure `NODE_ENV=test` is set and your test DB exists. See `__tests__/setup.j
 |------|---------|
 | [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) | 🔴 START HERE – session context |
 | [DATABASE.md](./DATABASE.md) | Complete DB schema |
-| [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md) | Deployment guide |
+| [docs/DEPLOYMENT-HETZNER.md](./docs/DEPLOYMENT-HETZNER.md) | **Deployment auf Hetzner-VPS** — operative Anleitung mit Skripten |
+| [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md) | Deployment, allgemeine Fassung |
 | [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) | Windows 11 setup |
 | [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) | Admin Hub docs |
 | [docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md) | Project organization |

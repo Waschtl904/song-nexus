@@ -1,5 +1,13 @@
 # 🚀 SONG-NEXUS PRODUCTION DEPLOYMENT GUIDE
 
+> **Deployst du auf einen Hetzner-VPS?** Dann nutze
+> [docs/DEPLOYMENT-HETZNER.md](./docs/DEPLOYMENT-HETZNER.md). Dort steht der
+> konkrete Weg auf Deutsch, mit geprüften Skripten unter `scripts/deploy/`.
+> Dieses Dokument ist die allgemeinere Fassung und beschreibt auch Varianten mit
+> Managed-Datenbank. Bei Widersprüchen gilt die Hetzner-Anleitung — sie wurde
+> am 15.08.2026 gegen den Code geprüft.
+
+
 > **Complete step-by-step guide for deploying Song-Nexus to production**
 
 **Version:** 1.0.1  
