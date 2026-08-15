@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const { pool } = require('../db');
 const { verifyToken, generateJWT, setAuthCookie, clearAuthCookie } = require('../middleware/auth-middleware');
 const { sendPasswordResetEmail } = require('../utils/mailer');
+const { passwortValidator } = require('../utils/password-policy');
 const router = express.Router();
 
 // ============================================================================
@@ -12,7 +13,7 @@ const router = express.Router();
 
 router.post('/register', [
   body('email').isEmail().normalizeEmail().withMessage('Invalid email'),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('password').custom(passwortValidator()),
   body('username').isLength({ min: 3, max: 20 }).trim().escape().withMessage('Username 3-20 chars'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -312,7 +313,7 @@ router.post('/password-reset/verify', [
 // ============================================================================
 router.post('/password-reset/confirm', [
   body('token').notEmpty().trim(),
-  body('newPassword').isLength({ min: 8 }).withMessage('Mindestens 8 Zeichen'),
+  body('newPassword').custom(passwortValidator()),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });

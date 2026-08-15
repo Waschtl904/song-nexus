@@ -17,6 +17,7 @@ const {
 } = require('@simplewebauthn/server');
 
 const { setAuthCookie } = require('../middleware/auth-middleware');
+const { pruefePasswort } = require('../utils/password-policy');
 
 // ============================================================================
 // 🔧 HELPER FUNCTIONS
@@ -474,9 +475,13 @@ router.post('/register-password', async (req, res) => {
             return res.status(400).json({ error: 'Username, email, and password required' });
         }
 
-        if (password.length < 8) {
-            console.log('❌ Password too short');
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        // Dieselbe Regel wie bei /api/auth/register. Dieser Endpunkt ist der,
+        // den das Frontend tatsächlich aufruft — eine Verschärfung nur in
+        // auth.js hätte hier nichts geändert.
+        const passwortProbleme = pruefePasswort(password, { username, email });
+        if (passwortProbleme.length > 0) {
+            console.log('❌ Passwort erfüllt die Regeln nicht');
+            return res.status(400).json({ error: passwortProbleme.join(' ') });
         }
 
         if (password !== passwordConfirm) {
