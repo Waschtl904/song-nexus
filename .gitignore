@@ -19,7 +19,16 @@
 !backend/certs/localhost*.pem
 !frontend/certs/localhost*.pem
 secrets/
+
+# Ausgabe von scripts/generate-secrets.ps1
+# Das Muster *-secrets.txt allein greift NICHT bei "secrets-neu.txt" - genau so
+# lag die Datei mit den Live-Secrets ungeschuetzt im Arbeitsverzeichnis und
+# waere bei einem "git add ." mitgegangen.
+secrets-neu.txt
+secrets*.txt
+*secrets*.txt
 *-secrets.txt
+*.secrets
 
 # Backend ENV
 backend/.env
