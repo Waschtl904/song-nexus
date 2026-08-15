@@ -1,5 +1,10 @@
 // ============================================================================
-// 🎵 SONG-NEXUS BACKEND v6.7 - INTELLIGENT CACHE STRATEGY
+// 🎵 SONG-NEXUS BACKEND — Version steht in package.json
+//
+// Vorher stand hier fest "v6.7", waehrend package.json 6.2.0 nannte und
+// routes/admin-tracks.js von v7.1 sprach. Drei Zahlen fuer denselben Stand
+// machen die Frage "welche Fassung laeuft hier?" unbeantwortbar. Die
+// Startmeldung liest die Version jetzt aus package.json — eine Quelle.
 // ============================================================================
 // ✅ CACHE MIDDLEWARE: GET /api/tracks (300s), /api/payments/config (3600s), etc.
 // ✅ CACHE INVALIDATION: clearCacheKey() on POST/PUT/DELETE
@@ -881,6 +886,7 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
 const { verifyMailer } = require('./utils/mailer');
+const { version: APP_VERSION } = require('./package.json');
 
 warmupDatabase().then(async () => {
     await debugDatabaseContent();
@@ -890,7 +896,7 @@ warmupDatabase().then(async () => {
         server.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.7 Backend              ║');
+            console.log(`║   🎵 SONG-NEXUS v${APP_VERSION} Backend            ║`);
             console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
@@ -910,7 +916,7 @@ warmupDatabase().then(async () => {
         const server = app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.7 Backend              ║');
+            console.log(`║   🎵 SONG-NEXUS v${APP_VERSION} Backend            ║`);
             console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);

@@ -381,6 +381,27 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(res.statusCode).toBe(200);
   });
 
+  // -------------------------------------------------------------------------
+  // fail closed: ohne veroeffentlichten Datenbankeintrag kein Ton
+  // -------------------------------------------------------------------------
+  // Vorher wurde in diesem Fall eine 40-Sekunden-Vorschau ausgeliefert. Damit
+  // war ein nicht veroeffentlichter Track anhoerbar, sobald man den
+  // Dateinamen kannte - und jede Datei im Verzeichnis ohne Eintrag ebenfalls.
+  test('SECURITY: Datei ohne Datenbankeintrag -> 404, keine Vorschau', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).get('/api/tracks/audio/premium-song.mp3');
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('SECURITY: die Abfrage verlangt is_published = TRUE', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    await request(app).get('/api/tracks/audio/premium-song.mp3');
+    const abfrage = pool.query.mock.calls.find(c => /FROM tracks/.test(c[0]));
+    expect(abfrage).toBeDefined();
+    expect(abfrage[0]).toMatch(/is_published\s*=\s*TRUE/);
+    expect(abfrage[0]).toMatch(/is_deleted\s*=\s*FALSE/);
+  });
+
   test('400 - leerer Filename nach Sanitisierung', async () => {
     const res = await request(app).get('/api/tracks/audio/%20');
     expect(res.statusCode).toBe(400);

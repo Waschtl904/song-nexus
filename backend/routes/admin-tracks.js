@@ -1,5 +1,5 @@
 // ============================================================================
-// 📤 ADMIN TRACKS ROUTE - Song-Nexus v7.1 (FIXED)
+// 📤 ADMIN TRACKS ROUTE — Versionsangabe entfernt, siehe package.json
 // ============================================================================
 // File: backend/routes/admin-tracks.js
 // Purpose: Secure admin-only track upload and management

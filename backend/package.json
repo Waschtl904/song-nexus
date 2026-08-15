@@ -1,6 +1,6 @@
 {
   "name": "song-nexus-backend",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "description": "Production Backend for SONG-NEXUS with PayPal integration and HTTPS support",
   "main": "server.js",
   "type": "commonjs",
