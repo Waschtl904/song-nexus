@@ -1,4 +1,7 @@
-backend/.env
-backend/.env.local
 .env
-.env.localnode_modules/
+.env.local
+.env.production
+.env.staging
+.env.*.local
+node_modules/
+logs/
