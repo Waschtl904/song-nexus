@@ -633,10 +633,12 @@ Das JWT Secret muss kryptografisch stark sein — mindestens 256 Bit (32 Bytes):
 ```bash
 # Secret generieren
 openssl rand -base64 48
-# Ausgabe: z.B. "k8mN3pQ7vX2hJ9wL5rF1tA6bY0cE4dI8uO3nG7sZ2qW5="
+# Die Ausgabe ist ein 64 Zeichen langer Zufallswert.
 
-# .env
-JWT_SECRET=k8mN3pQ7vX2hJ9wL5rF1tA6bY0cE4dI8uO3nG7sZ2qW5=
+# .env – hier bewusst KEIN Beispielwert.
+# Ein vollständig aussehendes Secret in der Dokumentation wird kopiert,
+# und der Secret-Scan meldet es bei jedem Durchlauf als Fund.
+JWT_SECRET=<Ausgabe von openssl rand -base64 48 einsetzen>
 JWT_REFRESH_SECRET=<separates Secret, ebenfalls openssl rand -base64 48>
 ```
 

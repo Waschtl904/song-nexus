@@ -95,6 +95,18 @@ async function main() {
 
   const password = process.env.DEV_ADMIN_PASSWORD || generatePassword();
   const generated = !process.env.DEV_ADMIN_PASSWORD;
+
+  // Ein selbst gesetztes DEV_ADMIN_PASSWORD unterliegt derselben Regel wie
+  // jedes andere Passwort. Das Skript legt ein Admin-Konto an - dort ein
+  // schwaches Passwort zuzulassen waere die schlechteste Stelle dafuer.
+  const { pruefePasswort } = require('../utils/password-policy');
+  const passwortProbleme = pruefePasswort(password, { username: DEV_USERNAME, email: DEV_EMAIL });
+  if (passwortProbleme.length > 0) {
+    console.error('❌ DEV_ADMIN_PASSWORD erfuellt die Passwortregel nicht:');
+    passwortProbleme.forEach((m) => console.error('   - ' + m));
+    console.error('   Variable weglassen, dann erzeugt das Skript selbst ein sicheres Passwort.');
+    process.exit(1);
+  }
   const rounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
   const passwordHash = await bcrypt.hash(password, rounds);
 

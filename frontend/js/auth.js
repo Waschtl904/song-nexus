@@ -5,6 +5,7 @@
 
 import { APIClient } from './api-client.js';
 import { WebAuthn } from './webauthn.js';
+import PasswortRegel from './password-policy.js';
 
 // HELPER FUNCTIONS
 function getAuthToken() {
@@ -348,6 +349,14 @@ export const Auth = {
 
             if (password !== passwordConfirm) {
                 this.showStatus(statusEl, 'Passwörter stimmen nicht überein', 'error');
+                return;
+            }
+
+            // Gemeinsame Regel, siehe js/password-policy.js. Das Backend
+            // prüft verbindlich; hier geht es um sofortige Rückmeldung.
+            const pwProbleme = PasswortRegel.pruefePasswort(password, { username, email });
+            if (pwProbleme.length > 0) {
+                this.showStatus(statusEl, pwProbleme.join(' '), 'error');
                 return;
             }
 
