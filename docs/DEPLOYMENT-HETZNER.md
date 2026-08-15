@@ -1,8 +1,42 @@
 # SONG-NEXUS — Deployment auf Hetzner VPS
 
+> **Welches Dokument gilt?** Für dein Vorhaben — ein Hetzner-VPS mit lokaler
+> PostgreSQL — ist **dieses hier** die operative Anleitung, samt der geprüften
+> Skripte unter `scripts/deploy/`. `PRODUCTION-DEPLOYMENT.md` im Wurzelverzeichnis
+> ist die allgemeinere, englischsprachige Fassung und beschreibt auch Varianten
+> mit Managed-Datenbank. Die beiden überschneiden sich stark; das Zusammenführen
+> ist als Issue erfasst.
+
+
 **Ziel:** Song-Nexus produktionsreif auf einem Hetzner VPS betreiben — mit nginx als Reverse Proxy, Let's Encrypt (HTTPS), PM2 als Prozessmanager und PostgreSQL.
 
-> **Voraussetzung:** Du hast einen Hetzner-Account und eine Domain (z.B. `song-nexus.at`).
+> **Voraussetzung:** ein Hetzner-Account. Die Domain registrierst du in
+> Abschnitt 1, falls noch keine vorhanden ist.
+>
+> In dieser Anleitung steht `deine-domain.at` überall als Platzhalter. Ersetze
+> ihn durch deine echte Domain — auch in der `.env`, sonst schlagen WebAuthn
+> und die CORS-Prüfung fehl.
+
+---
+
+## Skripte statt Abschreiben
+
+Die Befehle dieser Anleitung liegen als geprüfte Skripte im Repository:
+
+| Skript | Was |
+|---|---|
+| `scripts/deploy/01-harden-server.sh` | Abschnitte 2 (Benutzer, SSH, Firewall, fail2ban) |
+| `scripts/deploy/02-install-stack.sh` | Abschnitt 3 (Node 22, PM2, nginx, PostgreSQL, certbot) |
+| `scripts/deploy/03-deploy-app.sh` | Abschnitte 4 und 5 (Datenbank, Repo, Build) |
+| `scripts/deploy/04-nginx-ssl.sh` | Abschnitte 7 bis 9 (nginx, Let's Encrypt, PM2-Start) |
+| `scripts/deploy/backup-db.sh` | Abschnitt 12 (Backup samt Restore-Test) |
+
+Jedes Skript prüft am Ende, ob es funktioniert hat, und bricht mit einer
+klaren Meldung ab, wenn nicht. Die Anleitung hier erklärt das Warum — lies
+den jeweiligen Abschnitt, bevor du das Skript startest.
+
+**Die `.env` schreibst du von Hand** (Abschnitt 6). Kein Skript erzeugt
+Secrets und setzt sie gleich ein.
 
 ---
 
@@ -29,13 +63,44 @@
 ### Server erstellen
 
 1. Login auf [console.hetzner.cloud](https://console.hetzner.cloud)
-2. **+ New Server** klicken
+2. **+ New Server**
 3. Einstellungen:
-   - **Location:** Nürnberg oder Wien (EU, DSGVO-konform)
+   - **Location:** Nürnberg, Falkenstein oder Helsinki. Hetzner hat **keinen
+     Standort Wien** — das stand hier vorher falsch. Alle drei liegen in der
+     EU und sind damit datenschutzrechtlich unbedenklich; Nürnberg ist von
+     Österreich aus die kürzeste Strecke.
    - **Image:** Ubuntu 24.04 LTS
-   - **Type:** CX22 (2 vCPU, 4 GB RAM) — reicht für den Start
-   - **SSH Key:** Deinen öffentlichen SSH-Key einfügen
-   - **Firewall:** Neue Firewall erstellen (siehe unten)
+   - **SSH Key:** deinen öffentlichen Schlüssel hinterlegen. **Kein Passwort-
+     Login** — `01-harden-server.sh` schaltet die Passwortanmeldung ab und
+     sperrt dich ohne hinterlegten Schlüssel aus.
+   - **Firewall:** neue Firewall anlegen (Regeln unten)
+
+**Welche Größe?** Was die Anwendung braucht:
+
+| | Mindestens | Warum |
+|---|---|---|
+| vCPU | 2 | der Webpack-Build ist der schwerste Vorgang |
+| RAM | 4 GB | Node und PostgreSQL parallel, plus Build |
+| Disk | 40 GB | System, `node_modules`, Audiodateien, Backups |
+
+Nimm den günstigsten Plan, der das erfüllt. Ein konkreter Plan-Name steht hier
+absichtlich nicht mehr: Hetzner hat die Cloud-Preise im Juni 2026 angehoben
+und die Baureihen dabei umbenannt, teils um mehr als das Doppelte
+([Übersicht der Änderungen](https://privatedevops.com/news/hetzner-june-2026-cloud-price-increase-what-to-do)).
+Was hier als Zahl stünde, wäre bei der nächsten Anpassung wieder falsch —
+schau auf der [Preisseite](https://www.hetzner.com/cloud/) nach dem aktuellen
+Stand.
+
+Die ARM-Reihe (CAX) ist deutlich günstiger als die x86-Pläne und für dieses
+Projekt geeignet: SONG-NEXUS hat keine nativen Abhängigkeiten, die
+kompiliert werden müssten — `bcryptjs` ist reines JavaScript, `pg` ebenfalls.
+Wenn du sparen willst, ist das der Hebel. Falls dabei etwas klemmt, lässt sich
+ein Cloud-Server bei Hetzner nachträglich auf x86 umziehen, allerdings nicht
+per Knopfdruck.
+
+**Speicherplatz später erweitern:** Audiodateien wachsen. Ein Volume lässt
+sich jederzeit anhängen, ohne den Server neu aufzusetzen — plane die Disk
+also nicht großzügig „für später".
 
 ### Firewall-Regeln
 
@@ -47,19 +112,52 @@
 
 > Port 3000 (Node.js) **nicht** öffentlich freischalten — nginx leitet intern weiter.
 
-### Domain einrichten
+### Domain registrieren
 
-Bei deinem Domain-Anbieter einen **A-Record** anlegen:
+Noch keine Domain? Dann zuerst das, denn ohne DNS-Eintrag stellt Let's
+Encrypt kein Zertifikat aus.
+
+**`.at` oder `.com`?** Im README stand bisher `song-nexus.com`, die alte
+Anleitung nannte `song-nexus.at`. Für ein österreichisches Musikprojekt mit
+Impressum in Bad Ischl ist `.at` naheliegend und günstiger. Ob der Name frei
+ist, prüfst du bei [nic.at](https://www.nic.at/de/registrieren-sie-ihre-domain).
+
+Registrieren kannst du nicht direkt bei nic.at, sondern über einen
+Registrar. Übliche österreichische Anbieter sind World4You, easyname und
+Hosttech; international geht auch Cloudflare Registrar oder INWX. Worauf es
+ankommt:
+
+- **DNS-Verwaltung im Selbstbedienungsbereich** — du musst A-Records selbst
+  setzen können, ohne Ticket
+- **Kein Zwangs-Webhosting-Paket** — du brauchst nur die Domain
+- **WHOIS-Schutz** — bei `.at` ist die Adresse eines Privatinhabers nicht
+  öffentlich, bei `.com` schon; Registrar-Datenschutz kostet dort teils extra
+
+Rechne bei `.at` mit einem niedrigen zweistelligen Eurobetrag pro Jahr.
+Preise ändern sich, deshalb steht hier absichtlich keine Zahl.
+
+### DNS-Einträge setzen
+
+Beim Registrar zwei **A-Records** anlegen:
 
 ```
-song-nexus.at  →  <IP-Adresse des Servers>
-www.song-nexus.at  →  <IP-Adresse des Servers>
+@      A   <IP-Adresse des Servers>      (also deine-domain.at)
+www    A   <IP-Adresse des Servers>
 ```
 
-Warte 5–30 Minuten bis DNS propagiert ist. Prüfen mit:
+Den `www`-Eintrag nicht vergessen — `04-nginx-ssl.sh` fordert das Zertifikat
+für beide Namen an, und Certbot scheitert vollständig, wenn einer der beiden
+nicht auflöst.
+
+Warte 5 bis 30 Minuten. Prüfen:
+
 ```bash
-nslookup song-nexus.at
+# Auf dem Server:
+getent hosts deine-domain.at
+curl -s ifconfig.me                # muss dieselbe IP zeigen
 ```
+
+`04-nginx-ssl.sh` prüft das selbst und bricht ab, wenn es nicht passt.
 
 ---
 
@@ -154,8 +252,9 @@ GRANT ALL PRIVILEGES ON DATABASE song_nexus_prod TO song_nexus_user;
 GRANT ALL ON SCHEMA public TO song_nexus_user;
 \q
 
-# Schema importieren
-sudo -u postgres psql -d song_nexus_prod < /var/www/song-nexus/schema.sql
+# Schema importieren — schema_clean.sql ist die führende Datei.
+# schema.sql enthält Altlasten und Redundanzen, nicht verwenden.
+sudo -u postgres psql -d song_nexus_prod -f /var/www/song-nexus/schema_clean.sql
 ```
 
 > **Wichtig:** Ersetze `SICHERES_PASSWORT_HIER` mit einem starken Passwort (z.B. mit `openssl rand -base64 32` generieren).
@@ -169,18 +268,21 @@ sudo -u postgres psql -d song_nexus_prod < /var/www/song-nexus/schema.sql
 sudo mkdir -p /var/www/song-nexus
 sudo chown sebastian:sebastian /var/www/song-nexus
 
-# Repository klonen (dev/redesign Branch)
+# Repository klonen — Branch dev/v1.0, NICHT main
+# main ist 17 Commits im Rückstand (Issue #5). dev/redesign existiert nicht mehr.
 cd /var/www/song-nexus
-git clone -b dev/redesign https://github.com/Waschtl904/song-nexus.git .
+git clone -b dev/v1.0 https://github.com/Waschtl904/song-nexus.git .
 
-# Backend-Dependencies installieren
+# Backend: npm ci statt npm install — nutzt die Lockfile exakt und ist
+# reproduzierbar. --omit=dev lässt Jest und Nodemon weg.
 cd /var/www/song-nexus/backend
-npm install --production
+npm ci --omit=dev
 
-# Frontend-Dependencies und Webpack-Build
+# Frontend: hier OHNE --omit=dev, denn webpack und die Loader sind
+# devDependencies. Ohne sie gibt es keinen Build.
 cd /var/www/song-nexus/frontend
-npm install
-npm run build   # Erstellt dist/app.bundle.js
+npm ci
+npm run build   # erzeugt dist/app.bundle.js
 ```
 
 > Falls `npm run build` fehlt, in `/var/www/song-nexus/frontend/package.json` prüfen. Alternativ: `npx webpack --config webpack.config.js`
@@ -203,9 +305,9 @@ HOST=127.0.0.1
 PORT=3000
 
 # === FRONTEND ===
-FRONTEND_URL=https://song-nexus.at
-ALLOWED_ORIGINS=https://song-nexus.at,https://www.song-nexus.at
-API_BASE=https://song-nexus.at/api
+FRONTEND_URL=https://deine-domain.at
+ALLOWED_ORIGINS=https://deine-domain.at,https://www.deine-domain.at
+API_BASE=https://deine-domain.at/api
 
 # === DATENBANK ===
 DB_HOST=localhost
@@ -223,9 +325,9 @@ JWT_REFRESH_SECRET=NEUES_GEHEIMES_REFRESH_SECRET_HIER
 BCRYPT_ROUNDS=12
 
 # === WEBAUTHN ===
-WEBAUTHN_RP_ID=song-nexus.at
+WEBAUTHN_RP_ID=deine-domain.at
 WEBAUTHN_RP_NAME=SONG-NEXUS
-WEBAUTHN_ORIGIN=https://song-nexus.at
+WEBAUTHN_ORIGIN=https://deine-domain.at
 WEBAUTHN_TIMEOUT=60000
 
 # === HTTPS (nginx übernimmt SSL, Node läuft auf HTTP intern) ===
@@ -237,10 +339,17 @@ CSRF_TOKEN_LENGTH=32
 SESSION_SECRET=NEUES_GEHEIMES_SESSION_SECRET_HIER
 SESSION_MAX_AGE=900000
 
-# === PAYPAL (Sandbox → Live wechseln wenn bereit) ===
-PAYPAL_CLIENT_ID=DEIN_PAYPAL_CLIENT_ID
-PAYPAL_CLIENT_SECRET=DEIN_PAYPAL_CLIENT_SECRET
-PAYPAL_MODE=live
+# === ZAHLUNGEN ===
+# PAYMENTS_ENABLED bewusst NICHT setzen. Fehlt die Variable, sind Zahlungen
+# aus (fail-closed, Issue #8). Für den Soft-Launch ist das richtig: es gibt
+# im Frontend ohnehin keinen Kauf-Button, und PayPal ist noch Sandbox.
+# Erst einschalten, wenn #11 bis #16 erledigt sind.
+# PAYMENTS_ENABLED=true
+
+# === PAYPAL (bis zur Live-Umstellung Sandbox, Issue #11) ===
+PAYPAL_CLIENT_ID=DEIN_SANDBOX_CLIENT_ID
+PAYPAL_CLIENT_SECRET=DEIN_SANDBOX_CLIENT_SECRET
+PAYPAL_MODE=sandbox
 
 # === E-MAIL (Nodemailer) ===
 SMTP_HOST=smtp.gmx.at
@@ -286,107 +395,70 @@ chmod 600 /var/www/song-nexus/backend/.env
 
 ## 7. nginx einrichten
 
+Die Konfiguration liegt als Vorlage im Repository:
+`scripts/deploy/nginx-song-nexus.conf.template`
+
+`04-nginx-ssl.sh` ersetzt darin den Platzhalter `DEINE_DOMAIN` und aktiviert
+sie. Von Hand:
+
 ```bash
-# Konfigurationsdatei anlegen
-sudo nano /etc/nginx/sites-available/song-nexus
+sed 's/DEINE_DOMAIN/deine-domain.at/g' \
+  /var/www/song-nexus/scripts/deploy/nginx-song-nexus.conf.template \
+  | sudo tee /etc/nginx/sites-available/song-nexus
+
+sudo ln -sf /etc/nginx/sites-available/song-nexus /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Inhalt:
+> **Reihenfolge beachten:** Die Vorlage verweist auf Zertifikatsdateien, die
+> vor Abschnitt 8 noch nicht existieren. `nginx -t` scheitert dann. Deshalb
+> startet `04-nginx-ssl.sh` zuerst mit einer reinen HTTP-Konfiguration, holt
+> das Zertifikat und schaltet danach auf die volle Konfiguration um. Machst du
+> es von Hand, halte dieselbe Reihenfolge ein.
+
+### Drei Dinge, die in der früheren Konfiguration fehlten
+
+Die Version, die bis August 2026 hier stand, hätte im Betrieb Probleme
+gemacht. Was geändert wurde und warum:
+
+**1. `client_max_body_size 105M`**
+
+Fehlte ganz. nginx bricht standardmäßig bei 1 MB ab und antwortet mit 413.
+Die Anwendung erlaubt 100 MB (`MAX_FILE_SIZE=104857600`). Jeder Audio-Upload
+über 1 MB wäre gescheitert — also jeder echte Song.
+
+**2. Kein Fallback mehr auf `index.html`**
+
+Vorher stand dort `try_files $uri $uri/ /index.html;`. Das liefert für jeden
+falschen Pfad Status 200 mit der Startseite. Genau dieser Mechanismus im
+Backend war der Grund, warum die toten Links monatelang unentdeckt blieben
+(Issue #10) — auch `/datenschutzz.html` mit Tippfehler sah für jeden
+Linkprüfer gesund aus. SONG-NEXUS ist keine Single-Page-Anwendung, sondern
+hat elf einzelne HTML-Seiten. Jetzt:
 
 ```nginx
-# HTTP → HTTPS Redirect
-server {
-    listen 80;
-    listen [::]:80;
-    server_name song-nexus.at www.song-nexus.at;
-
-    # Nur Let's Encrypt Challenge erlauben
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-
-    location / {
-        return 301 https://$host$request_uri;
-    }
-}
-
-# HTTPS Server
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name song-nexus.at www.song-nexus.at;
-
-    # SSL (wird von Certbot automatisch ausgefüllt)
-    ssl_certificate     /etc/letsencrypt/live/song-nexus.at/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/song-nexus.at/privkey.pem;
-    include             /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
-
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options    "nosniff" always;
-    add_header X-Frame-Options           "SAMEORIGIN" always;
-    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy        "geolocation=(), microphone=(), camera=()" always;
-
-    # Gzip-Kompression
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
-    gzip_min_length 1024;
-
-    # Statische Frontend-Dateien direkt ausliefern (schneller als Node)
-    root /var/www/song-nexus/frontend;
-    index index.html;
-
-    # API → Node.js weiterleiten
-    location /api/ {
-        proxy_pass         http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection 'upgrade';
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 60s;
-    }
-
-    # Audio-Streaming → Node.js (mit größerem Buffer)
-    location /public/audio/ {
-        proxy_pass         http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;
-        proxy_buffering    off;
-    }
-
-    # Statische Dateien cachen
-    location ~* \.(js|css|png|jpg|jpeg|webp|svg|ico|woff2|woff)$ {
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # SPA Fallback (alle anderen Pfade → index.html)
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
+try_files $uri $uri/ $uri.html =404;
+error_page 404 /404.html;
 ```
 
-```bash
-# Konfiguration aktivieren
-sudo ln -s /etc/nginx/sites-available/song-nexus /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
+**3. Quelldateien gesperrt**
 
-# Konfiguration testen
-sudo nginx -t
+`root` zeigt auf `/var/www/song-nexus/frontend`. In diesem Verzeichnis liegen
+auch `node_modules`, `package.json`, `webpack.config.js`, `server.js` und
+`certs/`. Ohne Sperre war das alles öffentlich abrufbar.
 
-# nginx neustarten
-sudo systemctl restart nginx
-```
+Wichtig dabei: **`/js/` darf nicht gesperrt werden.** Die Seiten laden
+`js/init.js` und `js/admin.js` zur Laufzeit direkt, nicht über das Bundle.
+Eine Sperre auf `/js/` nimmt die Admin-Seite außer Betrieb. Meine erste
+Fassung der Vorlage hatte genau diesen Fehler.
+
+> **Nebenbefund:** `frontend/certs/localhost-key.pem` liegt im öffentlichen
+> Repository. Es ist ein reiner localhost-Schlüssel von mkcert und damit kein
+> ernsthaftes Risiko — verwendbar ist er nur, wenn man auch die mkcert-CA
+> besitzt. Trotzdem gehört ein privater Schlüssel nicht in ein öffentliches
+> Repository, und mkcert erzeugt ihn in zwei Sekunden neu. Ich habe dafür ein
+> eigenes Issue angelegt, statt es hier mit hineinzumischen.
 
 ---
 
@@ -394,7 +466,7 @@ sudo systemctl restart nginx
 
 ```bash
 # Zertifikat anfordern (nginx läuft bereits)
-sudo certbot --nginx -d song-nexus.at -d www.song-nexus.at \
+sudo certbot --nginx -d deine-domain.at -d www.deine-domain.at \
   --email sebastian.schmalnauer@gmx.at \
   --agree-tos \
   --no-eff-email
@@ -412,47 +484,77 @@ sudo systemctl status certbot.timer
 
 ## 9. PM2 — Prozessmanager
 
-PM2 sorgt dafür, dass der Node.js-Server nach einem Absturz oder Neustart automatisch wieder läuft.
+PM2 startet den Node-Server nach Absturz und Serverneustart wieder. Die
+Einstellungen liegen in `scripts/deploy/ecosystem.config.js`, damit sie
+versioniert sind und nicht in einer Befehlszeile verschwinden.
 
 ```bash
-cd /var/www/song-nexus/backend
+cd /var/www/song-nexus
+pm2 start scripts/deploy/ecosystem.config.js --env production
 
-# Server mit PM2 starten
-pm2 start server.js --name "song-nexus" --node-args="--no-deprecation"
+# Autostart nach Serverneustart
+pm2 startup systemd        # gibt einen sudo-Befehl aus — den ausführen
+pm2 save                   # merkt sich die laufenden Prozesse
 
-# PM2 beim Systemstart automatisch starten
-pm2 startup systemd
-# (Den angezeigten sudo-Befehl ausführen)
-pm2 save
-
-# Status prüfen
+# Kontrolle
 pm2 status
-pm2 logs song-nexus --lines 50
+pm2 logs song-nexus-api --lines 50
 ```
 
-### Nützliche PM2-Befehle
+Der Prozess heißt **`song-nexus-api`**. Nur das Backend läuft unter PM2 —
+`frontend/server.js` wird in Produktion nicht gebraucht, weil nginx die
+statischen Dateien direkt ausliefert.
+
+### Warum ein Prozess und nicht mehrere
+
+In der Konfiguration steht `instances: 1` und `exec_mode: 'fork'`. Der
+Cluster-Modus wäre naheliegend, ist aber derzeit schädlich: Die
+Download-Tokens liegen in einer `Map` im Arbeitsspeicher (Issue #13). Bei
+mehreren Prozessen führt jeder seine eigene Map, und ein Download schlägt
+sporadisch fehl, je nachdem welcher Prozess die Anfrage bekommt. Erst wenn
+#13 erledigt ist, lohnt der Cluster-Modus.
+
+`max_memory_restart: '500M'` startet den Prozess bei einem Speicherleck neu,
+statt den Server lahmzulegen.
+
+### Nützliche Befehle
 
 ```bash
-pm2 restart song-nexus   # Server neustarten
-pm2 stop song-nexus      # Server stoppen
-pm2 logs song-nexus      # Live-Logs anzeigen
-pm2 monit                # Dashboard mit CPU/RAM
-pm2 reload song-nexus    # Zero-Downtime Reload
+pm2 reload song-nexus-api    # Neustart ohne Ausfall — nach Code-Updates
+pm2 restart song-nexus-api   # harter Neustart — nach .env-Änderungen
+pm2 stop song-nexus-api
+pm2 logs song-nexus-api
+pm2 monit                    # CPU und Speicher live
 ```
+
+> **`.env`-Änderungen brauchen `restart`, nicht `reload`.** Bei `reload`
+> übernimmt PM2 die alte Umgebung. Wenn du also ein Secret änderst und nichts
+> passiert: das ist der Grund.
 
 ---
 
 ## 10. Frontend bauen & ausliefern
 
-Das Frontend muss einmal gebaut werden (Webpack erstellt `dist/app.bundle.js`):
-
 ```bash
 cd /var/www/song-nexus/frontend
-npm install
-npx webpack --config webpack.config.js --mode production
+npm ci
+npm run build
 ```
 
-nginx liefert das Frontend direkt als statische Dateien aus — kein Node.js nötig dafür.
+`npm run build` ist **Pflicht, nicht optional**: `frontend/dist/` steht in der
+`.gitignore` und kommt nicht mit dem Repository. Ohne Build lädt jede Seite ein
+Bundle, das es nicht gibt — die Seite erscheint, aber nichts funktioniert.
+
+Nach jeder Änderung in `frontend/js/`, `frontend/css/` oder
+`frontend/config/design.config.json` muss der Build erneut laufen.
+
+Prüfen:
+
+```bash
+ls -lh /var/www/song-nexus/frontend/dist/app.bundle.js
+```
+
+nginx liefert die Dateien danach direkt aus, ohne Node.
 
 ---
 
@@ -520,7 +622,7 @@ await sendPasswordResetEmail(user.email, token, process.env.FRONTEND_URL);
 
 ```bash
 # Danach PM2 neu starten
-pm2 restart song-nexus
+pm2 restart song-nexus-api
 ```
 
 ---
@@ -531,13 +633,108 @@ pm2 restart song-nexus
 
 ```bash
 cd /var/www/song-nexus
-git pull origin dev/redesign
-cd backend && npm install --production
-cd ../frontend && npx webpack --config webpack.config.js --mode production
-pm2 reload song-nexus   # Zero-Downtime Reload
+git status                       # erst schauen, ob lokal etwas geändert wurde
+git pull origin dev/v1.0
+cd backend  && npm ci --omit=dev
+cd ../frontend && npm ci && npm run build
+cd ..
+pm2 reload song-nexus-api        # Neustart ohne Ausfall
+
+# Prüfen, dass es noch läuft:
+pm2 describe song-nexus-api | grep status
+curl -s -o /dev/null -w '%{http_code}\n' https://deine-domain.at/
 ```
 
+### Admin-Konto anlegen
+
+`npm run seed:dev-admin` verweigert in Produktion absichtlich den Dienst — das
+Skript prüft `NODE_ENV` und die Datenbankadresse. Sonst wäre es der Nachfolger
+genau jener Lücke, die es ersetzt hat (Issue #1).
+
+In Produktion gibt es zwei saubere Wege.
+
+**Weg 1 — normal registrieren, dann hochstufen (empfohlen)**
+
+```bash
+# 1. Auf https://deine-domain.at/auth.html normal registrieren.
+#    Passwortregeln und Validierung greifen dabei.
+
+# 2. Danach auf dem Server die Rolle setzen:
+sudo -u postgres psql -d song_nexus_prod
+
+-- erst nachsehen, wen es gibt:
+SELECT id, email, username, role, is_active FROM users ORDER BY id;
+
+-- dann gezielt hochstufen:
+UPDATE users SET role = 'admin' WHERE email = 'deine@mailadresse.at';
+
+-- Kontrolle:
+SELECT id, email, role FROM users WHERE role = 'admin';
+\q
+```
+
+Der Vorteil: Der Passwort-Hash entsteht durch den regulären Registrierungsweg,
+du hantierst nicht selbst mit bcrypt.
+
+**Weg 2 — Hash direkt erzeugen**
+
+Falls die Registrierung noch nicht erreichbar ist:
+
+```bash
+cd /var/www/song-nexus/backend
+node -e "
+const bcrypt = require('bcryptjs');
+const pw = process.argv[1];
+if (!pw || pw.length < 12) { console.error('Passwort zu kurz'); process.exit(1); }
+console.log(bcrypt.hashSync(pw, 12));
+" 'DEIN-LANGES-PASSWORT'
+```
+
+Den ausgegebenen Hash einsetzen:
+
+```sql
+INSERT INTO users (email, username, password_hash, role, is_active)
+VALUES ('deine@mailadresse.at', 'admin', '<HASH-HIER>', 'admin', true);
+```
+
+Die Rollenspalte akzeptiert per Constraint nur `user` oder `admin` — ein
+Tippfehler wird von der Datenbank abgewiesen, nicht stillschweigend geschluckt.
+
+> **Solange Issue #24 offen ist:** Ein einmal ausgestelltes Admin-Token bleibt
+> sieben Tage gültig, auch wenn du das Konto danach deaktivierst. `requireAdmin`
+> liest die Rolle aus dem Token, ohne in der Datenbank nachzusehen. Musst du
+> einen Admin-Zugang wirklich sofort entziehen, ist derzeit das Rotieren von
+> `JWT_SECRET` samt `pm2 reload` der einzige verlässliche Weg — das wirft alle
+> Sitzungen aller Benutzer ab.
+
+---
+
 ### Datenbank-Backup
+
+Mit dem Skript, das auch die Wiederherstellbarkeit prüft:
+
+```bash
+# Einmalig
+bash /var/www/song-nexus/scripts/deploy/backup-db.sh
+
+# Täglich um 03:30 einrichten
+bash /var/www/song-nexus/scripts/deploy/backup-db.sh --cron-einrichten
+
+# Wiederherstellung testen (legt eine Testdatenbank an, Produktion bleibt unberührt)
+bash /var/www/song-nexus/scripts/deploy/backup-db.sh --restore /var/backups/song-nexus/song_nexus_prod_2026-08-16_0330.sql.gz
+```
+
+Das Skript sichert auch `backend/public/audio` — die Audiodateien liegen nicht
+in der Datenbank und wären bei einem Serververlust sonst weg.
+
+> **Ein Backup auf demselben Server ist kein Backup.** Bei Serverausfall sind
+> Datenbank und Sicherung gemeinsam verloren. Lade die Dateien regelmäßig
+> herunter oder richte Hetzner Storage Box ein. Und teste einmal eine echte
+> Wiederherstellung, bevor du sie brauchst — genau dafür ist `--restore` da.
+> Issue #7 ist erst dann erledigt.
+
+<details>
+<summary>Befehle von Hand, ohne Skript</summary>
 
 ```bash
 # Manuelles Backup
@@ -549,10 +746,12 @@ crontab -e
 0 3 * * * pg_dump -U song_nexus_user -d song_nexus_prod > /home/sebastian/backups/backup_$(date +\%Y\%m\%d).sql
 ```
 
+</details>
+
 ### Logs anzeigen
 
 ```bash
-pm2 logs song-nexus --lines 100    # App-Logs
+pm2 logs song-nexus-api --lines 100    # App-Logs
 sudo tail -f /var/log/nginx/error.log   # nginx-Fehler
 sudo tail -f /var/log/nginx/access.log  # nginx-Zugriffe
 ```
@@ -561,47 +760,74 @@ sudo tail -f /var/log/nginx/access.log  # nginx-Zugriffe
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-pm2 reload song-nexus
+pm2 reload song-nexus-api
 ```
 
 ---
 
 ## 13. Checkliste vor Go-Live
 
-Gehe diese Liste durch, bevor du die Domain öffentlich machst:
+Zwei getrennte Listen. Der Soft-Launch ist **gratis** — Zahlungen bleiben aus,
+es gibt im Frontend ohnehin keinen Kauf-Button. Die frühere Fassung dieser
+Checkliste verlangte „PayPal auf Live umstellen" und einen Kauf-Test; das gilt
+erst für Milestone M3.
 
-### Sicherheit
-- [ ] Alle Secrets in `.env` neu generiert (nie die Repo-Werte verwenden)
-- [ ] `.env` hat Berechtigungen `chmod 600`
-- [ ] Root-Login per SSH deaktiviert
-- [ ] Fail2ban läuft (`sudo systemctl status fail2ban`)
-- [ ] Firewall lässt nur Ports 22, 80, 443 durch
-- [ ] PayPal von Sandbox auf **Live** umgestellt
+### Soft-Launch (jetzt)
 
-### HTTPS & Domain
-- [ ] A-Record gesetzt und propagiert (`nslookup song-nexus.at`)
-- [ ] Let's Encrypt Zertifikat ausgestellt
-- [ ] HTTPS-Redirect funktioniert (HTTP → HTTPS)
-- [ ] `certbot renew --dry-run` erfolgreich
+**Sicherheit**
+- [ ] Alle Secrets neu erzeugt, keine Werte aus dem Repository
+- [ ] `JWT_SECRET` und `SESSION_SECRET` sind verschieden
+- [ ] `chmod 600` auf `backend/.env`
+- [ ] Root-Login per SSH aus (`sudo sshd -T | grep permitrootlogin`)
+- [ ] Passwortanmeldung per SSH aus
+- [ ] fail2ban läuft
+- [ ] Firewall lässt nur 22, 80, 443 durch
+- [ ] Port 3000 von außen **nicht** erreichbar (`curl http://IP:3000` läuft ins Leere)
+- [ ] `PAYMENTS_ENABLED` ist nicht gesetzt
+- [ ] Quelldateien gesperrt: `/package.json`, `/node_modules/`, `/server.js`, `/certs/` liefern 404
 
-### Anwendung
-- [ ] `pm2 status` zeigt `online`
-- [ ] `pm2 logs` zeigt keine Fehler
-- [ ] `/api/tracks` antwortet im Browser
-- [ ] Login, Registrierung und WebAuthn funktionieren
-- [ ] Passwort-Reset sendet E-Mail
-- [ ] Track-Kauf mit PayPal funktioniert (Test-Transaktion)
-- [ ] Admin-Upload funktioniert
+**HTTPS und Domain**
+- [ ] A-Record für Domain **und** `www` gesetzt
+- [ ] Zertifikat ausgestellt, `certbot renew --dry-run` erfolgreich
+- [ ] HTTP leitet mit 301 auf HTTPS um
+- [ ] HSTS-Header vorhanden
+- [ ] `WEBAUTHN_RP_ID` und `WEBAUTHN_ORIGIN` entsprechen exakt der Domain
 
-### Rechtliches (Österreich)
-- [ ] Impressum erreichbar unter `/impressum.html`
-- [ ] Datenschutzerklärung erreichbar unter `/datenschutz.html`
-- [ ] Footer-Links auf Impressum und Datenschutz vorhanden
+**Anwendung**
+- [ ] `pm2 status` zeigt `online`, `pm2 logs` ohne Fehler
+- [ ] `frontend/dist/app.bundle.js` existiert
+- [ ] Startseite lädt, Audio spielt
+- [ ] Registrierung und Login funktionieren
+- [ ] Cookie ist `HttpOnly` und `Secure` (Entwicklerwerkzeuge, Reiter Anwendung)
+- [ ] WebAuthn funktioniert auf mindestens einem echten Gerät
+- [ ] Passwort-Reset sendet eine E-Mail, die auch ankommt (Spam-Ordner prüfen)
+- [ ] Admin-Upload einer Datei über 1 MB funktioniert
+- [ ] Ein falscher Pfad liefert **404**, nicht die Startseite
+- [ ] Alle elf Seiten laden, keine 404 in der Netzwerkanalyse
 
-### Performance
-- [ ] Webpack-Bundle mit `--mode production` gebaut (minimiert)
-- [ ] nginx Gzip-Kompression aktiv
-- [ ] Statische Dateien werden gecacht (30 Tage)
+**Recht (Österreich)**
+- [ ] Impressum unter `/impressum.html`, Angaben stimmen
+- [ ] Datenschutzerklärung unter `/datenschutz.html`
+- [ ] Beide Links im Fußbereich **jeder** Seite
+- [ ] Datenschutzerklärung nennt Hetzner als Auftragsverarbeiter
+- [ ] Auftragsverarbeitungsvertrag mit Hetzner abgeschlossen (im Kundenbereich)
+
+**Betrieb**
+- [ ] Backup läuft per Cron
+- [ ] Eine Wiederherstellung wurde **tatsächlich getestet** (`backup-db.sh --restore`)
+- [ ] Backups liegen auch außerhalb des Servers
+- [ ] `unattended-upgrades` aktiv
+
+### Erst für Monetarisierung (M3)
+
+- [ ] PayPal-Geschäftskonto verifiziert, Live-Zugangsdaten hinterlegt (#11)
+- [ ] Webhook eingerichtet — ohne ihn bleiben bezahlte Bestellungen hängen (#12)
+- [ ] Download-Tokens in der Datenbank statt im Arbeitsspeicher (#13)
+- [ ] AGB und Widerrufsbelehrung für digitale Inhalte (#14)
+- [ ] Gewerbe, Umsatzsteuer und OSS geklärt (#15)
+- [ ] Kaufkette von der Bestellung bis zum Download getestet (#16)
+- [ ] Kauf-Button im Frontend überhaupt vorhanden — den gibt es bisher nicht
+- [ ] `PAYMENTS_ENABLED=true` gesetzt, danach `pm2 restart`
 
 ---
 
@@ -614,11 +840,11 @@ sudo systemctl status nginx
 sudo systemctl status postgresql
 
 # Neustarten
-pm2 restart song-nexus
+pm2 restart song-nexus-api
 sudo systemctl restart nginx
 
 # Logs
-pm2 logs song-nexus
+pm2 logs song-nexus-api
 sudo journalctl -u nginx -n 50
 
 # SSL erneuern
