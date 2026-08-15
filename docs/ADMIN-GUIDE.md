@@ -39,22 +39,32 @@ https://localhost:3000/admin/
 
 ### 2. Login Methods
 
-#### Option A: Dev Login (Localhost Only) - RECOMMENDED FOR DEVELOPMENT
+#### Option A: Dev-Admin per Seed-Skript – EMPFOHLEN FÜR ENTWICKLUNG
 
 **Best for:** Local development, quick testing
 
-1. Navigate to `https://localhost:3000/admin/`
-2. Click **"Dev Login (Localhost Only)"** button
-3. System automatically creates dev admin user
-4. ✅ You're logged in!
+1. Dev-Admin einmalig per CLI anlegen:
+   ```bash
+   cd backend
+   npm run seed:dev-admin
+   ```
+   Das Skript gibt E-Mail und ein generiertes Passwort aus.
+2. Zu `https://localhost:3000/admin/` navigieren
+3. Mit diesen Zugangsdaten über das normale Login-Formular anmelden
+4. ✅ Eingeloggt
 
-**How it works:**
-- Frontend sends POST to `/api/auth/dev-login`
-- Backend creates temporary admin user with role `admin`
-- JWT token issued and stored in localStorage
-- Session persists until logout
+**Warum nicht mehr per Knopfdruck?**
 
-**Note:** Only works on `localhost` or `127.0.0.1`. Attempting on production domain will show alert.
+Der frühere "Dev Login"-Button rief `POST /api/auth/dev-login` auf. Dieser Endpunkt
+legte serverseitig einen User mit `role='admin'` an und gab ein gültiges JWT zurück –
+**ohne `NODE_ENV`-Guard** und über `app.use('/api/auth', ...)` öffentlich gemountet.
+Die localhost-Prüfung lief im Browser und war mit `curl` trivial umgehbar.
+
+Damit war auf einer öffentlich erreichbaren Instanz ein vollständiger Admin-Takeover
+mit einem einzigen POST möglich. Endpunkt und Button wurden entfernt (Issue #1).
+
+Das Seed-Skript hat keine HTTP-Angriffsfläche: es läuft nur über die CLI, verweigert
+den Start bei `NODE_ENV=production` und prüft zusätzlich, dass `DB_HOST` lokal ist.
 
 ---
 
@@ -245,7 +255,7 @@ Design configurations stored in database table: `design_system`
 ```
 1. User submits credentials
    ↓
-2. Frontend POST to /api/auth/login or /api/auth/dev-login
+2. Frontend POST to /api/auth/login
    ↓
 3. Backend validates credentials
    ↓
@@ -504,25 +514,20 @@ frontend/admin-upload.html  ✅ (in frontend ROOT)
 
 ### Admin Authentication Endpoints
 
-#### Dev Login (Localhost Only)
-```javascript
-POST /api/auth/dev-login
+#### Dev Login – ENTFERNT (Issue #1)
 
-Headers: {
-  'Content-Type': 'application/json'
-}
+`POST /api/auth/dev-login` wurde entfernt und liefert jetzt `404`.
 
-Response 200:
-{
-  token: "eyJhbGc...",
-  user: {
-    id: 1,
-    email: "dev@localhost",
-    username: "dev",
-    role: "admin"
-  }
-}
+Grund: der Endpunkt erzeugte Admin-Accounts ohne serverseitigen Guard und war
+öffentlich erreichbar. Ersatz für die lokale Entwicklung:
+
+```bash
+cd backend && npm run seed:dev-admin
 ```
+
+Danach normaler Login über `POST /api/auth/login`.
+Regressionstests: `backend/__tests__/auth.test.js`, Block
+`SECURITY: dev-login darf nicht existieren`.
 
 #### Regular Login
 ```javascript

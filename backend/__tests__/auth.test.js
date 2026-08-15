@@ -439,3 +439,76 @@ describe('SECURITY: Token-Manipulation', () => {
     expect(res.statusCode).toBe(403);
   });
 });
+
+// ===========================================================================
+// SECURITY: dev-login darf nicht existieren (Regression zu Issue #1)
+// ===========================================================================
+//
+// Der frühere Endpunkt POST /api/auth/dev-login legte einen User mit
+// role='admin' an und gab ein gültiges JWT zurück – ohne NODE_ENV-Guard und
+// öffentlich gemountet. Diese Tests stellen sicher, dass er nicht durch einen
+// Merge, ein Revert oder Copy-Paste zurückkehrt.
+//
+// Ersatz für den lokalen Komfort: npm run seed:dev-admin
+// ===========================================================================
+describe('SECURITY: dev-login darf nicht existieren', () => {
+  test('404 - POST /api/auth/dev-login existiert nicht', async () => {
+    const res = await request(app).post('/api/auth/dev-login');
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('404 - auch mit Body wird kein Account erzeugt', async () => {
+    const res = await request(app)
+      .post('/api/auth/dev-login')
+      .send({ email: 'dev@localhost' });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('kein Token und kein Auth-Cookie in der Antwort', async () => {
+    const res = await request(app).post('/api/auth/dev-login');
+
+    expect(res.body.token).toBeUndefined();
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  test('Groß-/Kleinschreibung und Slash-Varianten sind ebenfalls tot', async () => {
+    for (const pfad of [
+      '/api/auth/dev-login/',
+      '/api/auth/DEV-LOGIN',
+      '/api/auth/devlogin',
+      '/api/auth/dev_login',
+    ]) {
+      const res = await request(app).post(pfad);
+      expect(res.statusCode).toBe(404);
+    }
+  });
+
+  test('GET auf den alten Pfad liefert ebenfalls 404', async () => {
+    const res = await request(app).get('/api/auth/dev-login');
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('Quellcode-Prüfung: routes/auth.js registriert keine dev-login-Route', () => {
+    // Bewusst als statische Prüfung: fängt auch einen Wiedereinbau, der durch
+    // eine geänderte Mount-Struktur nicht mehr über HTTP sichtbar wäre.
+    const fsReal = jest.requireActual('fs');
+    const pathReal = jest.requireActual('path');
+    const quelle = fsReal.readFileSync(
+      pathReal.join(__dirname, '..', 'routes', 'auth.js'),
+      'utf8'
+    );
+
+    // Kommentare ausblenden, damit die Dokumentation im Code nicht anschlägt
+    const ohneKommentare = quelle
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((zeile) => !zeile.trim().startsWith('//'))
+      .join('\n');
+
+    expect(ohneKommentare).not.toMatch(/dev-login/i);
+    expect(ohneKommentare).not.toMatch(/dev123456/);
+  });
+});

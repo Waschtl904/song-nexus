@@ -349,8 +349,11 @@ POST   /api/auth/verify           # Verify JWT token
 GET    /api/auth/me               # Get current user profile
 POST   /api/auth/refresh-token    # Refresh JWT
 POST   /api/auth/logout           # Logout (requires token)
-POST   /api/auth/dev-login        # Dev-only quick login
 ```
+
+> **Entfernt:** `POST /api/auth/dev-login` existiert nicht mehr (Issue #1).
+> Der Endpunkt legte einen Admin-Account ohne serverseitigen Guard an.
+> Lokalen Admin stattdessen per CLI anlegen: `cd backend && npm run seed:dev-admin`
 
 ### Tracks & Audio
 ```

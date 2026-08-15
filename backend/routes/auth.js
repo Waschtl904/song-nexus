@@ -142,56 +142,31 @@ router.post('/login', [
 });
 
 // ============================================================================
-// 🧨 POST /api/auth/dev-login - Development Quick Login
+// ⛔ ENTFERNT: POST /api/auth/dev-login
 // ============================================================================
-
-router.post('/dev-login', async (req, res) => {
-  try {
-    console.log('🧨 Dev login attempt...');
-
-    const devEmail = 'dev@localhost';
-    const devUsername = 'devuser';
-    const devPassword = 'dev123456';
-
-    // 1️⃣ Check if dev user exists
-    let userResult = await pool.query(
-      'SELECT id, email, username, role FROM users WHERE email = $1',
-      [devEmail]
-    );
-
-    let user;
-    if (userResult.rows.length === 0) {
-      // Create dev user if not exists
-      console.log('📃 Creating dev user...');
-      const hashedPassword = await bcrypt.hash(devPassword, 10);
-      userResult = await pool.query(
-        `INSERT INTO users (email, username, password_hash, role, is_active)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, email, username, role`,
-        [devEmail, devUsername, hashedPassword, 'admin', true]
-      );
-      console.log('✅ Dev user created');
-    } else {
-      console.log('✅ Dev user already exists');
-    }
-
-    user = userResult.rows[0];
-
-    // 2️⃣ Generate token + als HttpOnly Cookie setzen
-    const token = generateJWT(user);
-    setAuthCookie(res, token);
-
-    res.json({
-      success: true,
-      message: '✅ Dev login successful',
-      user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token, // Beibehalten für Rückwärtskompatibilität
-    });
-  } catch (err) {
-    console.error('❌ Dev login error:', err);
-    res.status(500).json({ error: 'Dev login failed' });
-  }
-});
+//
+// Dieser Endpunkt legte einen User mit role='admin' an und gab ein gültiges
+// JWT zurück – ohne jeden NODE_ENV-Guard. Der Router ist über
+// app.use('/api/auth', ...) öffentlich gemountet, damit war ein vollständiger
+// Admin-Takeover per einzelnem POST möglich (Issue #1).
+//
+// Die clientseitige localhost-Prüfung im Admin-Hub war KEIN Schutz – sie lief
+// im Browser und war mit curl trivial umgehbar.
+//
+// Der Endpunkt wurde bewusst NICHT nur weggeguarded, sondern ersetzt:
+// Ein HTTP-Endpunkt, der Admin-Accounts erzeugt, ist auch mit Guard eine
+// Fehlkonfiguration von der Katastrophe entfernt (z. B. vergessenes
+// NODE_ENV=production). Für den lokalen Komfort gibt es stattdessen:
+//
+//     cd backend && npm run seed:dev-admin
+//
+// Das Skript läuft ausschließlich über die CLI, verweigert den Start bei
+// NODE_ENV=production und hat keine HTTP-Angriffsfläche.
+// Siehe backend/scripts/seed-dev-admin.js
+//
+// ⚠️  NICHT wieder hinzufügen. Regressionstest: __tests__/auth.test.js
+//     ('SECURITY: dev-login darf nicht existieren')
+// ============================================================================
 
 // ============================================================================
 // 🔍 POST /api/auth/verify - Verify JWT Token is Valid
