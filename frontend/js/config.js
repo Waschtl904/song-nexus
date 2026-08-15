@@ -2,7 +2,19 @@
 // 🔧 CONFIG.JS - FRONTEND CONFIGURATION + API ENDPOINTS
 // ============================================================================
 
-const API_BASE_URL = 'https://localhost:3000/api';
+// Relativer Pfad, absichtlich ohne Hostnamen.
+//
+// Vorher stand hier 'https://localhost:3000/api'. Dieser Wert wird beim
+// webpack-Build fest ins Bundle geschrieben (webpack ersetzt nur NODE_ENV,
+// keine URLs). In Produktion hat damit der Browser JEDES Besuchers versucht,
+// dessen EIGENEN Rechner auf Port 3000 anzusprechen — jeder Aufruf der
+// Schnittstelle wäre fehlgeschlagen.
+//
+// Ein relativer Pfad zeigt immer auf die Adresse, unter der die Seite gerade
+// läuft: lokal auf Port 5500 (dessen Server /api an das Backend weiterleitet),
+// in Produktion auf die echte Domain — mit und ohne www. Damit sind alle
+// Aufrufe gleichursprünglich und CORS wird gar nicht erst gebraucht.
+const API_BASE_URL = '/api';
 
 export const API_ENDPOINTS = {
     // Auth Routes

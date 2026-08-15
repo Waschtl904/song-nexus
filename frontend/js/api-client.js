@@ -11,7 +11,7 @@ export class APIClient {
             return getApiBaseUrl();
         } catch (err) {
             console.warn('⚠️ Config not available, using fallback');
-            return 'https://localhost:3000/api';
+            return '/api';   // relativ, siehe Begründung in config.js
         }
     }
 

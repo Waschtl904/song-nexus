@@ -105,8 +105,32 @@ function getOriginsList() {
     return origins;
 }
 
+// In Produktion die konfigurierten Ursprünge verwenden, nicht einen
+// Platzhalter. Vorher stand hier fest ['https://yourdomain.com'], wodurch
+// ALLOWED_ORIGINS im Produktionsbetrieb wirkungslos war — dokumentiert, aber
+// ohne Wirkung. Aufgefallen ist das erst, als der Server beim Start eine
+// andere Liste meldete als in der .env stand.
+function getProductionOrigins() {
+    const roh = [process.env.ALLOWED_ORIGINS, process.env.FRONTEND_URL]
+        .filter(Boolean)
+        .join(',');
+
+    const origins = [...new Set(
+        roh.split(',').map(o => o.trim()).filter(o => o.length > 0)
+    )];
+
+    if (origins.length === 0) {
+        console.warn('⚠️  Weder ALLOWED_ORIGINS noch FRONTEND_URL gesetzt.');
+        console.warn('   Gleichursprüngliche Aufrufe funktionieren weiterhin — das');
+        console.warn('   Frontend nutzt relative Pfade. Andere Ursprünge blockiert');
+        console.warn('   der Browser. Für den Regelbetrieb beide Werte setzen.');
+    }
+
+    return origins;
+}
+
 const corsOrigins = NODE_ENV === 'production'
-    ? ['https://yourdomain.com']
+    ? getProductionOrigins()
     : getOriginsList();
 
 console.log('🌐 CORS Origins:', corsOrigins);
@@ -779,7 +803,12 @@ console.log('✅ All API routes registered');
 // ============================================================================
 
 app.use('/public/audio', (req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'https://localhost:5500');
+    // Ohne FRONTEND_URL keinen Entwicklungs-Ursprung erlauben: Audiodateien
+    // werden gleichursprünglich ausgeliefert, ein falscher Wert hier hilft
+    // niemandem und verschleiert eine fehlende Konfiguration.
+    if (process.env.FRONTEND_URL) {
+        res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
     res.setHeader('Accept-Ranges', 'bytes');
