@@ -96,7 +96,7 @@ POST   /api/auth/verify
 GET    /api/auth/me
 POST   /api/auth/refresh-token
 POST   /api/auth/logout
-POST   /api/auth/dev-login
+POST   /api/auth/dev-login   ⛔ ENTFERNT (Issue #1)
 ```
 
 ### WebAuthn Biometric (5 endpoints)

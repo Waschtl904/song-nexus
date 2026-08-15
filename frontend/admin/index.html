@@ -300,7 +300,13 @@
                 </div>
                 <div id="loginError" class="error-message"></div>
                 <button type="submit" class="btn" id="loginBtn">Login</button>
-                <button type="button" class="btn btn-secondary" onclick="handleDevLogin()">Dev Login</button>
+                <!--
+                  Der "Dev Login"-Button wurde entfernt (Issue #1).
+                  Er rief POST /api/auth/dev-login auf, das einen Admin-Account
+                  ohne serverseitigen Guard anlegte. Die localhost-Prüfung hier
+                  im Browser war kein Schutz.
+                  Lokalen Admin jetzt so anlegen:  cd backend && npm run seed:dev-admin
+                -->
             </form>
         </div>
 
@@ -392,28 +398,16 @@
             }
         }
 
-        async function handleDevLogin() {
-            if (!window.location.hostname.includes('localhost') && window.location.hostname !== '127.0.0.1') {
-                alert('Dev login only on localhost!');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE}/api/auth/dev-login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error);
-
-                localStorage.setItem(STORAGE_KEY, data.token);
-                localStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
-                showAdminContent(data.user);
-            } catch (error) {
-                alert('Dev login failed: ' + error.message);
-            }
-        }
+        // handleDevLogin() wurde entfernt (Issue #1).
+        //
+        // Die Funktion rief POST /api/auth/dev-login auf. Der Endpunkt legte
+        // serverseitig einen User mit role='admin' an und gab ein gültiges JWT
+        // zurück – ohne NODE_ENV-Guard. Die hostname-Prüfung, die hier stand,
+        // lief im Browser und war mit einem curl-Aufruf trivial umgehbar.
+        //
+        // Lokalen Admin-Account jetzt über die CLI anlegen:
+        //     cd backend && npm run seed:dev-admin
+        // Danach normal über dieses Formular anmelden.
 
         async function verifyTokenAndShowContent(token, user) {
             try {

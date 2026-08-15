@@ -237,8 +237,39 @@ app.options('*', cors(corsOptions));
 // 🔐 SESSION MIDDLEWARE - CRITICAL: MUST BE BEFORE ROUTES!
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// Fail-fast: keine Dev-Defaults in Produktion (verwandt mit Issue #1)
+//
+// Der Session-Secret hatte den Fallback 'dev-secret-change-in-prod'. Fehlt die
+// Variable in Produktion, lief der Server also mit einem im Repo bekannten
+// Secret weiter – still und ohne Warnung. Dieselbe Klasse von Problem wie ein
+// vergessenes NODE_ENV: die Anwendung startet, ist aber ungeschuetzt.
+// Deshalb: in Produktion lieber gar nicht starten als unsicher starten.
+// ---------------------------------------------------------------------------
+if (NODE_ENV === 'production') {
+    const pflichtSecrets = ['SESSION_SECRET', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+    const fehlend = pflichtSecrets.filter((name) => {
+        const wert = process.env[name];
+        return !wert || wert.length < 32;
+    });
+
+    if (fehlend.length > 0) {
+        console.error('❌ START ABGEBROCHEN: Pflicht-Secrets fehlen oder sind zu kurz (< 32 Zeichen):');
+        fehlend.forEach((name) => console.error(`   - ${name}`));
+        console.error('   Generieren mit: openssl rand -base64 32');
+        console.error('   Wichtig: für jedes Secret einen EIGENEN Wert verwenden.');
+        process.exit(1);
+    }
+
+    if (process.env.SESSION_SECRET === process.env.JWT_SECRET) {
+        console.error('❌ START ABGEBROCHEN: SESSION_SECRET und JWT_SECRET sind identisch.');
+        console.error('   Getrennte Secrets verhindern, dass eine Kompromittierung beide Systeme trifft.');
+        process.exit(1);
+    }
+}
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-secret-change-in-prod',
+    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
