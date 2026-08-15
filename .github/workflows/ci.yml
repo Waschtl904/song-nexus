@@ -39,7 +39,7 @@ jobs:
         working-directory: backend
         # Die Testsuite setzt ihre Secrets selbst (siehe __tests__/*.test.js),
         # daher braucht CI keine Repository-Secrets.
-        run: npm test
+        run: npm run test:ci
 
   audit:
     name: Backend – Sicherheitslücken

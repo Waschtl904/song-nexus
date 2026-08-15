@@ -324,12 +324,26 @@ const crypto = require('crypto');
 const downloadTokens = new Map();
 
 // Aufräumen: abgelaufene Tokens alle 5 Minuten entfernen
-setInterval(() => {
+//
+// .unref() ist hier entscheidend: ohne den Aufruf hält der Timer die Node-
+// Event-Loop dauerhaft offen. Folge war, dass `jest --detectOpenHandles` nicht
+// mehr zurückkehrt – in CI lief der Test-Job in den Timeout, obwohl alle 59
+// Tests nach rund 25 Sekunden grün waren.
+//
+// unref() sagt Node: dieser Timer ist kein Grund, den Prozess am Leben zu
+// halten. Im laufenden Server ändert sich nichts, weil dort der HTTP-Listener
+// die Event-Loop offen hält und das Intervall wie gewohnt feuert.
+//
+// Der eigentliche Konstruktionsfehler bleibt Issue #13: die Tokens liegen im
+// Prozessspeicher und sind nach jedem Restart verloren.
+const downloadTokenCleanup = setInterval(() => {
   const now = Date.now();
   for (const [token, data] of downloadTokens.entries()) {
     if (data.expiresAt < now) downloadTokens.delete(token);
   }
 }, 5 * 60 * 1000);
+
+downloadTokenCleanup.unref();
 
 router.get('/download/:trackId', verifyToken, async (req, res) => {
   const trackId = parseInt(req.params.trackId);

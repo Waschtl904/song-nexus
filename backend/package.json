@@ -11,9 +11,11 @@
     "start:prod": "cross-env NODE_ENV=production node --no-deprecation server.js",
     "dev:local": "cross-env NODE_ENV=development nodemon --no-deprecation server.js --ignore logs",
     "seed:dev-admin": "node scripts/seed-dev-admin.js",
-    "test": "jest --runInBand --detectOpenHandles",
+    "test": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
-    "test:coverage": "jest --coverage --runInBand --detectOpenHandles"
+    "test:coverage": "jest --coverage --runInBand",
+    "test:handles": "jest --runInBand --detectOpenHandles",
+    "test:ci": "jest --runInBand --ci"
   },
   "jest": {
     "testEnvironment": "node",
