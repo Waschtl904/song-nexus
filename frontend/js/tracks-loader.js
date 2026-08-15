@@ -6,6 +6,32 @@ import { APIClient } from './api-client.js';
 
 let designConfig = null;
 
+// ---------------------------------------------------------------------------
+// Issue #8: Soft-Launch. Solange der Verkauf nicht freigeschaltet ist, darf
+// die Oberfläche keinen Preis versprechen, den man nicht bezahlen kann.
+//
+// Bewusst mit false vorbelegt und auch im Fehlerfall false: lieber "bald
+// verfügbar" anzeigen als einen Kaufpreis, der ins Leere führt. Der
+// eigentliche Schutz sitzt ohnehin im Backend (503 PAYMENTS_DISABLED) –
+// das hier ist reine Ehrlichkeit gegenüber dem Besucher.
+// ---------------------------------------------------------------------------
+let paymentsEnabled = false;
+
+async function loadPaymentsConfig() {
+    try {
+        const config = await APIClient.get('/payments/config');
+        paymentsEnabled = config?.payments_enabled === true;
+        console.log(
+            paymentsEnabled
+                ? '💰 Verkauf aktiv'
+                : '🔌 Verkauf deaktiviert – Preise werden als "bald verfügbar" angezeigt'
+        );
+    } catch (err) {
+        paymentsEnabled = false;
+        console.warn('⚠️ Zahlungs-Config nicht erreichbar, Verkauf gilt als deaktiviert:', err.message);
+    }
+}
+
 async function loadDesignConfig() {
     try {
         const response = await fetch('./config/design.config.json');
@@ -49,7 +75,7 @@ export class TracksLoader {
 
     async init() {
         console.log('🔄 TracksLoader initializing...');
-        await loadDesignConfig();
+        await Promise.all([loadDesignConfig(), loadPaymentsConfig()]);
         this.setupInfiniteScroll();
         await this.loadTracks(false);
     }
@@ -149,7 +175,16 @@ export class TracksLoader {
                 if (track.price_eur !== null && track.price_eur !== undefined) {
                     priceNum = parseFloat(track.price_eur) || 0;
                 }
-                const priceDisplay = track.is_free ? 'FREE' : `€${priceNum.toFixed(2)}`;
+                // Gratis-Tracks sind immer "FREE". Bezahltracks zeigen ihren
+                // Preis nur, wenn er auch bezahlbar ist (Issue #8).
+                let priceDisplay;
+                if (track.is_free) {
+                    priceDisplay = 'FREE';
+                } else if (paymentsEnabled) {
+                    priceDisplay = `€${priceNum.toFixed(2)}`;
+                } else {
+                    priceDisplay = 'BALD';
+                }
                 const badgeClass = track.is_free ? 'badge-free' : 'badge-paid';
 
                 console.log(`📊 Track ${track.id}: ${track.name} | Price: ${priceNum} | Free: ${track.is_free}`);
@@ -170,7 +205,10 @@ export class TracksLoader {
 
             <!-- Price & Status -->
             <div class="track-footer">
-              <span class="track-price ${track.is_free ? 'free' : ''}">${priceDisplay}</span>
+              <span
+                class="track-price ${track.is_free ? 'free' : ''}${!track.is_free && !paymentsEnabled ? ' soon' : ''}"
+                ${!track.is_free && !paymentsEnabled ? 'title="Kauf noch nicht freigeschaltet – 40-Sekunden-Vorschau verfügbar"' : ''}
+              >${priceDisplay}</span>
             </div>
 
             <!-- Play Button -->

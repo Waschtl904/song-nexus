@@ -23,13 +23,57 @@ function client() {
 }
 
 // ============================================================================
+// 🔌 FEATURE-FLAG: PAYMENTS_ENABLED (Issue #8)
+// ============================================================================
+//
+// Erlaubt den Soft-Launch: die Plattform geht mit Gratis-Tracks online,
+// während PayPal-Live-Verifizierung (#11), Webhook (#12), AGB und
+// Widerrufsbelehrung (#14) noch offen sind.
+//
+// Bewusst fail-closed: Zahlungen sind AUS, solange nicht ausdrücklich
+// PAYMENTS_ENABLED=true gesetzt ist. Fehlt die Variable auf dem Server,
+// wird kein Geld eingezogen. Bei einem Feature, das Zahlungen auslöst, ist
+// ein vergessenes Env-Flag sonst genau der Fall, den man nicht will.
+//
+// Absichtlich NICHT gesperrt werden die lesenden Routen und der Download:
+// bereits gekaufte Tracks müssen erreichbar bleiben, auch wenn der Verkauf
+// zwischenzeitlich pausiert wird. Gesperrt ist nur, was neues Geld bewegt.
+// ============================================================================
+
+function paymentsEnabled() {
+  // Bei jedem Aufruf neu lesen, damit Tests das Flag umschalten können.
+  return process.env.PAYMENTS_ENABLED === 'true';
+}
+
+function requirePaymentsEnabled(req, res, next) {
+  if (paymentsEnabled()) return next();
+
+  console.warn(`🔌 Zahlung blockiert (PAYMENTS_ENABLED != true): ${req.method} ${req.originalUrl}`);
+  return res.status(503).json({
+    error: 'Zahlungen sind derzeit deaktiviert',
+    code: 'PAYMENTS_DISABLED',
+    message: 'Der Verkauf ist noch nicht freigeschaltet. Gratis-Tracks sind uneingeschränkt verfügbar.',
+  });
+}
+
+console.log(
+  paymentsEnabled()
+    ? '💰 Zahlungen AKTIV (PAYMENTS_ENABLED=true)'
+    : '🔌 Zahlungen DEAKTIVIERT – Soft-Launch-Modus (PAYMENTS_ENABLED != true)'
+);
+
+// ============================================================================
 // 🔒 GET /api/payments/config - PayPal Config für Frontend
 // ============================================================================
 
 router.get('/config', (req, res) => {
+  const enabled = paymentsEnabled();
   res.json({
-    paypal_client_id: process.env.PAYPAL_CLIENT_ID,
+    // Bei deaktivierten Zahlungen keine Client-ID ausliefern – es gibt keinen
+    // Grund, sie preiszugeben, wenn ohnehin kein Checkout stattfinden kann.
+    paypal_client_id: enabled ? process.env.PAYPAL_CLIENT_ID : null,
     paypal_mode: process.env.PAYPAL_MODE || 'sandbox',
+    payments_enabled: enabled,
   });
 });
 
@@ -37,7 +81,7 @@ router.get('/config', (req, res) => {
 // 💰 POST /api/payments/create-order - Create PayPal Order für Track
 // ============================================================================
 
-router.post('/create-order', verifyToken, [
+router.post('/create-order', requirePaymentsEnabled, verifyToken, [
   body('track_id').isInt().withMessage('Track ID must be an integer'),
   body('price').isFloat({ min: 0.01, max: 100 }).withMessage('Invalid price'),
 ], async (req, res) => {
@@ -136,7 +180,7 @@ router.post('/create-order', verifyToken, [
 // ✅ POST /api/payments/capture-order/:orderId - Capture Payment
 // ============================================================================
 
-router.post('/capture-order/:orderId', verifyToken, [
+router.post('/capture-order/:orderId', requirePaymentsEnabled, verifyToken, [
   body('track_id').isInt().withMessage('Track ID required'),
 ], async (req, res) => {
   const { orderId } = req.params;

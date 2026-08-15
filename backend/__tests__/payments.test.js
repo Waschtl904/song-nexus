@@ -15,6 +15,10 @@ process.env.PAYPAL_CLIENT_ID = 'test-client-id';
 process.env.PAYPAL_CLIENT_SECRET = 'test-client-secret';
 process.env.PAYPAL_MODE = 'sandbox';
 process.env.FRONTEND_URL = 'http://localhost:3000';
+// Issue #8: Zahlungen sind fail-closed. Die bestehenden Tests pruefen den
+// aktiven Zustand, deshalb hier ausdruecklich einschalten. Der deaktivierte
+// Zustand hat einen eigenen describe-Block am Dateiende.
+process.env.PAYMENTS_ENABLED = 'true';
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
@@ -84,6 +88,12 @@ describe('GET /api/payments/config', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('paypal_client_id');
     expect(res.body).toHaveProperty('paypal_mode');
+  });
+
+  test('200 – meldet payments_enabled: true wenn aktiv', async () => {
+    const res = await request(app).get('/api/payments/config');
+    expect(res.body.payments_enabled).toBe(true);
+    expect(res.body.paypal_client_id).toBe('test-client-id');
   });
 });
 
@@ -260,5 +270,113 @@ describe('GET /api/payments/stats', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('total_spent');
     expect(res.body).toHaveProperty('completed_payments');
+  });
+});
+
+
+// ===========================================================================
+// SOFT-LAUNCH: PAYMENTS_ENABLED (Issue #8)
+// ===========================================================================
+//
+// Der Schalter muss serverseitig wirken, nicht nur in der UI. Ein Angreifer
+// oder ein alter Browser-Tab kann die Endpunkte direkt aufrufen - Buttons
+// ausblenden allein ist kein Schutz.
+//
+// Fail-closed: Zahlungen bleiben aus, solange nicht ausdruecklich
+// PAYMENTS_ENABLED='true' gesetzt ist. Ein fehlendes oder falsch
+// geschriebenes Env-Flag darf niemals versehentlich Geld bewegen.
+// ===========================================================================
+describe('SOFT-LAUNCH: PAYMENTS_ENABLED steuert den Verkauf', () => {
+  let userToken;
+
+  beforeAll(() => {
+    userToken = jwt.sign(
+      { id: 1, role: 'user', username: 'kaeufer', email: 'k@example.com' },
+      process.env.JWT_SECRET
+    );
+  });
+
+  afterEach(() => {
+    process.env.PAYMENTS_ENABLED = 'true';
+  });
+
+  describe('wenn deaktiviert', () => {
+    beforeEach(() => {
+      process.env.PAYMENTS_ENABLED = 'false';
+    });
+
+    test('503 – create-order wird blockiert', async () => {
+      const res = await request(app)
+        .post('/api/payments/create-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ track_id: 1, price: 1.99 });
+
+      expect(res.statusCode).toBe(503);
+      expect(res.body.code).toBe('PAYMENTS_DISABLED');
+    });
+
+    test('503 – capture-order wird blockiert', async () => {
+      const res = await request(app)
+        .post('/api/payments/capture-order/PAYPAL-ORDER-123')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ track_id: 1 });
+
+      expect(res.statusCode).toBe(503);
+      expect(res.body.code).toBe('PAYMENTS_DISABLED');
+    });
+
+    test('503 kommt VOR der Token-Pruefung – auch ohne Login kein Durchkommen', async () => {
+      // Der Guard sitzt absichtlich vor verifyToken: die Antwort soll nicht
+      // verraten, ob ein Login geholfen haette.
+      const res = await request(app)
+        .post('/api/payments/create-order')
+        .send({ track_id: 1, price: 1.99 });
+
+      expect(res.statusCode).toBe(503);
+    });
+
+    test('config meldet payments_enabled: false und keine Client-ID', async () => {
+      const res = await request(app).get('/api/payments/config');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.payments_enabled).toBe(false);
+      expect(res.body.paypal_client_id).toBeNull();
+    });
+
+    test('lesende Routen bleiben erreichbar – bereits Gekauftes bleibt sichtbar', async () => {
+      const { pool } = require('../db');
+      pool.query.mockResolvedValueOnce({ rows: [] });
+
+      const res = await request(app)
+        .get('/api/payments/user-purchases')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.statusCode).toBe(200);
+    });
+  });
+
+  describe('fail-closed bei unklarer Konfiguration', () => {
+    test('503 – wenn PAYMENTS_ENABLED voellig fehlt', async () => {
+      delete process.env.PAYMENTS_ENABLED;
+
+      const res = await request(app)
+        .post('/api/payments/create-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ track_id: 1, price: 1.99 });
+
+      expect(res.statusCode).toBe(503);
+    });
+
+    test("503 – 'TRUE', '1' und 'yes' gelten NICHT als aktiviert", async () => {
+      for (const wert of ['TRUE', 'True', '1', 'yes', 'on', '']) {
+        process.env.PAYMENTS_ENABLED = wert;
+
+        const res = await request(app)
+          .post('/api/payments/create-order')
+          .set('Authorization', `Bearer ${userToken}`)
+          .send({ track_id: 1, price: 1.99 });
+
+        expect(res.statusCode).toBe(503);
+      }
+    });
   });
 });
