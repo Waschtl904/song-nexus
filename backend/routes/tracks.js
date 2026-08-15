@@ -139,15 +139,27 @@ router.get('/audio/:filename', async (req, res) => {
     const trackResult = await pool.query(
       `SELECT id, is_free, free_preview_duration, duration_seconds
        FROM tracks
-       WHERE audio_filename = $1 AND is_deleted = FALSE
+       WHERE audio_filename = $1
+         AND is_deleted = FALSE
+         AND is_published = TRUE
        LIMIT 1`,
       [filename]
     );
 
     if (trackResult.rows.length === 0) {
-      console.warn(`⚠️ No track record for audio file: ${filename}`);
-      console.log('🎶 No DB record found, treating as 40s preview');
-      return servePreview(filepath, filename, null, req, res);
+      // Fail closed. Vorher wurde hier eine 40-Sekunden-Vorschau ausgeliefert
+      // ("treating as 40s preview"). Das bedeutete:
+      //
+      //   - ein nicht veroeffentlichter Track war anhoerbar, sobald man den
+      //     Dateinamen kannte
+      //   - jede Datei im Audio-Verzeichnis OHNE Datenbankeintrag war
+      //     teilweise oeffentlich, etwa ein abgebrochener Upload
+      //
+      // Wenn die Datenbank einen Track nicht als veroeffentlicht kennt, gibt
+      // es keinen Grund, davon irgendetwas auszuliefern. Ein Standardwert,
+      // der im Zweifel Daten herausgibt, zeigt in die falsche Richtung.
+      console.warn(`⚠️ Kein veroeffentlichter Track zu dieser Datei: ${filename} — 404`);
+      return res.status(404).json({ error: 'Audio file not found' });
     }
 
     const track = trackResult.rows[0];

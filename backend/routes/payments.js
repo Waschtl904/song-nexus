@@ -83,7 +83,11 @@ router.get('/config', (req, res) => {
 
 router.post('/create-order', requirePaymentsEnabled, verifyToken, [
   body('track_id').isInt().withMessage('Track ID must be an integer'),
-  body('price').isFloat({ min: 0.01, max: 100 }).withMessage('Invalid price'),
+  // price ist optional und NICHT maßgeblich. Der Preis kommt aus
+  // tracks.price_eur. Schickt der Client dennoch einen Wert, muss er passen —
+  // sonst 400 mit PRICE_MISMATCH. Das macht eine Manipulation sichtbar,
+  // statt sie still zu überschreiben.
+  body('price').optional().isFloat({ min: 0.01, max: 100 }).withMessage('Invalid price'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -94,9 +98,18 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
   const userId = req.user.id;
 
   try {
-    // 1️⃣ Verify track exists
+    // 1️⃣ Track laden — MIT Preis.
+    //
+    // Vorher wurden nur id, name und artist geladen und der Preis aus
+    // req.body übernommen. Damit bestimmte der Browser, was ein Song kostet:
+    // ein Aufruf mit price 0.01 für einen Track zu 4.99 wurde angenommen.
+    // Der Validator prüfte nur die Spanne 0.01 bis 100, nicht die
+    // Übereinstimmung mit dem Track.
+    //
+    // Preise gehören serverseitig bestimmt. Alles andere ist eine
+    // Vertrauensgrenze an der falschen Stelle.
     const trackResult = await pool.query(
-      'SELECT id, name, artist FROM tracks WHERE id = $1',
+      'SELECT id, name, artist, price_eur, is_free, is_published, is_deleted FROM tracks WHERE id = $1',
       [track_id]
     );
 
@@ -105,6 +118,43 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
     }
 
     const track = trackResult.rows[0];
+
+    if (track.is_deleted === true) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    // Nicht veröffentlichte Tracks lassen sich nicht kaufen.
+    if (track.is_published !== true) {
+      return res.status(400).json({ error: 'Track ist nicht zum Verkauf freigegeben' });
+    }
+
+    // Ein Gratis-Track hat keinen Kaufvorgang.
+    if (track.is_free === true) {
+      return res.status(400).json({ error: 'Dieser Track ist kostenlos' });
+    }
+
+    // Der maßgebliche Preis, ausschließlich aus der Datenbank.
+    const serverPreis = Number(track.price_eur);
+
+    if (!Number.isFinite(serverPreis) || serverPreis <= 0) {
+      console.error(`❌ Track ${track_id} hat keinen brauchbaren Preis: ${track.price_eur}`);
+      return res.status(409).json({ error: 'Für diesen Track ist kein Preis hinterlegt' });
+    }
+
+    // Falls der Client einen Preis mitgeschickt hat, muss er passen. Ein
+    // stiller Austausch würde eine Manipulation verschleiern; eine klare
+    // Ablehnung macht sie sichtbar.
+    if (price !== undefined && price !== null) {
+      const clientPreis = Number(price);
+      if (!Number.isFinite(clientPreis) || Math.abs(clientPreis - serverPreis) > 0.005) {
+        console.warn(`⚠️ Preis vom Client (${price}) weicht vom Serverpreis (${serverPreis}) ab — abgelehnt`);
+        return res.status(400).json({
+          error: 'Preis stimmt nicht mit dem Track überein',
+          code: 'PRICE_MISMATCH',
+          expected: serverPreis.toFixed(2)
+        });
+      }
+    }
 
     // 2️⃣ Check if already purchased
     const purchaseCheck = await pool.query(
@@ -116,7 +166,8 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
       return res.status(400).json({ error: 'Track already purchased' });
     }
 
-    console.log(`💰 Creating PayPal order: €${price} for track "${track.name}" (user ${userId})`);
+    const preisText = serverPreis.toFixed(2);
+    console.log(`💰 PayPal-Bestellung: €${preisText} für "${track.name}" (Benutzer ${userId})`);
 
     // 3️⃣ Create PayPal Order
     const request = new checkoutNodeJssdk.orders.OrdersCreateRequest();
@@ -126,14 +177,14 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
       purchase_units: [{
         amount: {
           currency_code: 'EUR',
-          value: price.toString(),
+          value: preisText,
           breakdown: {
-            item_total: { currency_code: 'EUR', value: price.toString() },
+            item_total: { currency_code: 'EUR', value: preisText },
           },
         },
         items: [{
           name: `🎵 ${track.name} - ${track.artist}`,
-          unit_amount: { currency_code: 'EUR', value: price.toString() },
+          unit_amount: { currency_code: 'EUR', value: preisText },
           quantity: '1',
           sku: `TRACK_${track_id}`,
           category: 'DIGITAL_GOODS',
@@ -155,10 +206,10 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
 
     // 4️⃣ Save order to DB
     const orderResult = await pool.query(
-      `INSERT INTO orders (user_id, paypal_order_id, amount, currency, description, status)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO orders (user_id, track_id, paypal_order_id, amount, currency, description, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [userId, orderId, price, 'EUR', `Track: ${track.name}`, 'CREATED']
+      [userId, track_id, orderId, serverPreis, 'EUR', `Track: ${track.name}`, 'CREATED']
     );
 
     const dbOrderId = orderResult.rows[0].id;
@@ -168,7 +219,7 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
       order_id: orderId,
       status: 'CREATED',
       track_id: track_id,
-      price: price
+      price: serverPreis
     });
   } catch (err) {
     console.error('❌ PayPal create-order error:', err.message);
@@ -180,19 +231,30 @@ router.post('/create-order', requirePaymentsEnabled, verifyToken, [
 // ✅ POST /api/payments/capture-order/:orderId - Capture Payment
 // ============================================================================
 
+// Kein body('track_id')-Validator mehr: Welcher Track freigeschaltet wird,
+// steht in der Bestellung und wird nicht mehr vom Client bestimmt.
 router.post('/capture-order/:orderId', requirePaymentsEnabled, verifyToken, [
-  body('track_id').isInt().withMessage('Track ID required'),
+  body('track_id').optional().isInt(),
 ], async (req, res) => {
   const { orderId } = req.params;
-  const { track_id } = req.body;
   const userId = req.user.id;
 
   try {
     console.log(`✅ Capturing order: ${orderId} for user ${userId}`);
 
-    // 1️⃣ Verify order belongs to user
+    // 1️⃣ Bestellung laden — MIT track_id.
+    //
+    // Vorher kam die track_id aus req.body und wurde ungeprüft in purchases
+    // eingetragen. Geprüft wurde nur, ob die PayPal-Bestellung zum
+    // angemeldeten Benutzer gehört. Damit waren bezahltes und
+    // freigeschaltetes Produkt nicht miteinander verbunden: günstigen Track
+    // bestellen, bezahlen, beim Freischalten die ID eines teureren Tracks
+    // senden.
+    //
+    // Maßgeblich ist ab jetzt ausschließlich orders.track_id, festgeschrieben
+    // beim Anlegen der Bestellung.
     const orderCheck = await pool.query(
-      'SELECT id, amount FROM orders WHERE paypal_order_id = $1 AND user_id = $2',
+      'SELECT id, amount, track_id, status FROM orders WHERE paypal_order_id = $1 AND user_id = $2',
       [orderId, userId]
     );
 
@@ -201,6 +263,30 @@ router.post('/capture-order/:orderId', requirePaymentsEnabled, verifyToken, [
     }
 
     const order = orderCheck.rows[0];
+    const track_id = order.track_id;
+
+    // Bestellungen von vor der Einführung dieser Spalte haben keine
+    // Zuordnung. Sie hier zu raten wäre schlimmer, als abzulehnen.
+    if (track_id === null || track_id === undefined) {
+      console.error(`❌ Bestellung ${orderId} hat keine track_id — kann nicht freigeschaltet werden`);
+      return res.status(409).json({
+        error: 'Dieser Bestellung ist kein Track zugeordnet. Bitte neu bestellen.',
+        code: 'ORDER_WITHOUT_TRACK'
+      });
+    }
+
+    // Falls der Client dennoch eine track_id mitschickt und sie abweicht,
+    // wird das protokolliert. Sie wird nicht verwendet — aber ein solcher
+    // Aufruf ist ein Hinweis auf einen Manipulationsversuch oder einen
+    // veralteten Client.
+    if (req.body?.track_id !== undefined && Number(req.body.track_id) !== Number(track_id)) {
+      console.warn(`⚠️ Client wollte Track ${req.body.track_id} freischalten, bestellt war ${track_id} — Bestellung ist maßgeblich`);
+    }
+
+    // Doppeltes Freischalten derselben Bestellung verhindern.
+    if (order.status === 'COMPLETED') {
+      return res.status(409).json({ error: 'Diese Bestellung wurde bereits abgeschlossen', code: 'ALREADY_COMPLETED' });
+    }
 
     // 2️⃣ Capture at PayPal
     const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(orderId);

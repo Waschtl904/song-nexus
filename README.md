@@ -4,10 +4,10 @@
 
 ![Status](https://img.shields.io/badge/Status-Pre--Launch-orange?style=flat-square)
 ![CI](https://github.com/Waschtl904/song-nexus/actions/workflows/ci.yml/badge.svg?branch=dev%2Fv1.0)
-![Version](https://img.shields.io/badge/Version-6.2.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-6.3.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Tech Stack](https://img.shields.io/badge/Tech-Node.js%20|%20Express%20|%20PostgreSQL%20|%20Jest-informational?style=flat-square)
-![Tests](https://img.shields.io/badge/Tests-67%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-119%20passing-brightgreen?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-%3E%3D22-brightgreen?style=flat-square)
 ![Audit](https://img.shields.io/badge/npm%20audit-0%20vulnerabilities-brightgreen?style=flat-square)
 
@@ -224,7 +224,7 @@ https://localhost:3000/admin/
 - **Server:** HTTPS with mkcert (local SSL)
 - **Security:** Helmet, CORS, express-rate-limit, csrf-csrf, mongo-sanitize
 - **Uploads:** multer 2.x · **Mail:** nodemailer 9.x
-- **Testing:** Jest 29 + Supertest 7 (**67 Tests**, alle grün)
+- **Testing:** Jest 29 + Supertest 7 (**119 Tests**, alle grün)
 
 > **Warum Node >= 22 zwingend ist:** `nodemailer 9` zieht `@peculiar/x509` mit (`node >= 22`),
 > `webpack-dev-server 6` verlangt `>= 22.15.0`. Beide `package.json` haben ein `engines`-Feld.
@@ -543,7 +543,7 @@ git push origin main
 - Admin track management
 - Play history tracking
 - Database schema (10 tables, 22 indexes)
-- **Jest-Testsuite: 67 Tests, alle grün** (Auth, Tracks, Payments)
+- **Jest-Testsuite: 119 Tests, alle grün** (Auth, Tracks, Payments)
 - CI über GitHub Actions: Tests, `npm audit`, Frontend-Build, Secret-Scan
 - Secure Admin Hub with JWT login
 - Windows 11 Pro setup guide
