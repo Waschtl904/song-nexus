@@ -399,6 +399,20 @@
             }
         });
     </script>
+
+  <!-- Issue #10: Impressum und Datenschutz muessen von jeder oeffentlichen
+       Seite in einem Klick erreichbar sein. Bewusst mit Inline-Styles, damit
+       der Footer unabhaengig davon funktioniert, welches Stylesheet die
+       jeweilige Seite laedt (auth.html und transparency.html binden keins ein). -->
+  <footer role="contentinfo" style="margin-top:3rem;padding:1.5rem 1rem;text-align:center;font-size:0.8rem;line-height:1.8;opacity:0.75;border-top:1px solid rgba(255,255,255,0.08);">
+    <a href="/impressum.html" style="color:inherit;">Impressum</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/datenschutz.html" style="color:inherit;">Datenschutz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/transparency.html" style="color:inherit;">Transparenz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/" style="color:inherit;">Start</a>
+  </footer>
 </body>
 
 </html>
