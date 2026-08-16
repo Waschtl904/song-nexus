@@ -183,7 +183,7 @@ Lokal über mkcert lösen: `cd backend && npm run generate-cert`
 ### Frische Installation
 ```powershell
 cd C:\Users\sebas\Desktop\SongSeite
-npm install
+npm ci
 cd backend;  npm ci;  cd ..
 cd frontend; npm ci;  cd ..
 
@@ -206,7 +206,7 @@ cd backend; npm run seed:dev-admin; cd ..
 ### Entwicklung
 ```powershell
 npm run dev          # Backend + Frontend parallel
-cd backend;  npm test          # 67 Tests
+cd backend;  npm test          # 150 Tests in 5 Suiten
 cd backend;  npm run test:handles   # nur zur Diagnose offener Handles
 cd frontend; npm run build     # PFLICHT nach Änderungen in frontend/js/
 ```
@@ -289,7 +289,7 @@ backend/
   middleware/auth-middleware.js      ← JWT, Cookies, requireAdmin
   utils/mailer.js                    ← nodemailer 9
   scripts/seed-dev-admin.js          ← Ersatz für dev-login
-  __tests__/                         ← 67 Tests
+  __tests__/                         ← 150 Tests in 5 Suiten
 
 frontend/
   index.html                         ← Startseite

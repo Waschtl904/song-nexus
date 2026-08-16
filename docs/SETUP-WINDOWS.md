@@ -30,11 +30,42 @@ git --version      # Should show git 2.x+
 
 ### 3. Install Dependencies
 
+`npm ci` statt `npm install`: `npm ci` installiert genau die Fassungen aus
+`package-lock.json` und laesst die `package.json` in Ruhe. `npm install`
+schreibt sie um — das hat schon einen Konflikt beim naechsten `git pull`
+verursacht.
+
+In der PowerShell jeweils eine Zeile nach der anderen. Mehrzeilige Bloecke
+werden beim Einfuegen zerrissen.
+
 ```powershell
-npm install
-cd backend && npm install && cd ..
-cd frontend && npm install && cd ..
+npm ci
 ```
+
+```powershell
+cd backend ; npm ci ; cd ..
+```
+
+```powershell
+cd frontend ; npm ci ; cd ..
+```
+
+Nach dem Einspielen des Schemas gehoeren die Migrationen angewandt:
+
+```powershell
+psql -U postgres -d song_nexus_dev -f migrations\2026-08-15-orders-track-id.sql
+```
+
+Erwartet: `HINWEIS:  OK: orders.track_id vorhanden`. Ohne diese Spalte
+schlaegt jeder Kauf mit 409 fehl.
+
+Zum Pruefen:
+
+```powershell
+cd backend ; npm test
+```
+
+Erwartet: 150 Tests in 5 Suiten, alle gruen.
 
 ### 4. Setup Environment
 

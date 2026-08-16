@@ -14,7 +14,7 @@ Die Doku im Repo unterschätzt den echten Fortschritt. Verifizierte Fakten:
 | Behauptung in der Doku | Realität im Code |
 |---|---|
 | `main` ist der aktuelle Stand | `main` ist **17 Commits hinter** `dev/v1.0` (letzter Stand dort: 22. Juni 2026) |
-| 39 Jest-Tests | **67 Tests, 3 Suites, alle grün** (Stand 15.08.2026, nach den neuen Sicherheits- und Zahlungstests) |
+| 39 Jest-Tests | **150 Tests, 5 Suites, alle grün** (Stand 16.08.2026, nach den Befunden aus dem externen Review und dem Fehlerbericht zur Vorschau) |
 | Keine Rechtsseiten | `impressum.html` + `datenschutz.html` existieren auf `dev/v1.0` mit echten Daten |
 | JWT im localStorage | Migriert auf **HttpOnly-Cookie** |
 | Kein Deployment-Guide | `docs/DEPLOYMENT-HETZNER.md` (634 Zeilen) + `docs/SECURITY-GUIDE.md` (1121 Zeilen) |
