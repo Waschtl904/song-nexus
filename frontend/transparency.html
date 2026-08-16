@@ -20,7 +20,9 @@
             --color-text-muted: rgba(255,255,255,0.38);
             --color-bg: #0a0a0a;
             --color-surface: rgba(10,14,26,0.6);
-            --color-border: rgba(0,204,119,0.25);
+            /* 0.25 ergab auf #0a0a0a nur 1,56:1 (WCAG 1.4.11 verlangt 3,0:1).
+               0.55 ergibt 3,42:1. Siehe Issue #54. */
+            --color-border: rgba(0,204,119,0.55);
             --color-border-bright: rgba(0,204,119,0.6);
             --font: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
             --radius: 6px;
