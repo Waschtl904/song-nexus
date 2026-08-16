@@ -251,9 +251,14 @@ h2 {
     transition: var(--transition);
 }
 
+.form-group input:focus-visible,
+.form-control:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
 .form-group input:focus,
 .form-control:focus {
-    outline: none;
     border-color: var(--color-primary);
     background: rgba(0, 0, 0, 0.5);
     box-shadow: 0 0 12px rgba(var(--color-primary-rgb, 0, 204, 119), 0.25), 
@@ -523,7 +528,6 @@ button.button-metal-play {
     /* Reset Button Styles */
     padding: 0;
     border: none;
-    outline: none;
     color: transparent;
     font-size: 0;
     line-height: 0;
@@ -538,6 +542,17 @@ button.button-metal-play {
     min-width: 140px;
     max-width: 140px;
     box-shadow: none;
+}
+
+/* Sichtbarer Fokus (WCAG 2.4.7, Issue #53).
+   Die globale Regel :focus-visible in styles/main.css:146 kann hier nicht
+   greifen: button.button-metal-play ist (0,1,1) gegen (0,1,0), und diese
+   Datei wird von Webpack als <style> nach dem <link> eingefuegt.
+   Darum ein eigener Ring - :focus-visible, damit er beim Mausklick ausbleibt. */
+button.button-metal-play:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: 4px;
 }
 
 button.button-metal-play:hover:not(:disabled) {
