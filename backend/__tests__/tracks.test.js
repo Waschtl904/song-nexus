@@ -425,6 +425,72 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(res.headers['content-type']).toMatch(/audio\/mpeg/);
   });
 
+  // -------------------------------------------------------------------------
+  // Die Vorschau ist eine Sache fuer sich, kein Ausschnitt
+  // -------------------------------------------------------------------------
+  // Vorher meldete der Server die volle Dateigroesse als Gesamtlaenge:
+  //
+  //     Content-Range: bytes 0-640600/960931
+  //
+  // obwohl nur der vordere Teil kam. Der Browser rechnete daraus eine
+  // Spieldauer fuer die ganze Datei, las weiter — und bekam 416 Range Not
+  // Satisfiable. Der Ton brach ab, die Anzeige log.
+  //
+  // In diesen Tests ist fs gemockt: statSync meldet 5.000.000 Bytes,
+  // duration_seconds ist 240, der Dateikopf ist nicht lesbar. Damit bleibt
+  // die Rate bei 5.000.000/240 = 20833 Byte/s, die Vorschau also
+  // 40 x 20833 = 833.320 Bytes.
+  const VORSCHAU_BYTES = Math.floor(5_000_000 / 240) * 40;
+
+  test('SECURITY: Content-Range nennt die Vorschaulaenge, nicht die Dateigroesse', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', 'bytes=0-');
+
+    expect(res.statusCode).toBe(206);
+    expect(res.headers['content-range']).toBe(
+      `bytes 0-${VORSCHAU_BYTES - 1}/${VORSCHAU_BYTES}`
+    );
+    // Genau das war der Fehler: hier stand vorher 5000000.
+    expect(res.headers['content-range']).not.toMatch(/\/5000000$/);
+  });
+
+  test('SECURITY: die Vorschau bleibt deutlich kleiner als die Datei', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', 'bytes=0-');
+
+    expect(Number(res.headers['content-length'])).toBe(VORSCHAU_BYTES);
+    expect(Number(res.headers['content-length'])).toBeLessThan(5_000_000);
+  });
+
+  test('416 nennt die Vorschaulaenge, wenn doch darueber hinaus gefragt wird', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', `bytes=${VORSCHAU_BYTES + 1000}-`);
+
+    expect(res.statusCode).toBe(416);
+    expect(res.headers['content-range']).toBe(`bytes */${VORSCHAU_BYTES}`);
+  });
+
+  test('free_preview_duration pro Track wird beachtet, nicht fest 40', async () => {
+    // Vorher stand PREVIEW_SECONDS = 40 fest im Code, waehrend die Spalte
+    // geladen und dann ignoriert wurde.
+    pool.query.mockResolvedValueOnce({
+      rows: [{ ...premiumTrack, free_preview_duration: 15 }],
+    });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', 'bytes=0-');
+
+    const erwartet = Math.floor(5_000_000 / 240) * 15;
+    expect(Number(res.headers['content-length'])).toBe(erwartet);
+    expect(erwartet).toBeLessThan(VORSCHAU_BYTES);
+  });
+
   test('400 - leerer Filename nach Sanitisierung', async () => {
     const res = await request(app).get('/api/tracks/audio/%20');
     expect(res.statusCode).toBe(400);
