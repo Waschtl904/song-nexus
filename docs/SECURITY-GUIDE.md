@@ -21,6 +21,7 @@
 6. [Infrastruktur & Hetzner VPS](#6-infrastruktur--hetzner-vps)
 7. [Sofort-Maßnahmen vor Go-Live](#7-sofort-maßnahmen-vor-go-live)
 8. [Incident Response](#8-incident-response)
+9. [Kaufvorgang und Auslieferung von Audiodateien](#9-kaufvorgang-und-auslieferung-von-audiodateien)
 
 ---
 
@@ -1121,3 +1122,112 @@ Nach dem Vorfall (innerhalb von 1–2 Wochen):
 
 *Dieses Dokument sollte vor jedem größeren Release aktualisiert werden.*  
 *Letzte Überprüfung: Juni 2026*
+
+---
+
+## 9. Kaufvorgang und Auslieferung von Audiodateien
+
+Nachgetragen am 16.08.2026. Alle Punkte hier waren tatsaechliche Luecken im
+Code, nicht theoretische Ueberlegungen — jede wurde am laufenden Server
+nachgestellt, bevor sie behoben wurde.
+
+Das gemeinsame Muster: **der Code hat einem Wert vertraut, ohne ihn zu
+pruefen.** Mal kam der Wert aus dem Browser, mal aus einer Nebenspalte der
+Datenbank. Wer eine neue Route schreibt, sollte sich bei jedem Eingabewert
+fragen, wer ihn setzen kann.
+
+### 9.1 Der Preis gehoert dem Server
+
+**War:** `create-order` lud den Track mit `SELECT id, name, artist` — ohne
+`price_eur` — und uebernahm den Preis aus `req.body`. Der Validator prueft
+nur die Spanne 0,01 bis 100, nicht die Uebereinstimmung mit dem Track. Ein
+Aufruf mit `price: 0.01` fuer einen Track zu 4,99 wurde angenommen und ging so
+an PayPal.
+
+**Ist:** Der Preis kommt ausschliesslich aus `tracks.price_eur`. Schickt der
+Client einen abweichenden Wert mit, folgt 400 mit `PRICE_MISMATCH`.
+
+Bewusst keine stille Korrektur: ein Manipulationsversuch soll sichtbar
+werden, nicht weggebuegelt.
+
+### 9.2 Welcher Track freigeschaltet wird, steht in der Bestellung
+
+**War:** `orders` hatte keine `track_id`. Beim Freischalten kam sie aus
+`req.body`; geprueft wurde nur, ob die PayPal-Bestellung zum angemeldeten
+Benutzer gehoert. Guenstigen Track bestellen, bezahlen, beim Freischalten die
+ID eines teureren senden.
+
+**Ist:** `orders.track_id` wird beim Anlegen festgeschrieben und beim
+Freischalten von dort gelesen. Der Anfragekoerper wird ignoriert; weicht er
+ab, wird das protokolliert. Bestellungen ohne Zuordnung (Altbestand) werden
+mit 409 abgelehnt statt geraten. Eine bereits abgeschlossene Bestellung laesst
+sich nicht erneut freischalten.
+
+### 9.3 Audiodateien nur ueber eine Route
+
+**War:** `server.js` hatte zusaetzlich `app.use('/public/audio',
+express.static(...))` — ohne jede Pruefung. Gemessen: dieselbe Datei einmal
+mit 40-Sekunden-Vorschau ueber die geschuetzte Route, einmal vollstaendig und
+MD5-gleich ueber die offene. `GET /api/tracks` gibt `audio_filename`
+oeffentlich aus, der Dateiname war also bekannt.
+
+**Ist:** Die statische Einbindung ist entfernt, `/public/audio/...` liefert
+404. Auslieferung ausschliesslich ueber `/api/tracks/audio/:filename`.
+
+> **Fuer nginx wichtig:** Dieser Pfad darf **nicht** direkt von der Platte
+> bedient werden. Die gepflegte Vorlage steht in
+> `scripts/deploy/nginx-song-nexus.conf.template` und leitet
+> `/api/tracks/audio/` an das Backend weiter (`proxy_buffering off`).
+
+### 9.4 Fail closed statt Vorschau
+
+**War:** Fand die Audio-Route keinen Datenbankeintrag zum Dateinamen, lieferte
+sie trotzdem eine 40-Sekunden-Vorschau (`treating as 40s preview`). Damit war
+ein nicht veroeffentlichter Track anhoerbar, sobald man den Dateinamen kannte
+— und jede Datei im Verzeichnis ohne Eintrag ebenfalls, etwa ein
+abgebrochener Upload. Im Entwicklungsverzeichnis lagen drei solche Dateien.
+
+Die Abfrage pruefte ausserdem `is_deleted`, aber nicht `is_published`.
+
+**Ist:** Kein veroeffentlichter Eintrag, kein Ton. Ein Standardwert, der im
+Zweifel Daten herausgibt, zeigt in die falsche Richtung.
+
+### 9.5 Die Vorschaulaenge haengt nicht mehr an der Datenbank
+
+**War:** Die Datenrate fuer den Ausschnitt kam aus
+`filesize / duration_seconds`. Dieser Wert wurde vom Browser gemessen und
+ungeprueft uebernommen. Bei einer zu **kleinen** Dauer haette die Rechnung
+mehr Bytes ergeben als die Datei hat — der komplette Song waere ausgeliefert
+worden. Nachgestellt mit `duration_seconds = 5` bei echten 60 Sekunden:
+7.687.440 Bytes gegenueber 960.931 vorhandenen.
+
+Der Kaufschutz eines Tracks hing damit an einer Zahl, die ein Upload-Formular
+befuellt.
+
+**Ist:** Die Datenrate wird aus dem Dateikopf gelesen
+(`backend/utils/audio-rate.js`) — bei WAV exakt, bei MP3 aus dem ersten
+Rahmenkopf. `duration_seconds` ist nur noch Rueckfall.
+
+### 9.6 Passwortregel an einer Stelle
+
+**War:** Dieselbe Regel stand an **sieben** Stellen, drei im Backend und vier
+im Frontend, mit unterschiedlichem Inhalt. `password123` kam durch.
+
+**Ist:** `backend/utils/password-policy.js` mit gespiegelter Fassung unter
+`frontend/js/password-policy.js`. Mindestens 12 Zeichen, keine bekannten
+Wortstaemme, nicht rein numerisch, keine langen Folgen, nicht der
+Benutzername oder Teile der E-Mail-Adresse.
+
+### 9.7 Was hier noch offen ist
+
+| Punkt | Issue |
+|---|---|
+| `requireAdmin` vertraut der Rolle im Token ohne Datenbankabgleich, kein Widerruf | #24 |
+| JWT liegt zusaetzlich im `localStorage` | #42 |
+| Sitzungen im Arbeitsspeicher | #44 |
+| Secrets nie rotiert | #2 |
+| mkcert-Schluessel im Repository | #38 |
+| Tests laufen gegen `app.js`, ausgeliefert wird `server.js` | #47 |
+
+Der letzte Punkt begrenzt die Aussagekraft aller anderen Pruefungen: eine
+gruene Testsuite sagt nichts ueber Code, den sie nicht laedt.

@@ -7,7 +7,7 @@
 ![Version](https://img.shields.io/badge/Version-6.3.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Tech Stack](https://img.shields.io/badge/Tech-Node.js%20|%20Express%20|%20PostgreSQL%20|%20Jest-informational?style=flat-square)
-![Tests](https://img.shields.io/badge/Tests-119%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-150%20passing-brightgreen?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-%3E%3D22-brightgreen?style=flat-square)
 ![Audit](https://img.shields.io/badge/npm%20audit-0%20vulnerabilities-brightgreen?style=flat-square)
 
@@ -218,13 +218,13 @@ https://localhost:3000/admin/
 ### **Backend**
 - **Runtime:** Node.js **>= 22** (Pflicht, siehe unten)
 - **Framework:** Express.js v4
-- **Version:** 6.2.0
+- **Version:** 6.3.0
 - **Authentication:** WebAuthn, JWT (jsonwebtoken), bcryptjs
 - **API:** REST with 35+ endpoints
 - **Server:** HTTPS with mkcert (local SSL)
 - **Security:** Helmet, CORS, express-rate-limit, csrf-csrf, mongo-sanitize
 - **Uploads:** multer 2.x · **Mail:** nodemailer 9.x
-- **Testing:** Jest 29 + Supertest 7 (**119 Tests**, alle grün)
+- **Testing:** Jest 29 + Supertest 7 (**150 Tests**, alle grün)
 
 > **Warum Node >= 22 zwingend ist:** `nodemailer 9` zieht `@peculiar/x509` mit (`node >= 22`),
 > `webpack-dev-server 6` verlangt `>= 22.15.0`. Beide `package.json` haben ein `engines`-Feld.
@@ -269,24 +269,40 @@ SONG-NEXUS/
 │   ├── PROJECT-STRUCTURE.md                ✅ Complete project organization
 │   └── SETUP-WINDOWS.md                    ✅ Windows 11 Pro setup guide
 │
-├── 📂 backend/                             Express.js REST API Server (v6.2.0)
+├── 📂 migrations/                          SQL-Migrationen, nach Datum benannt
+│   ├── 2026-08-15-orders-track-id.sql      orders.track_id – Bestellung kennt ihren Track
+│   └── 2026-08-15_cleanup-dev-accounts.sql
+│
+├── 📂 backend/                             Express.js REST API Server (v6.3.0)
 │   ├── 📂 routes/
 │   │   ├── auth.js                         Auth endpoints (register, login, verify, me, logout, refresh)
 │   │   ├── tracks.js                       Tracks + Audio streaming with access control
 │   │   └── payments.js                     PayPal integration
+│   │   └── admin-tracks.js                 Upload; misst Dauer selbst, Preis ist Pflicht
 │   ├── 📂 middleware/
 │   │   └── auth-middleware.js              JWT verification (sync + async)
-│   ├── 📂 __tests__/                       ✅ Jest test suite
-│   │   ├── auth.test.js                    25 tests – Auth routes
-│   │   ├── tracks.test.js                  14 tests – Tracks + Audio streaming
-│   │   ├── payments.test.js                Payments tests
-│   │   └── setup.js                        Test setup & teardown
+│   ├── 📂 utils/
+│   │   ├── audio-rate.js                   Datenrate aus dem Dateikopf (WAV exakt, MP3 aus dem Rahmen)
+│   │   ├── password-policy.js              Passwortregel – die einzige Quelle
+│   │   ├── cache-invalidator.js            Zwischenspeicher der Trackliste leeren
+│   │   └── mailer.js                       Versand von E-Mails
+│   ├── 📂 scripts/
+│   │   ├── seed-dev-admin.js               Admin-Konto für die Entwicklung anlegen
+│   │   └── dauer-pruefen.js                duration_seconds gegen die Dateien prüfen
+│   ├── 📂 __tests__/                       ✅ 150 Tests in 5 Suiten
+│   │   ├── auth.test.js                    Anmeldung, Registrierung, Token
+│   │   ├── tracks.test.js                  Trackliste + Zugriffsschutz auf Audiodateien
+│   │   ├── payments.test.js                Bestellung, Freischaltung, Preisautorität
+│   │   ├── password-policy.test.js         die Passwortregel
+│   │   ├── audio-rate.test.js              Datenrate – ohne fs-Mock, mit echten Dateien
+│   │   ├── setup.js                        Test setup & teardown
+│   │   └── README.md                       Strategie und bekannte Fallstricke
 │   ├── 📂 public/
 │   │   └── audio/                          MP3/WAV files served by streaming endpoint
 │   ├── 📂 certs/                           SSL certificates
 │   ├── server.js                           Express server entry point
 │   ├── app.js                              Express app (exported for testing)
-│   ├── package.json                        v6.2.0 – includes npm test scripts
+│   ├── package.json                        v6.3.0 – Version wird von server.js daraus gelesen
 │   └── .env.example
 │
 ├── 📂 frontend/                            React + Webpack Frontend
@@ -295,6 +311,7 @@ SONG-NEXUS/
 │   │   └── design-editor.html              🎨 Design editor
 │   ├── admin-upload.html                   📤 Track upload
 │   ├── 📂 js/                              JavaScript modules
+│   │   └── password-policy.js              gespiegelte Fassung der Backend-Regel
 │   ├── 📂 css/                             Stylesheets
 │   ├── 📂 dist/                            Webpack output (generated)
 │   └── webpack.config.js
@@ -543,7 +560,7 @@ git push origin main
 - Admin track management
 - Play history tracking
 - Database schema (10 tables, 22 indexes)
-- **Jest-Testsuite: 119 Tests, alle grün** (Auth, Tracks, Payments)
+- **Jest-Testsuite: 150 Tests, alle grün** (Auth, Tracks, Payments)
 - CI über GitHub Actions: Tests, `npm audit`, Frontend-Build, Secret-Scan
 - Secure Admin Hub with JWT login
 - Windows 11 Pro setup guide
@@ -625,7 +642,7 @@ MIT License © 2025–2026 Song-Nexus Contributors – See `LICENSE` for details
 ---
 
 **Zuletzt aktualisiert:** 15. August 2026 (gegen den Code auf `dev/v1.0` geprüft)  
-**Backend-Version:** 6.2.0 · **Frontend-Version:** 8.0.0  
+**Backend-Version:** 6.3.0 · **Frontend-Version:** 8.0.0  
 **Status:** 🟠 Pre-Launch — Code bereit für Soft-Launch, Deployment offen (Issue #6)  
 **Tests:** ✅ 67 grün · **npm audit:** ✅ 0 Vulnerabilities  
 **Fahrplan:** siehe [LAUNCH-PLAN.md](./LAUNCH-PLAN.md)

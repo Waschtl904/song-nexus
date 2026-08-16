@@ -307,13 +307,17 @@ nano backend/.env.production
 
 ### Step 2: Install Dependencies
 
-```bash
-# Install root dependencies
-npm install
+`npm ci` statt `npm install`: `npm ci` installiert genau die Fassungen aus
+`package-lock.json`. `npm install` schreibt die `package.json` um und laesst
+den naechsten `git pull` mit einem Konflikt scheitern.
 
-# Install backend dependencies
+```bash
+# Wurzel: nur concurrently, startet Backend und Frontend gemeinsam
+npm ci
+
+# Backend
 cd backend
-npm install --production
+npm ci --omit=dev
 cd ..
 ```
 
@@ -507,11 +511,27 @@ server {
         proxy_set_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
     }
     
-    # Audio Files Caching
-    location /public/audio/ {
+    # Audiodateien
+    #
+    # ACHTUNG: NICHT /public/audio/ freigeben und schon gar nicht per root
+    # direkt von der Platte bedienen. Diese Umgehung des Kaufschutzes wurde
+    # am 15.08.2026 entfernt (PR #46); das Backend antwortet dort mit 404.
+    #
+    # Auslieferung ausschliesslich ueber die geschuetzte Route. Kein
+    # Zwischenspeichern: die Antwort haengt davon ab, ob der Abrufende den
+    # Track gekauft hat.
+    location /api/tracks/audio/ {
         proxy_pass https://localhost:3000;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        add_header Cache-Control "no-store" always;
     }
 }
 ```
@@ -683,9 +703,10 @@ Monitor: `https://yourdomain.com/api/health`
 # If PM2 still has old version
 pm2 restart song-nexus-backend
 
-# Or switch to previous commit
+# Oder auf den vorigen Commit zurueck
 git checkout HEAD~1
-npm install
+npm ci
+cd backend && npm ci --omit=dev && cd ..
 pm2 restart song-nexus-backend
 ```
 
