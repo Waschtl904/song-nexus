@@ -158,6 +158,31 @@ describe('Paritaet der Routentabellen von app.js und server.js (#47)', () => {
   });
 });
 
+describe('DEBUG-Ausgabe laeuft nicht in Produktion (Regression zu #47)', () => {
+  // Der Aufruf von debugDatabaseContent() stand ohne Bedingung in der
+  // Startkette und lief damit auch auf dem Server mit. Aufgefallen ist es
+  // erst beim Lesen einer echten Startausgabe.
+  const quelle = ohneKommentare(lese('server.js'));
+
+  test('debugDatabaseContent wird nur einmal aufgerufen', () => {
+    const aufrufe = quelle.match(/await debugDatabaseContent\(\)/g) || [];
+
+    expect(aufrufe).toHaveLength(1);
+  });
+
+  test('der Aufruf steht hinter einer NODE_ENV-Abfrage', () => {
+    // Die drei Zeilen vor dem Aufruf muessen die Bedingung enthalten.
+    const zeilen = quelle.split('\n');
+    const i = zeilen.findIndex((z) => z.includes('await debugDatabaseContent()'));
+
+    expect(i).toBeGreaterThan(-1);
+
+    const davor = zeilen.slice(Math.max(0, i - 3), i).join('\n');
+
+    expect(davor).toMatch(/NODE_ENV\s*!==\s*'production'/);
+  });
+});
+
 describe('Produktionskonfiguration steht nur in server.js (Bestandsaufnahme zu #47)', () => {
   const server = ohneKommentare(lese('server.js'));
   const app = ohneKommentare(lese('app.js'));
