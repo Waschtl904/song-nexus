@@ -17,7 +17,11 @@
   --color-bg:        #05080d;
   --color-surface:   rgba(5, 15, 25, 0.82);
   --color-surface-2: rgba(8, 20, 35, 0.90);
-  --color-border:    rgba(0, 255, 204, 0.18);
+  /* Rahmen von Bedienelementen: WCAG 1.4.11 verlangt 3,0:1.
+     0.18 ergab auf --color-bg #05080d nur 1,48:1 (Issue #54).
+     0.40 ergibt 3,10:1 und ist damit der kleinste konforme Wert. */
+  --color-border:    rgba(0, 255, 204, 0.40);
+  /* Rein dekorative Trennlinien - fuer die gilt die 3:1-Grenze nicht. */
   --color-divider:   rgba(0, 255, 204, 0.10);
 
   /* Text */
@@ -91,7 +95,8 @@
   --color-bg:        #0d1520;
   --color-surface:   rgba(10, 20, 40, 0.88);
   --color-surface-2: rgba(15, 25, 50, 0.92);
-  --color-border:    rgba(0, 255, 204, 0.22);
+  /* 0.22 ergab auf #0d1520 nur 1,78:1. 0.40 ergibt 3,17:1. */
+  --color-border:    rgba(0, 255, 204, 0.40);
   --color-divider:   rgba(0, 255, 204, 0.12);
   --color-text:        #d0f5ee;
   --color-text-muted:  #60a898;
