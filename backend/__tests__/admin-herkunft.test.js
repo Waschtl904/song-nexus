@@ -203,6 +203,46 @@ describe('Lesen', () => {
     expect(Array.isArray(r.body.verlauf)).toBe(true);
   });
 
+  test('Titelliste: Titel ohne Nachweis stehen oben', async () => {
+    pool.query.mockImplementation((sql) => {
+      if (/FROM users WHERE id/.test(sql)) {
+        return Promise.resolve({ rowCount: 1, rows: [{ role: 'admin', is_active: true }] });
+      }
+      if (/LEFT JOIN track_provenance/.test(sql)) {
+        // Die Sortierung macht die Datenbank. Hier wird geprueft, dass die
+        // Abfrage das Kennzeichen ueberhaupt mitliefert und durchgereicht wird.
+        expect(sql).toMatch(/hat_nachweis/);
+        expect(sql).toMatch(/ORDER BY \(p\.track_id IS NOT NULL\)/);
+        return Promise.resolve({
+          rowCount: 2,
+          rows: [
+            { id: 7, name: 'Der Freund', artist: 'W', is_published: false, hat_nachweis: false },
+            { id: 3, name: 'Anderes', artist: 'W', is_published: true, hat_nachweis: true },
+          ],
+        });
+      }
+      return Promise.resolve({ rowCount: 0, rows: [] });
+    });
+    const r = await hole('/api/admin/herkunft/titel', token());
+    expect(r.status).toBe(200);
+    expect(r.body.titel).toHaveLength(2);
+    expect(r.body.titel[0].hat_nachweis).toBe(false);
+  });
+
+  test('Titelliste ohne Adminrechte: 403', async () => {
+    dbAntwortet({ adminRolle: 'user' });
+    const r = await hole('/api/admin/herkunft/titel', token());
+    expect(r.status).toBe(403);
+  });
+
+  test('"titel" wird nicht als Titelkennung gelesen', async () => {
+    // Die feste Route muss VOR der mit dem Platzhalter stehen, sonst waere die
+    // Antwort 400 BAD_TRACK_ID.
+    dbAntwortet();
+    const r = await hole('/api/admin/herkunft/titel', token());
+    expect(r.status).not.toBe(400);
+  });
+
   test('Vorgaben für die Eingabemaske', async () => {
     dbAntwortet();
     const r = await hole('/api/admin/herkunft/vorgaben', token());

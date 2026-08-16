@@ -79,6 +79,32 @@ router.get('/vorgaben', verifyToken, requireAdmin, (req, res) => {
 });
 
 // ============================================================================
+// GET /api/admin/herkunft/titel — Titel mit Angabe, ob ein Nachweis vorliegt
+// ============================================================================
+// Steht ebenfalls VOR der Route mit dem Platzhalter.
+//
+// Eigene Abfrage statt eines Aufrufs von /api/admin/tracks/list, weil hier die
+// eine Angabe dazukommt, auf die es bei dieser Maske ankommt: welche Titel noch
+// keinen Nachweis haben. Genau die will man zuerst sehen.
+
+router.get('/titel', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        const ergebnis = await pool.query(
+            `SELECT t.id, t.name, t.artist, t.is_published,
+                    (p.track_id IS NOT NULL) AS hat_nachweis
+               FROM tracks t
+               LEFT JOIN track_provenance p ON p.track_id = t.id
+              WHERE t.is_deleted IS NOT TRUE
+              ORDER BY (p.track_id IS NOT NULL), t.id`
+        );
+        res.json({ titel: ergebnis.rows });
+    } catch (err) {
+        console.error(`❌ Titelliste fuer Herkunftsnachweise fehlgeschlagen: ${err.message}`);
+        res.status(500).json({ error: 'Titelliste konnte nicht gelesen werden' });
+    }
+});
+
+// ============================================================================
 // GET /api/admin/herkunft/:trackId — Nachweis lesen
 // ============================================================================
 

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Herkunftsnachweis pro Titel verwalten">
+    <meta name="theme-color" content="#0a0e1a">
+    <title>Herkunftsnachweis – SONG-NEXUS Admin</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
+        rel="stylesheet">
+
+    <!--
+        Bewusst OHNE Einbindung von styles/index.css und ohne webpack-Bundle.
+
+        Diese Seite ist eigenständig. Zwei Gründe:
+
+        1. #65 haelt fest, dass es drei getrennte CSS-Welten gibt. Der
+           Adminbereich gehoert zur dunklen mit JetBrains Mono, und dieser folge
+           ich hier — statt eine vierte anzufangen oder die Frage in #65
+           vorzuentscheiden.
+        2. Ohne Bundle braucht diese Seite kein `npm run build`. Sie liegt in
+           frontend/ und wird von express.static direkt ausgeliefert.
+
+        Anmeldung ueber den HttpOnly-Cookie mit `credentials: 'same-origin'`.
+        Kein Griff in localStorage — das ist genau das, was #42 beseitigen will.
+    -->
+    <style>
+        :root {
+            --hg: #0a0e1a;
+            --hg-karte: rgba(255, 255, 255, .04);
+            --rand: rgba(255, 255, 255, .40);
+            --text: #e8ecf4;
+            --text-leise: #9aa5b8;
+            --akzent: #4da3ff;
+            --gut: #3ecf8e;
+            --warn: #ffb347;
+            --fehler: #ff6b6b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 2rem 1rem 4rem;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
+            color: var(--text);
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        main { max-width: 900px; margin: 0 auto; }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            margin: 0 0 .25rem;
+        }
+
+        .unterzeile { color: var(--text-leise); margin: 0 0 2rem; font-size: .9rem; }
+
+        fieldset {
+            border: 1px solid var(--rand);
+            border-radius: 10px;
+            padding: 1.25rem 1.25rem 1.5rem;
+            margin: 0 0 1.5rem;
+            background: var(--hg-karte);
+        }
+
+        legend { padding: 0 .5rem; font-weight: 600; color: var(--akzent); }
+
+        label { display: block; margin: 1rem 0 .35rem; font-weight: 500; }
+        label:first-of-type { margin-top: 0; }
+
+        .hinweis { color: var(--text-leise); font-size: .82rem; margin: .3rem 0 0; }
+
+        input[type=text], input[type=number], input[type=date], select, textarea {
+            width: 100%;
+            padding: .6rem .7rem;
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid var(--rand);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: .95rem;
+        }
+
+        textarea { min-height: 11rem; resize: vertical; line-height: 1.7; }
+
+        input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+            outline: 3px solid var(--akzent);
+            outline-offset: 2px;
+        }
+
+        .zeile { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .zeile > div { flex: 1 1 12rem; }
+
+        .kontrollkaestchen { display: flex; align-items: flex-start; gap: .6rem; margin-top: 1rem; }
+        .kontrollkaestchen input { margin-top: .35rem; width: auto; }
+        .kontrollkaestchen label { margin: 0; }
+
+        button {
+            padding: .65rem 1.2rem;
+            border-radius: 6px;
+            border: 1px solid var(--akzent);
+            background: var(--akzent);
+            color: #061021;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: .95rem;
+            cursor: pointer;
+        }
+
+        button.leise { background: transparent; color: var(--text); border-color: var(--rand); }
+        button[disabled] { opacity: .5; cursor: not-allowed; }
+
+        .knopfreihe { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+
+        .meldung {
+            padding: .8rem 1rem;
+            border-radius: 6px;
+            border-left: 4px solid var(--rand);
+            background: rgba(0, 0, 0, .3);
+            margin: 1.5rem 0;
+        }
+
+        .meldung.gut { border-left-color: var(--gut); }
+        .meldung.warn { border-left-color: var(--warn); }
+        .meldung.fehler { border-left-color: var(--fehler); }
+        .meldung ul { margin: .5rem 0 0; padding-left: 1.2rem; }
+        .meldung[hidden] { display: none; }
+
+        dl.kenndaten { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: 0; }
+        dl.kenndaten dt { color: var(--text-leise); }
+        dl.kenndaten dd { margin: 0; word-break: break-all; }
+
+        table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+        th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid rgba(255,255,255,.12); }
+        th { color: var(--text-leise); font-weight: 500; }
+
+        .ohne-nachweis { color: var(--warn); }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Herkunftsnachweis</h1>
+        <p class="unterzeile">
+            Der deutsche Originaltext, seine Entstehungszeit und die Angaben zur Erzeugung der Musik.
+            Der Hashwert wird vom Server berechnet und ist nicht eingebbar.
+        </p>
+
+        <div id="meldung" class="meldung" hidden></div>
+
+        <fieldset>
+            <legend>Titel</legend>
+            <label for="titelwahl">Welcher Titel</label>
+            <select id="titelwahl">
+                <option value="">– wird geladen –</option>
+            </select>
+            <p class="hinweis">
+                Titel ohne Nachweis stehen oben und sind gekennzeichnet.
+            </p>
+        </fieldset>
+
+        <form id="formular" hidden>
+            <fieldset>
+                <legend>Der Text</legend>
+
+                <label for="text_original">Deutscher Originaltext</label>
+                <textarea id="text_original" spellcheck="true"></textarea>
+                <p class="hinweis" id="laengenhinweis">Mindestlänge wird geladen.</p>
+
+                <div class="zeile">
+                    <div>
+                        <label for="text_sprache">Sprache des Originals</label>
+                        <input type="text" id="text_sprache" value="de" maxlength="2" pattern="[a-z]{2}">
+                    </div>
+                </div>
+
+                <div class="zeile">
+                    <div>
+                        <label for="text_erstellt_frueheste">Entstanden frühestens</label>
+                        <input type="date" id="text_erstellt_frueheste">
+                        <p class="hinweis">Freiwillig. Nur wenn der Tag nicht bekannt ist.</p>
+                    </div>
+                    <div>
+                        <label for="text_erstellt_spaeteste">Entstanden spätestens</label>
+                        <input type="date" id="text_erstellt_spaeteste">
+                        <p class="hinweis">
+                            Der rechtlich maßgebliche Wert. Muss vor der Erzeugung der Musik liegen.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="kontrollkaestchen">
+                    <input type="checkbox" id="text_ist_eigenes_werk">
+                    <label for="text_ist_eigenes_werk">
+                        Dieser Text ist von mir selbst formuliert
+                        <span class="hinweis" style="display:block">
+                            Nur ankreuzen, wenn die Zeilen selbst geschrieben sind. Ein Prompt genügt nicht.
+                            Mit dem Häkchen werden Text und spätestes Datum verlangt.
+                        </span>
+                    </label>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Die Musik</legend>
+                <div class="zeile">
+                    <div>
+                        <label for="musik_dienst">Erzeugt mit</label>
+                        <select id="musik_dienst">
+                            <option value="">– keine Angabe –</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="musik_erzeugt_am">Erzeugt am</label>
+                        <input type="date" id="musik_erzeugt_am">
+                    </div>
+                    <div>
+                        <label for="musik_agb_fassung">Fassung der Nutzungsbedingungen</label>
+                        <input type="text" id="musik_agb_fassung" maxlength="40" placeholder="2026-08">
+                        <p class="hinweis">Welche Fassung damals galt.</p>
+                    </div>
+                </div>
+
+                <label for="wasserzeichen_id">Wasserzeichen-Kennung</label>
+                <input type="text" id="wasserzeichen_id" maxlength="32" pattern="[0-9a-f]{32}"
+                    placeholder="32 Hexzeichen, klein">
+                <p class="hinweis">Aus der Markierung nach #77. Leer lassen, solange es keine gibt.</p>
+
+                <label for="notiz">Notiz</label>
+                <textarea id="notiz" style="min-height:5rem"></textarea>
+            </fieldset>
+
+            <fieldset>
+                <legend>Vom Server gesetzt</legend>
+                <dl class="kenndaten">
+                    <dt>Hashwert</dt><dd id="anzeige_hash">–</dd>
+                    <dt>Erfasst am</dt><dd id="anzeige_erfasst">–</dd>
+                    <dt>Erfasst von</dt><dd id="anzeige_von">–</dd>
+                </dl>
+                <p class="hinweis">
+                    Nur zur Ansicht. Der Hashwert wird aus dem normalisierten Text berechnet;
+                    ein mitgesendeter Wert wird abgewiesen.
+                </p>
+            </fieldset>
+
+            <div class="knopfreihe">
+                <button type="submit" id="speichern">Nachweis speichern</button>
+                <button type="button" class="leise" id="neuladen">Verwerfen und neu laden</button>
+            </div>
+        </form>
+
+        <fieldset id="verlaufsbereich" hidden>
+            <legend>Änderungsverlauf</legend>
+            <table>
+                <thead>
+                    <tr><th>#</th><th>Vorgang</th><th>Wann</th><th>Von</th></tr>
+                </thead>
+                <tbody id="verlauf"></tbody>
+            </table>
+            <p class="hinweis">
+                Wird von einem Trigger in der Datenbank geschrieben, nicht von dieser Seite.
+                Auch ein Zugriff über psql erscheint hier — dann ohne Benutzerangabe.
+            </p>
+        </fieldset>
+    </main>
+
+    <script>
+        'use strict';
+
+        const BASIS = '/api/admin/herkunft';
+        const el = (id) => document.getElementById(id);
+
+        // Anmeldung über den HttpOnly-Cookie. Kein localStorage.
+        async function anfrage(pfad, optionen = {}) {
+            const antwort = await fetch(BASIS + pfad, {
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                ...optionen,
+            });
+            let koerper = null;
+            try { koerper = await antwort.json(); } catch { /* leere Antwort */ }
+            return { status: antwort.status, koerper };
+        }
+
+        function melde(art, text, punkte) {
+            const kasten = el('meldung');
+            kasten.className = 'meldung ' + art;
+            kasten.innerHTML = '';
+            const p = document.createElement('p');
+            p.style.margin = '0';
+            p.textContent = text;
+            kasten.appendChild(p);
+            if (Array.isArray(punkte) && punkte.length) {
+                const liste = document.createElement('ul');
+                for (const punkt of punkte) {
+                    const li = document.createElement('li');
+                    li.textContent = punkt;
+                    liste.appendChild(li);
+                }
+                kasten.appendChild(liste);
+            }
+            kasten.hidden = false;
+        }
+
+        function verbergeMeldung() { el('meldung').hidden = true; }
+
+        // Ein 401 oder 403 heisst hier fast immer: nicht angemeldet oder kein
+        // Admin. Seit #24 kann es auch heissen, dass die Rolle in der Datenbank
+        // inzwischen eine andere ist — deshalb wird das ausdruecklich genannt.
+        function behandleAbweisung(status) {
+            if (status === 401) {
+                melde('fehler', 'Nicht angemeldet. Bitte zuerst anmelden und die Seite neu laden.');
+                return true;
+            }
+            if (status === 403) {
+                melde('fehler', 'Keine Adminrechte. Die Rolle wird gegen die Datenbank geprüft, '
+                    + 'nicht gegen das Anmeldetoken — eine ältere Anmeldung genügt nicht.');
+                return true;
+            }
+            if (status === 503) {
+                melde('fehler', 'Die Berechtigung kann derzeit nicht geprüft werden. '
+                    + 'Läuft die Datenbank?');
+                return true;
+            }
+            return false;
+        }
+
+        let vorgaben = { dienste: [], min_text_laenge: 80, heute: '' };
+
+        async function ladeVorgaben() {
+            const { status, koerper } = await anfrage('/vorgaben');
+            if (behandleAbweisung(status)) return false;
+            if (status !== 200) { melde('fehler', 'Vorgaben konnten nicht geladen werden.'); return false; }
+            vorgaben = koerper;
+            const auswahl = el('musik_dienst');
+            for (const dienst of vorgaben.dienste) {
+                const o = document.createElement('option');
+                o.value = dienst; o.textContent = dienst;
+                auswahl.appendChild(o);
+            }
+            el('laengenhinweis').textContent =
+                'Mindestens ' + vorgaben.min_text_laenge + ' Zeichen. Das ist keine Prüfung der '
+                + 'Schöpfungshöhe, nur ein Schutz gegen leere Einträge.';
+            // Kein Datum in der Zukunft.
+            for (const id of ['text_erstellt_frueheste', 'text_erstellt_spaeteste', 'musik_erzeugt_am']) {
+                el(id).max = vorgaben.heute;
+            }
+            return true;
+        }
+
+        async function ladeTitel() {
+            const { status, koerper } = await anfrage('/titel');
+            if (behandleAbweisung(status)) return;
+            if (status !== 200) { melde('fehler', 'Titelliste konnte nicht geladen werden.'); return; }
+            const auswahl = el('titelwahl');
+            auswahl.innerHTML = '';
+            const leer = document.createElement('option');
+            leer.value = ''; leer.textContent = '– Titel wählen –';
+            auswahl.appendChild(leer);
+            for (const t of koerper.titel) {
+                const o = document.createElement('option');
+                o.value = String(t.id);
+                o.textContent = '#' + t.id + '  ' + t.name + ' — ' + t.artist
+                    + (t.hat_nachweis ? '' : '   (kein Nachweis)');
+                if (!t.hat_nachweis) o.className = 'ohne-nachweis';
+                auswahl.appendChild(o);
+            }
+            if (!koerper.titel.length) {
+                melde('warn', 'Es gibt noch keine Titel. Zuerst einen Titel hochladen.');
+            }
+        }
+
+        function setzeFeld(id, wert) {
+            const feld = el(id);
+            if (wert === null || wert === undefined) { feld.value = ''; return; }
+            // Datumsfelder verlangen JJJJ-MM-TT. Aus der Datenbank kommt bei
+            // date-Spalten ein vollstaendiger Zeitstempel, deshalb abschneiden.
+            feld.value = feld.type === 'date' ? String(wert).slice(0, 10) : String(wert);
+        }
+
+        function fuelleFormular(herkunft) {
+            const felder = ['text_original', 'text_sprache', 'text_erstellt_frueheste',
+                'text_erstellt_spaeteste', 'musik_dienst', 'musik_erzeugt_am',
+                'musik_agb_fassung', 'wasserzeichen_id', 'notiz'];
+            for (const feld of felder) setzeFeld(feld, herkunft ? herkunft[feld] : '');
+            if (!herkunft) el('text_sprache').value = 'de';
+            el('text_ist_eigenes_werk').checked = Boolean(herkunft && herkunft.text_ist_eigenes_werk);
+            el('anzeige_hash').textContent = (herkunft && herkunft.text_sha256) || '–';
+            el('anzeige_erfasst').textContent = (herkunft && herkunft.erfasst_am) || '–';
+            el('anzeige_von').textContent =
+                herkunft && herkunft.erfasst_von !== null && herkunft.erfasst_von !== undefined
+                    ? 'Benutzer ' + herkunft.erfasst_von : '–';
+        }
+
+        function fuelleVerlauf(eintraege) {
+            const koerper = el('verlauf');
+            koerper.innerHTML = '';
+            for (const e of eintraege) {
+                const tr = document.createElement('tr');
+                for (const wert of [e.id, e.vorgang, String(e.geschehen_am).replace('T', ' ').slice(0, 19),
+                    e.geaendert_von === null ? 'unbekannt' : 'Benutzer ' + e.geaendert_von]) {
+                    const td = document.createElement('td');
+                    td.textContent = wert;
+                    tr.appendChild(td);
+                }
+                koerper.appendChild(tr);
+            }
+            el('verlaufsbereich').hidden = eintraege.length === 0;
+        }
+
+        async function ladeNachweis(trackId) {
+            verbergeMeldung();
+            const { status, koerper } = await anfrage('/' + trackId);
+            if (behandleAbweisung(status)) return;
+            if (status === 404) { melde('fehler', 'Titel nicht gefunden.'); return; }
+            if (status !== 200) { melde('fehler', 'Nachweis konnte nicht geladen werden.'); return; }
+            fuelleFormular(koerper.herkunft);
+            fuelleVerlauf(koerper.verlauf || []);
+            el('formular').hidden = false;
+            if (!koerper.herkunft) {
+                melde('warn', 'Für „' + koerper.track.name + '" gibt es noch keinen Nachweis. '
+                    + 'Die Felder sind leer.');
+            }
+        }
+
+        /**
+         * Baut den Anfragekörper. Leere Felder werden WEGGELASSEN und nicht als
+         * leere Zeichenkette gesendet — die Prüfung des Servers weist einen
+         * leeren Text sonst als zu kurz ab, obwohl gar nichts gemeint war.
+         */
+        function sammleAngaben() {
+            const koerper = {};
+            const textfelder = ['text_original', 'text_sprache', 'text_erstellt_frueheste',
+                'text_erstellt_spaeteste', 'musik_dienst', 'musik_erzeugt_am',
+                'musik_agb_fassung', 'wasserzeichen_id', 'notiz'];
+            for (const feld of textfelder) {
+                const wert = el(feld).value.trim();
+                if (wert !== '') koerper[feld] = wert;
+            }
+            koerper.text_ist_eigenes_werk = el('text_ist_eigenes_werk').checked;
+            return koerper;
+        }
+
+        async function speichere(trackId) {
+            verbergeMeldung();
+            el('speichern').disabled = true;
+            try {
+                const { status, koerper } = await anfrage('/' + trackId, {
+                    method: 'PUT',
+                    body: JSON.stringify(sammleAngaben()),
+                });
+                if (behandleAbweisung(status)) return;
+                if (status === 400) {
+                    melde('fehler', koerper && koerper.error ? koerper.error : 'Angaben unbrauchbar.',
+                        koerper && koerper.fehler);
+                    return;
+                }
+                if (status === 404) { melde('fehler', 'Titel nicht gefunden.'); return; }
+                if (status !== 200) { melde('fehler', 'Speichern fehlgeschlagen.'); return; }
+                melde('gut', 'Nachweis gespeichert. Der Hashwert wurde neu berechnet.');
+                await ladeNachweis(trackId);
+                await ladeTitel();
+                el('titelwahl').value = String(trackId);
+            } finally {
+                el('speichern').disabled = false;
+            }
+        }
+
+        el('titelwahl').addEventListener('change', (e) => {
+            const wert = e.target.value;
+            if (!wert) { el('formular').hidden = true; el('verlaufsbereich').hidden = true; return; }
+            ladeNachweis(wert);
+        });
+
+        el('formular').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const trackId = el('titelwahl').value;
+            if (trackId) speichere(trackId);
+        });
+
+        el('neuladen').addEventListener('click', () => {
+            const trackId = el('titelwahl').value;
+            if (trackId) ladeNachweis(trackId);
+        });
+
+        (async () => {
+            if (await ladeVorgaben()) await ladeTitel();
+        })();
+    </script>
+</body>
+
+</html>
