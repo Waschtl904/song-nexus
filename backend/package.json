@@ -11,6 +11,8 @@
     "start:prod": "cross-env NODE_ENV=production node --no-deprecation server.js",
     "dev:local": "cross-env NODE_ENV=development nodemon --no-deprecation server.js --ignore logs",
     "seed:dev-admin": "node scripts/seed-dev-admin.js",
+    "dauer:pruefen": "node scripts/dauer-pruefen.js",
+    "dauer:korrigieren": "node scripts/dauer-pruefen.js --korrigieren",
     "test": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
     "test:coverage": "jest --coverage --runInBand",

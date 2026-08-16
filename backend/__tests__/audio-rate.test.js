@@ -212,3 +212,34 @@ describe('warum das ueberhaupt gebaut wurde', () => {
     expect(neu.bytesProSekunde * 40).toBeLessThan(960000);
   });
 });
+
+// ============================================================================
+// Daraus laesst sich die Spieldauer ableiten
+// ============================================================================
+//
+// Genau das macht der Upload jetzt, statt dem Browser zu glauben. In der
+// Entwicklungsdatenbank stand bei einem vier Minuten langen Song
+// duration_seconds = 3000, also 50 Minuten.
+describe('Spieldauer aus Groesse und Rate', () => {
+  test('MP3 mit 192 kbit/s: 5.760.000 Bytes sind 4 Minuten, nicht 50', () => {
+    const { pfad } = mp3Datei('dauer192.mp3', 11); // Index 11 = 192 kbit/s
+    const groesse = 5_760_000;
+    const { bytesProSekunde: rate } = bytesProSekunde(pfad, groesse, 3000);
+    expect(rate).toBe(24000);
+    expect(Math.round(groesse / rate)).toBe(240);
+
+    // Was der alte Weg daraus gemacht haette:
+    const alteRate = Math.floor(groesse / 3000);
+    expect(alteRate).toBe(1920);
+    // 1920 Byte/s waeren 15,4 kbit/s - eine Bitrate, die es nicht gibt.
+    expect((alteRate * 8) / 1000).toBeLessThan(16);
+  });
+
+  test('WAV: 46.079.840 Bytes sind 261 Sekunden, nicht 290', () => {
+    const { pfad } = wavDatei('dauerwav.wav');
+    const groesse = 46_079_840;
+    const { bytesProSekunde: rate } = bytesProSekunde(pfad, groesse, 290);
+    expect(rate).toBe(176400);
+    expect(Math.round(groesse / rate)).toBe(261);
+  });
+});
