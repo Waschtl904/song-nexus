@@ -36,7 +36,7 @@ function gueltig(aenderungen = {}) {
     track_id: 7,
     text_original: TEXT,
     text_sprache: 'de',
-    text_erstellt_am: '2026-08-01',
+    text_erstellt_spaeteste: '2026-08-01',
     text_ist_eigenes_werk: true,
     musik_dienst: 'suno',
     musik_erzeugt_am: '2026-08-05',
@@ -97,21 +97,73 @@ describe('Herkunftsnachweis', () => {
   describe('Die Reihenfolge, auf die es rechtlich ankommt', () => {
     test('Text vor Musik wird angenommen', () => {
       expect(
-        pruefe(gueltig({ text_erstellt_am: '2026-08-01', musik_erzeugt_am: '2026-08-05' }))
+        pruefe(gueltig({ text_erstellt_spaeteste: '2026-08-01', musik_erzeugt_am: '2026-08-05' }))
       ).toEqual([]);
     });
 
     test('Text am selben Tag wie die Musik wird angenommen', () => {
       expect(
-        pruefe(gueltig({ text_erstellt_am: '2026-08-05', musik_erzeugt_am: '2026-08-05' }))
+        pruefe(gueltig({ text_erstellt_spaeteste: '2026-08-05', musik_erzeugt_am: '2026-08-05' }))
       ).toEqual([]);
     });
 
     test('Text NACH der Musik wird abgelehnt', () => {
       const fehler = pruefe(
-        gueltig({ text_erstellt_am: '2026-08-06', musik_erzeugt_am: '2026-08-05' })
+        gueltig({ text_erstellt_spaeteste: '2026-08-06', musik_erzeugt_am: '2026-08-05' })
       );
       expect(fehler.join(' ')).toMatch(/vor der Erzeugung der Musik/);
+    });
+  });
+
+  // ==========================================================================
+  describe('Unscharfe Entstehungszeit (#81)', () => {
+    // Der Anlassfall: ein Gedicht, geschrieben "so ca. 2010 oder 2011".
+    // Genau dieser Fall wurde von der ersten Fassung abgewiesen, weil das
+    // Fruehestdatum bei 2023-01-01 lag und die Spalte einen Tag verlangte.
+    test('REGRESSION: ein Gedicht von 2010 oder 2011 wird angenommen', () => {
+      expect(
+        pruefe(
+          gueltig({
+            text_erstellt_frueheste: '2010-01-01',
+            text_erstellt_spaeteste: '2011-12-31',
+            musik_erzeugt_am: '2026-08-05',
+          })
+        )
+      ).toEqual([]);
+    });
+
+    test('nur die obere Grenze genuegt — wer den Tag kennt, braucht keine Spanne', () => {
+      const e = gueltig({ text_erstellt_spaeteste: '2011-12-31' });
+      expect(pruefe(e)).toEqual([]);
+    });
+
+    test('eine verkehrt herum liegende Spanne wird abgelehnt', () => {
+      const fehler = pruefe(
+        gueltig({ text_erstellt_frueheste: '2012-01-01', text_erstellt_spaeteste: '2011-12-31' })
+      );
+      expect(fehler.join(' ')).toMatch(/liegt nach text_erstellt_spaeteste/);
+    });
+
+    test('gleiche Grenzen sind eine gueltige Spanne', () => {
+      expect(
+        pruefe(
+          gueltig({ text_erstellt_frueheste: '2011-12-31', text_erstellt_spaeteste: '2011-12-31' })
+        )
+      ).toEqual([]);
+    });
+
+    test('eine untere Grenze ohne obere wird abgelehnt', () => {
+      const e = gueltig({ text_erstellt_frueheste: '2010-01-01' });
+      delete e.text_erstellt_spaeteste;
+      const fehler = pruefe(e);
+      expect(fehler.join(' ')).toMatch(/ohne text_erstellt_spaeteste/);
+    });
+
+    test('das alte Feld text_erstellt_am nennt seinen neuen Namen', () => {
+      const e = gueltig({ text_erstellt_am: '2011-12-31' });
+      const fehler = pruefe(e);
+      expect(fehler.join(' ')).toMatch(/heißt jetzt "text_erstellt_spaeteste"/);
+      expect(fehler.join(' ')).not.toMatch(/Unbekanntes Feld/);
     });
   });
 
@@ -180,19 +232,25 @@ describe('Herkunftsnachweis', () => {
     });
 
     test('ein Datum in der Zukunft wird abgelehnt', () => {
-      const fehler = pruefe(gueltig({ text_erstellt_am: '2026-08-17' }));
+      const fehler = pruefe(gueltig({ text_erstellt_spaeteste: '2026-08-17' }));
       expect(fehler.join(' ')).toMatch(/Zukunft/);
     });
 
     test('das heutige Datum wird angenommen', () => {
       expect(
-        pruefe(gueltig({ text_erstellt_am: HEUTE, musik_erzeugt_am: HEUTE }))
+        pruefe(gueltig({ text_erstellt_spaeteste: HEUTE, musik_erzeugt_am: HEUTE }))
       ).toEqual([]);
     });
 
     test(`ein Datum vor ${FRUEHESTES_DATUM} wird abgelehnt`, () => {
-      const fehler = pruefe(gueltig({ text_erstellt_am: '2022-12-31' }));
+      const fehler = pruefe(gueltig({ text_erstellt_spaeteste: '1949-12-31' }));
       expect(fehler.join(' ')).toMatch(new RegExp(FRUEHESTES_DATUM));
+    });
+
+    test('das Fruehestdatum ist nur ein Tippfehlerschutz, kein Zeitfenster', () => {
+      // Vor #81 lag die Grenze bei 2023-01-01 und hat echte alte Texte
+      // abgewiesen. Diese Zusicherung soll einen Rueckfall sofort zeigen.
+      expect(FRUEHESTES_DATUM < '2000-01-01').toBe(true);
     });
   });
 
@@ -207,15 +265,15 @@ describe('Herkunftsnachweis', () => {
 
     test('eigenes Werk ohne Datum wird abgelehnt', () => {
       const e = gueltig();
-      delete e.text_erstellt_am;
+      delete e.text_erstellt_spaeteste;
       const fehler = pruefe(e);
-      expect(fehler.join(' ')).toMatch(/text_erstellt_am fehlt/);
+      expect(fehler.join(' ')).toMatch(/text_erstellt_spaeteste fehlt/);
     });
 
     test('ohne Erklärung darf der Text fehlen', () => {
       const e = gueltig({ text_ist_eigenes_werk: false });
       delete e.text_original;
-      delete e.text_erstellt_am;
+      delete e.text_erstellt_spaeteste;
       expect(pruefe(e)).toEqual([]);
     });
 
@@ -311,13 +369,23 @@ describe('Herkunftsnachweis', () => {
     test('fehlende Angaben werden zu null und nicht zu undefined', () => {
       const e = gueltig({ text_ist_eigenes_werk: false });
       delete e.text_original;
-      delete e.text_erstellt_am;
+      delete e.text_erstellt_spaeteste;
       delete e.notiz;
       const { datensatz } = baueDatensatz(e, { benutzerId: 1, heute: HEUTE });
       expect(datensatz.text_original).toBeNull();
-      expect(datensatz.text_erstellt_am).toBeNull();
+      expect(datensatz.text_erstellt_spaeteste).toBeNull();
+      expect(datensatz.text_erstellt_frueheste).toBeNull();
       expect(datensatz.notiz).toBeNull();
       expect(datensatz.text_sha256).toBeNull();
+    });
+
+    test('die Spanne landet vollstaendig im Datensatz', () => {
+      const { datensatz } = baueDatensatz(
+        gueltig({ text_erstellt_frueheste: '2010-01-01', text_erstellt_spaeteste: '2011-12-31' }),
+        { benutzerId: 1, heute: HEUTE }
+      );
+      expect(datensatz.text_erstellt_frueheste).toBe('2010-01-01');
+      expect(datensatz.text_erstellt_spaeteste).toBe('2011-12-31');
     });
 
     test('eine ungültige Eingabe liefert keinen Datensatz', () => {
