@@ -56,6 +56,16 @@ app.log
 # ============================================================================
 # UPLOADS & GENERATED FILES
 # ============================================================================
+# Wird bei JEDEM webpack-Lauf neu geschrieben: webpack.config.js:291 ruft
+# runDesignSystemLoader() beim Auswerten der Konfiguration auf, und die
+# Funktion schreibt nach frontend/styles/, also in den Quellbaum.
+# Die Datei ist damit ein Bauartefakt, kein Quelltext. Versioniert war sie
+# nur solange stillhaltend, wie die eingecheckte Fassung zufaellig dem
+# entsprach, was der Build erzeugt - eine Uebereinstimmung, die niemand
+# geprueft hat. Massgeblich ist frontend/config/design.config.json.
+# Siehe Issue #66.
+frontend/styles/_design-tokens.css
+
 uploads/
 backend/public/audio/*.mp3
 backend/public/audio/*.wav
@@ -71,6 +81,9 @@ backend/public/audio/*.flac
 *.old
 *.bak
 *~
+# Handsicherungen wie package.json.alt. Standen bisher als unversionierte
+# Dateien in git status und haetten bei einem "git add ." mitgehen koennen.
+*.alt
 
 # ============================================================================
 # DATABASE CREDENTIALS (CRITICAL!)
