@@ -20,6 +20,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const { pool } = require('../db');
 const { verifyToken, requireAdmin } = require('../middleware/auth-middleware');
+const { bytesProSekunde } = require('../utils/audio-rate');
+
 const router = express.Router();
 
 // ============================================================================
@@ -125,22 +127,66 @@ router.post(
                 });
             }
 
-            if (!duration_seconds) {
-                await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
-                return res.status(400).json({
-                    success: false,
-                    error: 'Feldduration_seconds erforderlich!'
-                });
+            // Wie lang ist der Track?
+            //
+            // Bisher kam die Dauer ausschliesslich aus dem Browser: das
+            // Upload-Formular laedt die Datei in ein Audio-Element und liest
+            // audio.duration aus. Das geht oft gut und manchmal daneben.
+            //
+            // In der Entwicklungsdatenbank steht bei einem vier Minuten
+            // langen Song duration_seconds = 3000, also 50 Minuten. Diese
+            // Zahl war nicht nur Anzeige: aus ihr wurde die Datenrate fuer
+            // den Vorschauausschnitt gerechnet. Ergebnis waren 3 Sekunden
+            // Ton statt 40.
+            //
+            // Die Datei liegt hier auf der Platte. Sie zu messen ist
+            // verlaesslicher, als dem Browser zu glauben.
+            let durationNum = null;
+            let dauerQuelle = 'Formular';
+
+            try {
+                const stat = await fs.stat(req.file.path);
+                const { bytesProSekunde: rate, quelle } = bytesProSekunde(
+                    req.file.path,
+                    stat.size,
+                    null
+                );
+                if (quelle === 'Dateikopf' && rate > 0) {
+                    durationNum = Math.round(stat.size / rate);
+                    dauerQuelle = 'Datei';
+                }
+            } catch (err) {
+                console.warn('⚠️ Dauer nicht aus der Datei messbar:', err.message);
             }
 
-            const durationNum = parseInt(duration_seconds);
-            if (isNaN(durationNum) || durationNum < 0) {
-                await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
-                return res.status(400).json({
-                    success: false,
-                    error: 'duration_seconds muss eine positive Zahl sein!'
-                });
+            const vomFormular = parseInt(duration_seconds, 10);
+
+            if (durationNum === null) {
+                // Kopf nicht lesbar (etwa OGG oder FLAC) — dann bleibt nur
+                // die Angabe aus dem Formular.
+                if (!duration_seconds || isNaN(vomFormular) || vomFormular <= 0) {
+                    await fs.unlink(req.file.path).catch(e => console.warn('Could not delete file:', e));
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Dauer konnte nicht aus der Datei gelesen werden und fehlt im Formular.',
+                        code: 'DURATION_REQUIRED'
+                    });
+                }
+                durationNum = vomFormular;
+            } else if (!isNaN(vomFormular) && vomFormular > 0) {
+                // Beide Werte da: die Messung gilt, die Abweichung wird
+                // protokolliert. Ein grosser Unterschied ist ein Hinweis auf
+                // eine kaputte Datei oder ein Formular, das nicht funktioniert.
+                const abweichung = Math.abs(vomFormular - durationNum);
+                if (abweichung > Math.max(5, durationNum * 0.1)) {
+                    console.warn(
+                        `⚠️ Dauer: Formular sagt ${vomFormular}s, Datei sagt ${durationNum}s ` +
+                        `— die Datei gilt`
+                    );
+                }
             }
+
+            console.log(`⏱️ Dauer: ${durationNum}s (${dauerQuelle})`);
 
             // ✅ Parse booleans
             const isFreeBool = is_free === 'true' || is_free === true;
