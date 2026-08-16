@@ -1222,7 +1222,8 @@ Benutzername oder Teile der E-Mail-Adresse.
 
 | Punkt | Issue |
 |---|---|
-| `requireAdmin` vertraut der Rolle im Token ohne Datenbankabgleich, kein Widerruf | #24 |
+| ~~`requireAdmin` vertraut der Rolle im Token ohne Datenbankabgleich~~ behoben, siehe Abschnitt 10 | #24 |
+| Gewoehnliche Routen nehmen weiter Tokens deaktivierter Konten an | #83 |
 | JWT liegt zusaetzlich im `localStorage` | #42 |
 | Sitzungen im Arbeitsspeicher | #44 |
 | Secrets nie rotiert | #2 |
@@ -1231,3 +1232,135 @@ Benutzername oder Teile der E-Mail-Adresse.
 
 Der letzte Punkt begrenzt die Aussagekraft aller anderen Pruefungen: eine
 gruene Testsuite sagt nichts ueber Code, den sie nicht laedt.
+
+---
+
+## 10. Widerruf von Sitzungen und Notfall-Abmeldung
+
+### 10.1 Warum Widerruf bei JWT ein Problem ist
+
+Ein JWT ist eine unterschriebene Behauptung, kein Nachschlagewerk. Wer ihn hat,
+kann ihn vorzeigen, und der Server prueft nur die Unterschrift. Was darin steht,
+war zum Zeitpunkt der Ausstellung wahr — nicht unbedingt jetzt.
+
+Bei `JWT_EXPIRE=7d` heisst das: eine Woche lang.
+
+Genau das war die Luecke aus **#24**. Am laufenden Code nachgestellt: ein gueltig
+signiertes Token mit `role='admin'` fuer einen Benutzer, der in der Datenbank
+`role='user'` **und** `is_active=false` hatte, bekam **HTTP 200** auf einer
+Adminroute. Die Middleware protokollierte dabei `Admin 5 verified`.
+
+### 10.2 Was jetzt gegen die Datenbank geprueft wird
+
+Seit #24 fragt **jeder Adminzugriff** die Datenbank frisch:
+
+```sql
+SELECT role, is_active FROM users WHERE id = $1
+```
+
+Betroffen sind alle Stellen, die eine Adminrolle voraussetzen:
+
+| Ort | Wie |
+|---|---|
+| `middleware/auth-middleware.js` → `requireAdmin` | Middleware, 8 Routen |
+| `routes/play-history.js`, drei Stellen | `istAdmin(id)`, nur bei Zugriff auf fremde Daten |
+
+Damit wirken **sofort und ohne erneuten Login**:
+
+- Rolle von `admin` auf `user` setzen
+- Konto deaktivieren (`is_active = false`)
+- Benutzerzeile loeschen
+
+Und die Gegenprobe wirkt genauso: wer zum Admin gemacht wird, muss sich nicht
+neu anmelden.
+
+**Fail closed:** ist die Datenbank nicht erreichbar, antwortet die Adminroute
+mit `503 AUTHORIZATION_UNAVAILABLE`. Eine Rechtepruefung, die bei einer Stoerung
+durchlaesst, ist keine Rechtepruefung.
+
+**Kein Zwischenspeicher.** Absichtlich. Ein Zwischenspeicher wuerde genau das
+Problem zurueckbringen, das hier behoben wurde: eine Entscheidung anhand
+veralteter Daten.
+
+### 10.3 Was weiterhin NICHT widerrufen wird
+
+Ein deaktiviertes Konto kann mit einem noch gueltigen Token **gewoehnliche**
+angemeldete Routen weiter benutzen — eigene Kaeufe ansehen, eigene Historie
+lesen — bis das Token ablaeuft. `verifyToken` prueft nur die Unterschrift.
+
+Das ist eine bewusste Abwaegung und keine Nachlaessigkeit: eine Datenbankabfrage
+bei **jeder** angemeldeten Anfrage ist eine andere Groessenordnung als eine bei
+den seltenen Adminzugriffen. Die saubere Loesung ist eine Spalte `token_version`
+in `users`, die in den Token wandert und bei jeder Aenderung erhoeht wird.
+Verfolgt in **#83**.
+
+### 10.4 Notfall: einen einzelnen Benutzer entmachten
+
+Reihenfolge nach steigender Wirkung. Die ersten beiden wirken sofort auf alle
+Adminrouten.
+
+`<ID>` ist jeweils durch die Zahl aus `users.id` zu ersetzen.
+
+Rolle entziehen:
+
+```sql
+UPDATE users SET role = 'user' WHERE id = <ID>;
+```
+
+Konto sperren:
+
+```sql
+UPDATE users SET is_active = false WHERE id = <ID>;
+```
+
+Nachsehen, wen es betrifft:
+
+```sql
+SELECT id, email, username, role, is_active FROM users ORDER BY id;
+```
+
+### 10.5 Notfall: alle Sitzungen auf einmal beenden
+
+Das ist der einzige vollstaendige Widerruf, den es derzeit gibt, und er trifft
+**alle** Benutzer gleichzeitig. Bewusste Entscheidung, kein Nebeneffekt.
+
+1. Neue Geheimnisse erzeugen — unter Windows mit dem vorhandenen Skript:
+
+   ```powershell
+   .\scripts\generate-secrets.ps1
+   ```
+
+2. `JWT_SECRET` **und** `JWT_REFRESH_SECRET` in `.env` ersetzen. Beide, sonst
+   kann ueber `/api/auth/refresh-token` ein neues Zugangstoken geholt werden.
+
+3. Die Anwendung neu starten. Auf dem Server:
+
+   ```bash
+   pm2 restart song-nexus
+   ```
+
+4. Kontrollieren, dass die Geheimnisse wirklich neu sind:
+
+   ```powershell
+   .\scripts\secrets-pruefen.ps1
+   ```
+
+   Der Fingerabdruck von `JWT_SECRET` muss sich geaendert haben. Das Skript
+   zeigt Laenge und Fingerabdruck, niemals den Wert.
+
+Danach sind alle Zugangs- und Erneuerungstoken ungueltig. Jeder muss sich neu
+anmelden.
+
+### 10.6 Was in dieser Reihenfolge zu tun ist
+
+Bei einem uebernommenen Adminkonto:
+
+1. `role = 'user'` und `is_active = false` fuer das betroffene Konto — wirkt
+   sofort auf alle Adminrouten
+2. Passwort des Kontos aendern
+3. Pruefen, was mit dem Zugang gemacht wurde: `orders`, `tracks`, `users`
+4. Erst dann entscheiden, ob `JWT_SECRET` rotiert wird — das wirft alle
+   Benutzer hinaus und ist bei einem Einzelfall nicht noetig
+
+Der zweite Schritt allein haette **vor #24 nicht genuegt**: das alte Token
+haette weiter funktioniert, weil die Rolle nur im Token stand.
