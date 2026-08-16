@@ -444,6 +444,115 @@ ORDER BY created_at DESC;
 
 ## 🐛 Troubleshooting
 
+### Issue: `28P01` – „Passwort-Authentifizierung fehlgeschlagen"
+
+**Problem:** Beim Start meldet das Backend
+
+```
+❌ Database warmup failed: error: Passwort-Authentifizierung für Benutzer »song_nexus_user« fehlgeschlagen
+  code: '28P01'
+```
+
+**Wichtig:** `28P01` heißt **nicht** „falsches Passwort". Es heißt „Anmeldung
+fehlgeschlagen". PostgreSQL nennt aus Sicherheitsgründen keinen Grund — und
+mindestens vier verschiedene Ursachen liefern dieselbe Meldung.
+
+Am 16.08.2026 hat genau das rund zwei Stunden gekostet: gesucht wurde ein
+Übertragungsfehler beim Passwort, dabei war das Passwort von Anfang an richtig
+und lediglich **abgelaufen**.
+
+#### Diagnose zuerst, in dieser Reihenfolge
+
+**1. Läuft das Passwort ab, und darf die Rolle sich überhaupt anmelden?**
+
+```powershell
+psql -U postgres -d song_nexus_dev -c "SELECT rolname, rolcanlogin, rolvaliduntil FROM pg_authid WHERE rolname IN ('song_nexus_user','postgres');"
+```
+
+Steht bei `rolvaliduntil` ein Datum in der Vergangenheit, ist das die Ursache.
+Leer oder `infinity` bedeutet: läuft nicht ab. `rolcanlogin` muss `t` sein.
+
+Behebung:
+
+```powershell
+psql -U postgres -c "ALTER ROLE song_nexus_user VALID UNTIL 'infinity';"
+```
+
+**2. Passt das Speicherformat zum Verfahren in `pg_hba.conf`?**
+
+```powershell
+psql -U postgres -d song_nexus_dev -c "SELECT rolname, left(rolpassword, 13) AS format FROM pg_authid WHERE rolname = 'song_nexus_user';"
+```
+
+```powershell
+psql -U postgres -c "SELECT type, database, user_name, address, auth_method FROM pg_hba_file_rules ORDER BY rule_number;"
+```
+
+Ein `md5`-Verwahrwert kann keine `scram-sha-256`-Anmeldung erfüllen. Beachte
+auch, dass die Anwendung über `::1` verbindet, nicht über `127.0.0.1` — für
+beide Adressen können unterschiedliche Verfahren eingetragen sein.
+
+**3. Liest die Anwendung überhaupt den Wert aus der `.env`?**
+
+```powershell
+cd backend
+```
+
+```powershell
+node -e "require('dotenv').config(); console.log('DB_USER =', process.env.DB_USER); console.log('Laenge DB_PASSWORD =', (process.env.DB_PASSWORD||'').length)"
+```
+
+`dotenv` **überschreibt keine bereits gesetzten Umgebungsvariablen**. Ein
+`DB_PASSWORD` in den Windows-Systemvariablen sticht die `.env` und ist von
+außen nicht zu sehen.
+
+**4. Stimmt der Wert in der `.env` mit dem überein, was du glaubst?**
+
+```powershell
+.\scripts\secrets-pruefen.ps1
+```
+
+Zeigt Zeichenzahl und Fingerabdruck je Schlüssel, ohne den Wert auszugeben.
+Meldet außerdem UTF-16-Kodierung, doppelte Werte und Platzhalter.
+
+#### Passwort wechseln, ohne sich zu verlaufen
+
+Der zuverlässigste Weg: das Passwort direkt aus der `.env` in die Datenbank
+übertragen. Dann können die beiden Seiten nicht auseinanderlaufen, und es geht
+nichts über die Zwischenablage.
+
+```powershell
+$pw = ((Select-String -Path backend\.env -Pattern '^DB_PASSWORD=' | Select-Object -First 1).Line -replace '^DB_PASSWORD=','').Trim().Trim('"').Trim("'")
+```
+
+```powershell
+$pw.Length
+```
+
+```powershell
+"ALTER USER song_nexus_user PASSWORD '$pw';" | psql -U postgres -d song_nexus_dev
+```
+
+```powershell
+Remove-Variable pw
+```
+
+Die PowerShell-Historie merkt sich die getippte Zeile, also `$pw`, nicht den
+eingesetzten Wert. Voraussetzung ist `log_statement = none`, prüfbar mit
+`psql -U postgres -c "SHOW log_statement;"`.
+
+#### Vorsicht in pgAdmin
+
+Im Dialog **Properties → Definition** steht das Feld **Account expires**
+direkt neben **Password**. Ein Datum, das dort versehentlich landet, wird beim
+Speichern übernommen — und danach ist nichts davon zu sehen. Genau so entstand
+der Vorfall vom 16.08.2026.
+
+Wer das Passwort über pgAdmin setzt, sollte hinterher Punkt 1 der Diagnose
+laufen lassen.
+
+---
+
 ### Issue: "Admin access required" Error
 
 **Problem:** Login succeeds but shows "Admin access required"
