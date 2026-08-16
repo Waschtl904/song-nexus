@@ -55,10 +55,17 @@ const MAX_TEXT_LAENGE = 20000;
 /**
  * Frühestes zulässiges Datum.
  *
- * Ein Datum vor der ersten Nutzung eines Erzeugungsdienstes wäre entweder ein
- * Tippfehler oder eine Rückdatierung. Beides soll auffallen.
+ * Hier stand zuerst `2023-01-01`, mit der Begründung, ein früheres Datum sei
+ * ein Tippfehler oder eine Rückdatierung. Diese Begründung war falsch (#81):
+ * sie unterstellte, alle Texte seien im KI-Zeitraum entstanden. Der erste
+ * echte Anwendungsfall war ein Gedicht von etwa 2010 — also der stärkste
+ * denkbare Nachweis, weil Jahre vor jeder KI-Nutzung entstanden. Meine Prüfung
+ * hätte ihn abgewiesen.
+ *
+ * Die Grenze ist jetzt nur noch ein Tippfehlerschutz: sie fängt eine
+ * verrutschte Jahreszahl ab, nicht mehr.
  */
-const FRUEHESTES_DATUM = '2023-01-01';
+const FRUEHESTES_DATUM = '1950-01-01';
 
 /** Zugelassene Erzeugungsdienste. */
 const DIENSTE = Object.freeze(['suno', 'music-ai', 'eigene-aufnahme', 'sonstiges']);
@@ -73,7 +80,8 @@ const ERLAUBTE_FELDER = Object.freeze([
   'track_id',
   'text_original',
   'text_sprache',
-  'text_erstellt_am',
+  'text_erstellt_spaeteste',
+  'text_erstellt_frueheste',
   'text_ist_eigenes_werk',
   'musik_dienst',
   'musik_erzeugt_am',
@@ -84,6 +92,18 @@ const ERLAUBTE_FELDER = Object.freeze([
 
 /** Felder, die der Server allein bestimmt. Kommen sie mit, ist das ein Fehler. */
 const SERVERFELDER = Object.freeze(['text_sha256', 'erfasst_am', 'erfasst_von']);
+
+/**
+ * Felder, die es einmal gab und nicht mehr gibt.
+ *
+ * Wer sie mitsendet, bekommt keine allgemeine Meldung über ein unbekanntes
+ * Feld, sondern den Hinweis, wie es jetzt heißt. Ein umbenanntes Feld, das
+ * stillschweigend als "unbekannt" abgewiesen wird, kostet sonst eine halbe
+ * Stunde Suche.
+ */
+const UMBENANNTE_FELDER = Object.freeze({
+  text_erstellt_am: 'text_erstellt_spaeteste',
+});
 
 /**
  * Bringt einen Text auf eine stabile Form, bevor der Hashwert gebildet wird.
@@ -172,9 +192,12 @@ function pruefeHerkunft(eingabe, opt = {}) {
     }
   }
 
-  // --- Unbekannte Felder ---------------------------------------------------
+  // --- Unbekannte und umbenannte Felder ------------------------------------
   for (const feld of Object.keys(eingabe)) {
-    if (!ERLAUBTE_FELDER.includes(feld) && !SERVERFELDER.includes(feld)) {
+    if (ERLAUBTE_FELDER.includes(feld) || SERVERFELDER.includes(feld)) continue;
+    if (Object.prototype.hasOwnProperty.call(UMBENANNTE_FELDER, feld)) {
+      fehler.push(`Das Feld "${feld}" heißt jetzt "${UMBENANNTE_FELDER[feld]}".`);
+    } else {
       fehler.push(`Unbekanntes Feld "${feld}".`);
     }
   }
@@ -221,7 +244,7 @@ function pruefeHerkunft(eingabe, opt = {}) {
   }
 
   // --- Datumsangaben ------------------------------------------------------
-  for (const feld of ['text_erstellt_am', 'musik_erzeugt_am']) {
+  for (const feld of ['text_erstellt_spaeteste', 'text_erstellt_frueheste', 'musik_erzeugt_am']) {
     if (!Object.prototype.hasOwnProperty.call(eingabe, feld)) continue;
     const wert = eingabe[feld];
     if (!istDatum(wert)) {
@@ -240,13 +263,36 @@ function pruefeHerkunft(eingabe, opt = {}) {
   // Der Text muss vor der Musik da gewesen sein. Andernfalls belegt der
   // Datensatz nichts: ein Text, der nach der Erzeugung entstand, kann nicht
   // die Grundlage der Erzeugung gewesen sein.
-  if (istDatum(eingabe.text_erstellt_am) && istDatum(eingabe.musik_erzeugt_am)) {
-    if (eingabe.text_erstellt_am > eingabe.musik_erzeugt_am) {
+  //
+  // Maßgeblich ist die OBERE Grenze. Ein Gedicht, das spätestens Ende 2011
+  // existierte, liegt zweifelsfrei vor einer Erzeugung von 2026 — auch ohne
+  // dass irgendjemand den Tag kennt.
+  if (istDatum(eingabe.text_erstellt_spaeteste) && istDatum(eingabe.musik_erzeugt_am)) {
+    if (eingabe.text_erstellt_spaeteste > eingabe.musik_erzeugt_am) {
       fehler.push(
-        'text_erstellt_am liegt nach musik_erzeugt_am. Der Text muss vor der ' +
-          'Erzeugung der Musik entstanden sein, sonst belegt der Nachweis nichts.'
+        'text_erstellt_spaeteste liegt nach musik_erzeugt_am. Der Text muss vor ' +
+          'der Erzeugung der Musik entstanden sein, sonst belegt der Nachweis nichts.'
       );
     }
+  }
+
+  // --- Die Spanne muss in die richtige Richtung zeigen ---------------------
+  if (istDatum(eingabe.text_erstellt_frueheste) && istDatum(eingabe.text_erstellt_spaeteste)) {
+    if (eingabe.text_erstellt_frueheste > eingabe.text_erstellt_spaeteste) {
+      fehler.push('text_erstellt_frueheste liegt nach text_erstellt_spaeteste.');
+    }
+  }
+
+  // Eine untere Grenze ohne obere ist keine Angabe. Die obere ist der Wert,
+  // auf den es ankommt; ohne sie belegt die untere nichts.
+  if (
+    Object.prototype.hasOwnProperty.call(eingabe, 'text_erstellt_frueheste') &&
+    !Object.prototype.hasOwnProperty.call(eingabe, 'text_erstellt_spaeteste')
+  ) {
+    fehler.push(
+      'text_erstellt_frueheste ohne text_erstellt_spaeteste. Die obere Grenze ist ' +
+        'der maßgebliche Wert und muss angegeben werden.'
+    );
   }
 
   // --- Erklärung braucht Beleg -------------------------------------------
@@ -255,8 +301,8 @@ function pruefeHerkunft(eingabe, opt = {}) {
     if (normalisiert.length === 0) {
       fehler.push('text_ist_eigenes_werk ist gesetzt, aber text_original fehlt.');
     }
-    if (!istDatum(eingabe.text_erstellt_am)) {
-      fehler.push('text_ist_eigenes_werk ist gesetzt, aber text_erstellt_am fehlt.');
+    if (!istDatum(eingabe.text_erstellt_spaeteste)) {
+      fehler.push('text_ist_eigenes_werk ist gesetzt, aber text_erstellt_spaeteste fehlt.');
     }
   }
 
@@ -329,7 +375,8 @@ function baueDatensatz(eingabe, opt = {}) {
       track_id: eingabe.track_id,
       text_original: text,
       text_sprache: eingabe.text_sprache || 'de',
-      text_erstellt_am: eingabe.text_erstellt_am || null,
+      text_erstellt_spaeteste: eingabe.text_erstellt_spaeteste || null,
+      text_erstellt_frueheste: eingabe.text_erstellt_frueheste || null,
       // Serverseitig berechnet. Der einzige Grund, warum der Datensatz
       // überhaupt etwas beweist.
       text_sha256: text ? textHash(text) : null,
@@ -351,6 +398,7 @@ module.exports = {
   DIENSTE,
   ERLAUBTE_FELDER,
   SERVERFELDER,
+  UMBENANNTE_FELDER,
   normalisiereText,
   textHash,
   istDatum,
