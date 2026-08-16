@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
+const { bytesProSekunde } = require('../utils/audio-rate');
 const { pool } = require('../db');
 const { verifyToken, verifyTokenSync } = require('../middleware/auth-middleware');
 const router = express.Router();
@@ -342,53 +343,82 @@ function servePreview(filepath, filename, track, req, res) {
   try {
     const stat = fs.statSync(filepath);
     const filesize = stat.size;
-    const PREVIEW_SECONDS = 40;
 
-    // Notwert, falls duration_seconds fehlt. Vorher stand hier fest 128000 —
-    // die Datenrate einer 128-kbit-MP3. Bei einer WAV-Datei (44,1 kHz,
-    // stereo, 16 bit = 176400 Byte/s) haette die "40-Sekunden-Vorschau"
-    // knapp 29 Sekunden ergeben.
-    let avgBytesPerSecond = path.extname(String(filename || '')).toLowerCase() === '.wav'
-      ? 176400
-      : 128000;
+    // Wie lang darf die Vorschau sein?
+    //
+    // Vorher stand hier fest 40 Sekunden, obwohl die Spalte
+    // free_preview_duration extra dafuer da ist, geladen wird und dann
+    // ungenutzt blieb. Jetzt zaehlt der Wert pro Track, mit 40 als Rueckfall.
+    const gewuenscht = Number(track && track.free_preview_duration);
+    const PREVIEW_SECONDS =
+      Number.isFinite(gewuenscht) && gewuenscht > 0 ? gewuenscht : 40;
 
-    if (track && track.duration_seconds && track.duration_seconds > 0) {
-      avgBytesPerSecond = Math.floor(filesize / track.duration_seconds);
-      console.log(`📊 Calculated speed: ${avgBytesPerSecond} bytes/sec`);
-    }
+    // Wie viele Bytes ist eine Sekunde wert?
+    //
+    // Vorher: filesize / duration_seconds, also vollstaendig abhaengig von
+    // einem Wert aus der Datenbank. Stimmte der nicht, stimmte die Vorschau
+    // nicht — zu kurz bei zu grosser Dauer, im Grenzfall der ganze Song bei
+    // zu kleiner. Die Datenrate steht aber in der Datei selbst.
+    const { bytesProSekunde: rate, quelle } = bytesProSekunde(
+      filepath,
+      filesize,
+      track && track.duration_seconds
+    );
 
-    const previewBytes = avgBytesPerSecond * PREVIEW_SECONDS;
-    const maxPreviewEnd = Math.min(filesize - 1, previewBytes);
-    console.log(`🎶 Preview: ~${PREVIEW_SECONDS}s = ~${Math.floor(previewBytes / 1024)} KB`);
+    // Die Vorschau ist ab hier eine Sache fuer sich: eine Datei von
+    // vorschauGroesse Bytes. Nicht ein Ausschnitt aus einer groesseren.
+    //
+    // Das ist der Kern der Aenderung. Vorher meldete der Server
+    //
+    //     Content-Range: bytes 0-640600/960931
+    //
+    // also die volle Dateigroesse als Gesamtlaenge, obwohl nur der vordere
+    // Teil kam. Der Browser rechnete daraus eine Spieldauer von knapp vier
+    // Minuten, las weiter — und bekam 416 Range Not Satisfiable. Der Ton
+    // brach ab, die Anzeige log.
+    //
+    // Wenn die Gesamtlaenge die Vorschaulaenge ist, passt beides zusammen:
+    // die angezeigte Dauer stimmt, und es wird nichts angefordert, was es
+    // nicht gibt.
+    const vorschauGroesse = Math.max(1, Math.min(filesize, rate * PREVIEW_SECONDS));
+    const letztesByte = vorschauGroesse - 1;
+
+    console.log(
+      `🎶 Vorschau: ${PREVIEW_SECONDS}s x ${rate} Byte/s (${quelle}) ` +
+      `= ${Math.floor(vorschauGroesse / 1024)} KB von ${Math.floor(filesize / 1024)} KB`
+    );
 
     const range = req.headers.range;
 
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
       let start = parseInt(parts[0], 10);
-      let end = parts[1] ? parseInt(parts[1], 10) : maxPreviewEnd;
+      let end = parts[1] ? parseInt(parts[1], 10) : letztesByte;
 
       if (isNaN(start) || start < 0) start = 0;
-      if (isNaN(end) || end > maxPreviewEnd) end = maxPreviewEnd;
+      if (isNaN(end) || end > letztesByte) end = letztesByte;
 
-      if (start > end || start >= filesize) {
-        res.status(416).send('Requested range not satisfiable');
+      if (start > end || start > letztesByte) {
+        // Gesamtlaenge mitgeben, damit der Client weiss, woran er ist.
+        res.status(416);
+        res.setHeader('Content-Range', `bytes */${vorschauGroesse}`);
+        res.end();
         return;
       }
 
       res.status(206);
-      res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${vorschauGroesse}`);
       res.setHeader('Content-Length', end - start + 1);
       res.setHeader('Cache-Control', 'no-store');
-      console.log(`💤 206 Preview: bytes ${start}-${end} (max ${maxPreviewEnd})`);
+      console.log(`💤 206 Vorschau: Bytes ${start}-${end} von ${vorschauGroesse}`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
     } else {
       res.status(206);
-      res.setHeader('Content-Range', `bytes 0-${maxPreviewEnd}/${filesize}`);
-      res.setHeader('Content-Length', maxPreviewEnd + 1);
+      res.setHeader('Content-Range', `bytes 0-${letztesByte}/${vorschauGroesse}`);
+      res.setHeader('Content-Length', vorschauGroesse);
       res.setHeader('Cache-Control', 'no-store');
-      console.log(`💤 206 Preview: bytes 0-${maxPreviewEnd}/${filesize}`);
-      fs.createReadStream(filepath, { start: 0, end: maxPreviewEnd }).pipe(res);
+      console.log(`💤 206 Vorschau: Bytes 0-${letztesByte} von ${vorschauGroesse}`);
+      fs.createReadStream(filepath, { start: 0, end: letztesByte }).pipe(res);
     }
   } catch (err) {
     console.error('❌ servePreview error:', err);
