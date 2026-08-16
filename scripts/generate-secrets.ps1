@@ -126,12 +126,28 @@ try {
 Write-Host ""
 Write-Host "Naechste Schritte:" -ForegroundColor Cyan
 Write-Host "  1. Werte nach .env.production uebertragen (bzw. auf dem VPS)"
-Write-Host "  2. DB-Passwort in PostgreSQL setzen:"
-Write-Host "       ALTER USER song_nexus_user WITH PASSWORD '<neues Passwort>';" -ForegroundColor DarkGray
-Write-Host "  3. PayPal-Credentials im PayPal-Dashboard NEU ausstellen"
+Write-Host "  2. Werte in backend/.env eintragen und pruefen:"
+Write-Host "       .\scripts\secrets-pruefen.ps1 -Vergleich $Ausgabedatei" -ForegroundColor DarkGray
+Write-Host "  3. DB-Passwort in PostgreSQL setzen - direkt aus der .env,"
+Write-Host "     damit beide Seiten nicht auseinanderlaufen:"
+Write-Host '       $pw = ((Select-String -Path backend\.env -Pattern ''^DB_PASSWORD='' | Select-Object -First 1).Line -replace ''^DB_PASSWORD='','''')' -ForegroundColor DarkGray
+Write-Host '       "ALTER USER song_nexus_user PASSWORD ''$pw'';" | psql -U postgres -d song_nexus_dev' -ForegroundColor DarkGray
+Write-Host '       Remove-Variable pw' -ForegroundColor DarkGray
+Write-Host "     Kein Kopieren von Hand - das war am 16.08.2026 die Fehlerquelle." -ForegroundColor DarkGray
+Write-Host "  4. PayPal-Credentials im PayPal-Dashboard NEU ausstellen"
 Write-Host "     (die alten stehen in der Git-Historie und gelten als verbrannt)"
-Write-Host "  4. Diese Datei loeschen:  Remove-Item $Ausgabedatei"
+Write-Host "  5. Diese Datei loeschen:  Remove-Item $Ausgabedatei"
 Write-Host ""
 Write-Host "Hinweis: Nach dem Rotieren von JWT_SECRET sind alle bestehenden" -ForegroundColor Yellow
 Write-Host "Logins ungueltig - genau das ist beabsichtigt (Token-Widerruf)." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Falls die Anmeldung danach mit 28P01 scheitert: das heisst NICHT" -ForegroundColor Yellow
+Write-Host "falsches Passwort, sondern nur Anmeldung fehlgeschlagen. Pruefe als" -ForegroundColor Yellow
+Write-Host "erstes das Ablaufdatum der Rolle - in pgAdmin liegt das Feld" -ForegroundColor Yellow
+Write-Host "'Account expires' direkt neben dem Passwortfeld:" -ForegroundColor Yellow
+# Einfache Anfuehrungszeichen aussen, damit die doppelten im Befehl unversehrt
+# bleiben. PowerShell kennt kein \" als Escape - ein Versuch damit hat beim
+# Ausfuehren "The term '\' is not recognized" ergeben.
+Write-Host '  psql -U postgres -d song_nexus_dev -c "SELECT rolname, rolvaliduntil FROM pg_authid WHERE rolname = ''song_nexus_user'';"' -ForegroundColor DarkGray
+Write-Host "Ausfuehrlich in docs/ADMIN-GUIDE.md, Abschnitt Troubleshooting." -ForegroundColor Yellow
 Write-Host ""
