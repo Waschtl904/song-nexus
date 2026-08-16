@@ -94,6 +94,7 @@ ALTER SEQUENCE public.magic_link_tokens_id_seq OWNED BY public.magic_link_tokens
 CREATE TABLE IF NOT EXISTS public.orders (
     id integer NOT NULL,
     user_id integer NOT NULL,
+    track_id integer,
     paypal_order_id character varying(255) NOT NULL,
     amount numeric(10,2) NOT NULL,
     currency character varying(3) DEFAULT 'EUR'::character varying,
@@ -328,6 +329,7 @@ ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_track_id_fkey F
 ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;

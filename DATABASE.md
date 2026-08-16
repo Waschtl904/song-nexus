@@ -1,5 +1,14 @@
 # Song-Nexus: Datenbankdokumentation
 
+> **Führende Schema-Datei: `schema_clean.sql` (Root).**
+> `schema.sql` im Root ist veraltet und enthält Redundanzen — nicht verwenden.
+> `backend/db/schema.sql` existiert nicht.
+> Migrationstooling fehlt noch (Issue #19); Änderungen liegen als SQL in `migrations/`.
+>
+> Geprüft am 15.08.2026.
+
+
+
 **Letzte Verifikation:** 13. Mai 2026 (Live-DB-Audit via pgAdmin4)  
 **Schema-Version:** v1.1  
 **PostgreSQL:** 18.1  
@@ -24,7 +33,7 @@
 |---|---|---|
 | `users` | Benutzerkonten | - |
 | `tracks` | Musik-Metadaten | 15 (4 aktiv, 11 soft-deleted) |
-| `orders` | PayPal-Transaktionen | - |
+| `orders` | PayPal-Transaktionen (**seit 16.08. mit `track_id`**) | - |
 | `purchases` | Käufe + Lizenztypen | - |
 | `play_history` | Play-Events | - |
 | `play_stats` | Erweiterte Analytics | - |
@@ -50,6 +59,77 @@
 - Aktive Tracks: `WHERE is_published = true AND is_deleted = false`
 - Aktuell: **4 aktive Tracks**
 
+### orders: track_id (seit 16.08.2026)
+
+Die Tabelle hatte urspruenglich **keine** Verbindung zum gekauften Track. Beim
+Freischalten kam die `track_id` aus dem Anfragekoerper des Browsers; geprueft
+wurde nur, ob die PayPal-Bestellung zum angemeldeten Benutzer gehoert.
+
+Damit waren bezahltes und freigeschaltetes Produkt nicht miteinander
+verbunden: guenstigen Track bestellen, bezahlen, beim Freischalten die ID
+eines teureren Tracks senden.
+
+Seit `migrations/2026-08-15-orders-track-id.sql`:
+
+```sql
+ALTER TABLE orders ADD COLUMN track_id integer;
+ALTER TABLE orders ADD CONSTRAINT orders_track_id_fkey
+  FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE SET NULL;
+CREATE INDEX idx_orders_track_id ON orders(track_id);
+```
+
+- `create-order` schreibt die Zuordnung fest
+- `capture-order` liest sie **aus der Bestellung** und ignoriert den
+  Anfragekoerper
+- Bestellungen ohne `track_id` (Altbestand) werden mit 409 abgelehnt statt
+  geraten
+
+Die Spalte ist bewusst `NULL`-faehig, damit die Migration auf bestehende
+Datenbanken passt. Neue Bestellungen setzen sie immer.
+
+### tracks: price_eur ist bindend
+
+Der Preis wird ausschliesslich aus dieser Spalte genommen. Schickt der Client
+in `create-order` einen abweichenden Preis mit, folgt 400 mit
+`PRICE_MISMATCH` — eine stille Korrektur wuerde eine Manipulation
+verschleiern.
+
+Daraus folgt: **ein Track mit `is_free = false` und `price_eur = 0` ist nicht
+verkaeuflich.** Der Upload verhindert diese Kombination seit dem 16.08.
+(400 mit `PRICE_REQUIRED`), aeltere Eintraege koennen sie noch haben.
+
+Pruefen:
+
+```sql
+SELECT id, name FROM tracks WHERE is_free = false AND COALESCE(price_eur, 0) <= 0;
+```
+
+### tracks: duration_seconds war unzuverlaessig
+
+Der Wert kam bis zum 16.08. aus dem Browser: das Upload-Formular las
+`audio.duration` aus und schickte das Ergebnis mit. In der
+Entwicklungsdatenbank stand dadurch bei einem vier Minuten langen Song 3000
+(also 50 Minuten).
+
+Das war nicht nur Anzeige. Aus dem Wert wurde die Datenrate fuer den
+Vorschauausschnitt gerechnet — 3000 fuehrten zu drei Sekunden Ton statt
+vierzig.
+
+Zwei Aenderungen:
+
+1. Die Auslieferung liest die Datenrate jetzt aus dem **Dateikopf**
+   (`backend/utils/audio-rate.js`). Die Vorschau stimmt damit unabhaengig von
+   dieser Spalte.
+2. Der Upload misst die Dauer selbst, statt dem Browser zu glauben.
+
+Altbestand pruefen und in Ordnung bringen:
+
+```bash
+cd backend
+npm run dauer:pruefen        # nur berichten, veraendert nichts
+npm run dauer:korrigieren    # abweichende Werte setzen
+```
+
 ### Magic Links
 - **`magic_link_tokens`** ist die einzige aktive Tabelle
 - `magic_links` wurde in v1.1 entfernt (war veraltet, 0 Einträge)
@@ -74,7 +154,27 @@ psql -U postgres -c "CREATE DATABASE song_nexus_dev;"
 psql -U postgres -d song_nexus_dev -f schema_clean.sql
 ```
 
-## Migration (bestehende DB v1.0 → v1.1)
+## Migrationen
+
+Im Verzeichnis `migrations/`, nach Datum benannt. Sie lassen sich wiederholt
+einspielen — ein zweiter Lauf richtet keinen Schaden an.
+
+```bash
+psql -U postgres -d song_nexus_dev -f migrations/2026-08-15-orders-track-id.sql
+```
+
+Erwartete Ausgabe am Ende: `HINWEIS:  OK: orders.track_id vorhanden`. Ein
+Hinweis, dass ein Constraint nicht existiert und uebersprungen wird, ist
+Absicht — die Migration raeumt vorsichtshalber auf, bevor sie anlegt.
+
+`schema_clean.sql` enthaelt den Endstand und ist fuer **frische**
+Installationen gedacht. Bei einer bestehenden Datenbank gehoeren die
+Migrationen angewandt, nicht das Schema neu eingespielt.
+
+Ein richtiges Migrations-Werkzeug statt handgepflegter Dateien ist
+Issue #19.
+
+## Alt: Migration (bestehende DB v1.0 → v1.1)
 
 ```bash
 # 1. Erst testen (ROLLBACK am Ende der Datei)

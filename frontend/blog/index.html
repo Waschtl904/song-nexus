@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Articles about SONG-NEXUS: privacy, WebAuthn, accessibility and the ideas behind the platform.">
+  <title>Blog · SONG-NEXUS</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/main.css">
+
+  <style>
+    .blog-wrap { max-width: 62rem; margin: 0 auto; padding: 2.5rem 1.25rem 1rem; }
+    .blog-head { margin-bottom: 2rem; }
+    .blog-head h1 { margin: 0 0 .5rem; }
+    .blog-head p { margin: 0; color: var(--color-text-muted, #9aa39a); }
+
+    .post-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+
+    .post-card {
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: var(--radius-md, 8px);
+      padding: 1.25rem 1.4rem;
+      background: rgba(255, 255, 255, .02);
+    }
+    .post-card h2 { margin: 0 0 .4rem; font-size: 1.15rem; line-height: 1.35; }
+    .post-meta {
+      display: flex; flex-wrap: wrap; gap: .6rem;
+      font-size: .75rem; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--color-text-muted, #9aa39a); margin-bottom: .6rem;
+    }
+    .post-excerpt { margin: 0; line-height: 1.65; }
+
+    .notice {
+      margin-top: 1.5rem; padding: .9rem 1.1rem; font-size: .85rem; line-height: 1.6;
+      border-left: 3px solid var(--color-primary, #00cc44);
+      background: rgba(255, 255, 255, .03);
+      color: var(--color-text-muted, #9aa39a);
+    }
+  </style>
+</head>
+<body>
+  <div class="blog-wrap">
+    <header class="blog-head">
+      <p><a href="/" style="font-size:.85rem;">&larr; SONG-NEXUS</a></p>
+      <h1>Blog</h1>
+      <p>Über Privatsphäre, Technik und die Ideen hinter der Plattform.</p>
+    </header>
+
+    <main>
+      <ul class="post-list" id="postList">
+        <li id="loading" class="post-card">Beiträge werden geladen …</li>
+      </ul>
+
+      <p class="notice">
+        Die Einzelansichten der Beiträge sind noch nicht umgesetzt – bisher gibt es
+        Titel und Anrisstexte. Deshalb sind die Überschriften absichtlich nicht
+        verlinkt: ein Link, der ins Leere führt, ist schlechter als kein Link.
+      </p>
+    </main>
+  </div>
+
+  <footer role="contentinfo" style="margin-top:3rem;padding:1.5rem 1rem;text-align:center;font-size:0.8rem;line-height:1.8;opacity:0.75;border-top:1px solid rgba(255,255,255,0.08);">
+    <a href="/impressum.html" style="color:inherit;">Impressum</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/datenschutz.html" style="color:inherit;">Datenschutz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/transparency.html" style="color:inherit;">Transparenz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/" style="color:inherit;">Start</a>
+  </footer>
+
+  <script src="./blog.js"></script>
+</body>
+</html>

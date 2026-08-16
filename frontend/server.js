@@ -21,7 +21,13 @@ const app = express();
 // ===== HTTPS CERTIFICATE SETUP =====
 let httpsOptions = null;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const USE_HTTPS = process.env.USE_HTTPS === 'true' || true;
+// USE_HTTPS war vorher: process.env.USE_HTTPS === 'true' || true
+// Durch das "|| true" war der Ausdruck IMMER true - die Umgebungsvariable
+// hatte keinerlei Wirkung. .env.production.example setzt USE_HTTPS=false,
+// weil hinter nginx TLS von nginx terminiert wird; das wurde ignoriert.
+// Jetzt: standardmaessig HTTPS (lokale Entwicklung unveraendert), aber
+// mit USE_HTTPS=false abschaltbar.
+const USE_HTTPS = process.env.USE_HTTPS !== 'false';
 const PORT = process.env.PORT || 5500;
 const HOST = process.env.HOST || 'localhost';
 const BACKEND_URL = process.env.BACKEND_URL || 'https://localhost:3000';
@@ -65,12 +71,16 @@ if (!httpsOptions && fs.existsSync(selfSignedKeyPath) && fs.existsSync(selfSigne
     }
 }
 
-// No certificates found - CRITICAL ERROR
-if (!httpsOptions) {
+// Zertifikate sind nur noetig, wenn HTTPS tatsaechlich verwendet wird.
+// Vorher brach der Server hier immer ab, auch wenn er - wie hinter nginx -
+// nur einfaches HTTP auf localhost sprechen soll. Auf dem VPS gibt es keine
+// mkcert-Zertifikate, der Start waere also mit exit(1) gescheitert.
+if (USE_HTTPS && !httpsOptions) {
     console.error('\n❌ CRITICAL ERROR: HTTPS Certificates not found!');
     console.error('\n📍 Checked paths:');
     console.error(`   1. ${mkcertCertPath}`);
     console.error(`   2. ${selfSignedCertPath}`);
+    console.error('\n💡 Hinter einem Reverse Proxy wie nginx: USE_HTTPS=false setzen.');
     process.exit(1);
 }
 
@@ -328,18 +338,54 @@ app.use(express.static(path.join(__dirname), {
 
 console.log('📁 Static files directory:', path.join(__dirname));
 
-// ===== FALLBACK TO index.html (SPA SUPPORT) - MUST BE LAST! =====
+// ============================================================================
+// FALLBACK - MUST BE LAST! (Issue #10)
+// ============================================================================
+//
+// Vorher lieferte diese Route für JEDEN unbekannten Pfad index.html mit
+// Status 200 aus. Das ist ein sogenannter Soft-404 und schlechter als ein
+// echter Fehler:
+//
+//   - Ein toter Link fällt niemandem auf, weil scheinbar etwas funktioniert.
+//     Genau so blieb der Footer-Link /docs/ monatelang unbemerkt.
+//   - Suchmaschinen indexieren beliebig viele Adressen mit identischem
+//     Inhalt als Duplicate Content.
+//   - Ein Tippfehler in einem Rechtslink, etwa /datenschutzz.html, sieht wie
+//     eine funktionierende Seite aus, obwohl die Pflichtangabe fehlt.
+//
+// SONG-NEXUS ist eine klassische Mehrseiten-Anwendung ohne Client-Router,
+// ein SPA-Fallback war also von Anfang an nicht nötig.
+//
+// Neues Verhalten:
+//   1. /purchases -> liefert purchases.html   (bequeme URLs ohne Endung)
+//   2. alles übrige -> 404.html mit Status 404
+// ============================================================================
 app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, 'index.html');
-    if (!fs.existsSync(indexPath)) {
-        console.error(`❌ index.html not found at: ${indexPath}`);
-        return res.status(404).json({
-            error: 'index.html not found',
-            path: indexPath
-        });
+    const angefragt = req.path;
+
+    // 1) Bequeme URL ohne .html-Endung auflösen, z. B. /impressum
+    if (/^\/[a-zA-Z0-9_-]+\/?$/.test(angefragt)) {
+        const name = angefragt.replace(/\//g, '');
+        const kandidat = path.join(__dirname, `${name}.html`);
+
+        // path.join plus die Zeichenklasse oben schliessen Traversal aus;
+        // zur Sicherheit trotzdem prüfen, dass wir im Verzeichnis bleiben.
+        if (kandidat.startsWith(__dirname) && fs.existsSync(kandidat)) {
+            console.log(`↗️  ${angefragt} -> ${name}.html`);
+            return res.sendFile(kandidat);
+        }
     }
 
-    res.sendFile(indexPath);
+    // 2) Echter 404
+    console.warn(`❓ 404: ${req.method} ${angefragt}`);
+
+    const notFoundPath = path.join(__dirname, '404.html');
+    if (fs.existsSync(notFoundPath)) {
+        return res.status(404).sendFile(notFoundPath);
+    }
+
+    // Letzter Ausweg, falls 404.html fehlt
+    res.status(404).type('text/plain').send('404 - Seite nicht gefunden');
 });
 
 // ===== ERROR HANDLING =====
@@ -353,15 +399,26 @@ app.use((err, req, res, next) => {
     res.status(err.status || 500).json(errorResponse);
 });
 
-// ===== START HTTPS SERVER =====
+// ===== START SERVER (HTTPS oder HTTP) =====
 try {
-    const server = https.createServer(httpsOptions, app);
+    const protokoll = USE_HTTPS ? 'https' : 'http';
+    const server = USE_HTTPS
+        ? https.createServer(httpsOptions, app)
+        : http.createServer(app);
+
+    if (!USE_HTTPS) {
+        console.log('');
+        console.log('ℹ️  HTTP-Modus (USE_HTTPS=false).');
+        console.log('   Vorgesehen fuer den Betrieb hinter einem Reverse Proxy,');
+        console.log('   der TLS terminiert. Niemals direkt aus dem Internet erreichbar machen.');
+    }
+
     server.listen(PORT, HOST, () => {
         console.log('');
         console.log('╔═══════════════════════════════════════════════════════╗');
         console.log('║ 🎵 SONG-NEXUS FRONTEND - HTTPS SERVER v2.0            ║');
         console.log('╠═══════════════════════════════════════════════════════╣');
-        console.log(`║ 🔐 URL: https://${HOST}:${PORT}${' '.repeat(18 - String(PORT).length)}║`);
+        console.log(`║ 🔐 URL: ${protokoll}://${HOST}:${PORT}${' '.repeat(18 - String(PORT).length)}║`);
         console.log('║ ✅ HTTPS Enabled (mkcert)                             ║');
         console.log(`║ 📁 Static: ${path.basename(__dirname)}${' '.repeat(42 - path.basename(__dirname).length)}║`);
         console.log(`║ 🔗 API Proxy: /api → ${BACKEND_URL}${' '.repeat(30 - BACKEND_URL.length)}║`);

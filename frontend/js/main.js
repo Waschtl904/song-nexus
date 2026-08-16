@@ -83,7 +83,7 @@ async function initializeApp() {
 
     try {
         // ────────────────────────────────────────────────────────────────
-        // 🎨 Step 0: Load Design System from Backend API (https://localhost:3000)
+        // 🎨 Schritt 0: Design-System von der Schnittstelle laden (relativer Pfad)
         // ────────────────────────────────────────────────────────────────
         console.log('📋 Step 0: Loading Design System from Backend API...');
         await DesignSystem.init();
@@ -213,5 +213,5 @@ console.log('📦 All 12 modules imported and ready to bundle');
 console.log('🌍 API_ENDPOINTS + Config functions exported to window');
 console.log('🚀 App will initialize on DOMContentLoaded');
 console.log('✅ Modal handlers will be setup during Auth.init()');
-console.log('🎨 Design System will load from https://localhost:3000/api/design-system');
+console.log('🎨 Design-System wird von /api/design-system geladen');
 console.log('');

@@ -15,15 +15,15 @@
 ## Important Notes
 
 1. **Do not use these files for current development**
-2. **Refer to MASTER-PROMPT-2026-DEFINITIVE.md for current info**
+2. **Refer to MASTER-PROMPT-2026-AKTUELL.md for current info**
 3. **ANALYSIS-PART2-JS-MODULES.md is kept for security reference only**
 4. **These files are kept for historical/reference purposes only**
 
 ## Migration
 
 All active documentation has been consolidated into:
-- **MASTER-PROMPT-2026-DEFINITIVE.md** - Single source of truth
-- **REPOSITORY-STRUCTURE.md** - File organization reference
+- **MASTER-PROMPT-2026-AKTUELL.md** - Single source of truth
+- **docs/PROJECT-STRUCTURE.md** - File organization reference
 - **ARCHIVED-DOCS-INDEX.md** - Index of archived files
 
 For any questions about old documentation, check ARCHIVED-DOCS-INDEX.md

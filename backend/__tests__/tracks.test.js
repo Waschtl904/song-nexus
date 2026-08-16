@@ -336,6 +336,161 @@ describe('GET /api/tracks/audio/:filename - Zugriffsschutz', () => {
     expect(parseInt(match[1])).toBeLessThan(4_999_999);
   });
 
+  // -------------------------------------------------------------------------
+  // Cookie statt Kopfzeile
+  // -------------------------------------------------------------------------
+  // Der Player laedt ueber <audio src="...">. Ein solcher Abruf kann keine
+  // Authorization-Kopfzeile mitschicken, nur das Cookie. Ohne diesen Weg
+  // bekaeme ein Kaeufer dauerhaft nur die Vorschau seines eigenen Songs.
+  test('SECURITY: Premium-Track mit Kauf, Token NUR im Cookie -> volle Datei (200)', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [premiumTrack] })
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });   // Kauf gefunden
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Cookie', `auth_token=${userToken}`);
+    expect(res.statusCode).toBe(200);
+  });
+
+  test('SECURITY: Cookie ohne Kauf -> nur Vorschau (206)', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [premiumTrack] })
+      .mockResolvedValueOnce({ rows: [] });             // kein Kauf
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Cookie', `auth_token=${userToken}`);
+    expect(res.statusCode).toBe(206);
+  });
+
+  test('SECURITY: unbrauchbares Cookie -> wie kein Token (Vorschau, 206)', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Cookie', 'auth_token=voelliger.unsinn.hier');
+    expect(res.statusCode).toBe(206);
+  });
+
+  test('SECURITY: Kopfzeile hat Vorrang, bleibt aber gleichwertig geprueft', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [premiumTrack] })
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Authorization', `Bearer ${userToken}`)
+      .set('Cookie', 'auth_token=voelliger.unsinn.hier');
+    expect(res.statusCode).toBe(200);
+  });
+
+  // -------------------------------------------------------------------------
+  // fail closed: ohne veroeffentlichten Datenbankeintrag kein Ton
+  // -------------------------------------------------------------------------
+  // Vorher wurde in diesem Fall eine 40-Sekunden-Vorschau ausgeliefert. Damit
+  // war ein nicht veroeffentlichter Track anhoerbar, sobald man den
+  // Dateinamen kannte - und jede Datei im Verzeichnis ohne Eintrag ebenfalls.
+  test('SECURITY: Datei ohne Datenbankeintrag -> 404, keine Vorschau', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).get('/api/tracks/audio/premium-song.mp3');
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('SECURITY: die Abfrage verlangt is_published = TRUE', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    await request(app).get('/api/tracks/audio/premium-song.mp3');
+    const abfrage = pool.query.mock.calls.find(c => /FROM tracks/.test(c[0]));
+    expect(abfrage).toBeDefined();
+    expect(abfrage[0]).toMatch(/is_published\s*=\s*TRUE/);
+    expect(abfrage[0]).toMatch(/is_deleted\s*=\s*FALSE/);
+  });
+
+  // -------------------------------------------------------------------------
+  // Content-Type richtet sich nach der Dateiendung
+  // -------------------------------------------------------------------------
+  // Vorher war er fest 'audio/mpeg'. Eine WAV-Datei wurde damit als MPEG
+  // angekuendigt und vom Browser abgelehnt, obwohl die Bytes stimmten.
+  test('WAV wird als audio/wav ausgeliefert, nicht als audio/mpeg', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, is_free: true, free_preview_duration: 40, duration_seconds: 30 }],
+    });
+    const res = await request(app).get('/api/tracks/audio/lied.wav');
+    if (res.statusCode === 404) return; // Datei im Testverzeichnis nicht vorhanden
+    expect(res.headers['content-type']).toMatch(/audio\/wav/);
+  });
+
+  test('MP3 bleibt audio/mpeg', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, is_free: true, free_preview_duration: 40, duration_seconds: 30 }],
+    });
+    const res = await request(app).get('/api/tracks/audio/test-song.mp3');
+    if (res.statusCode === 404) return;
+    expect(res.headers['content-type']).toMatch(/audio\/mpeg/);
+  });
+
+  // -------------------------------------------------------------------------
+  // Die Vorschau ist eine Sache fuer sich, kein Ausschnitt
+  // -------------------------------------------------------------------------
+  // Vorher meldete der Server die volle Dateigroesse als Gesamtlaenge:
+  //
+  //     Content-Range: bytes 0-640600/960931
+  //
+  // obwohl nur der vordere Teil kam. Der Browser rechnete daraus eine
+  // Spieldauer fuer die ganze Datei, las weiter — und bekam 416 Range Not
+  // Satisfiable. Der Ton brach ab, die Anzeige log.
+  //
+  // In diesen Tests ist fs gemockt: statSync meldet 5.000.000 Bytes,
+  // duration_seconds ist 240, der Dateikopf ist nicht lesbar. Damit bleibt
+  // die Rate bei 5.000.000/240 = 20833 Byte/s, die Vorschau also
+  // 40 x 20833 = 833.320 Bytes.
+  const VORSCHAU_BYTES = Math.floor(5_000_000 / 240) * 40;
+
+  test('SECURITY: Content-Range nennt die Vorschaulaenge, nicht die Dateigroesse', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', 'bytes=0-');
+
+    expect(res.statusCode).toBe(206);
+    expect(res.headers['content-range']).toBe(
+      `bytes 0-${VORSCHAU_BYTES - 1}/${VORSCHAU_BYTES}`
+    );
+    // Genau das war der Fehler: hier stand vorher 5000000.
+    expect(res.headers['content-range']).not.toMatch(/\/5000000$/);
+  });
+
+  test('SECURITY: die Vorschau bleibt deutlich kleiner als die Datei', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', 'bytes=0-');
+
+    expect(Number(res.headers['content-length'])).toBe(VORSCHAU_BYTES);
+    expect(Number(res.headers['content-length'])).toBeLessThan(5_000_000);
+  });
+
+  test('416 nennt die Vorschaulaenge, wenn doch darueber hinaus gefragt wird', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [premiumTrack] });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', `bytes=${VORSCHAU_BYTES + 1000}-`);
+
+    expect(res.statusCode).toBe(416);
+    expect(res.headers['content-range']).toBe(`bytes */${VORSCHAU_BYTES}`);
+  });
+
+  test('free_preview_duration pro Track wird beachtet, nicht fest 40', async () => {
+    // Vorher stand PREVIEW_SECONDS = 40 fest im Code, waehrend die Spalte
+    // geladen und dann ignoriert wurde.
+    pool.query.mockResolvedValueOnce({
+      rows: [{ ...premiumTrack, free_preview_duration: 15 }],
+    });
+    const res = await request(app)
+      .get('/api/tracks/audio/premium-song.mp3')
+      .set('Range', 'bytes=0-');
+
+    const erwartet = Math.floor(5_000_000 / 240) * 15;
+    expect(Number(res.headers['content-length'])).toBe(erwartet);
+    expect(erwartet).toBeLessThan(VORSCHAU_BYTES);
+  });
+
   test('400 - leerer Filename nach Sanitisierung', async () => {
     const res = await request(app).get('/api/tracks/audio/%20');
     expect(res.statusCode).toBe(400);

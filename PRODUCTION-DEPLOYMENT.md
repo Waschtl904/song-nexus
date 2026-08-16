@@ -1,5 +1,13 @@
 # 🚀 SONG-NEXUS PRODUCTION DEPLOYMENT GUIDE
 
+> **Deployst du auf einen Hetzner-VPS?** Dann nutze
+> [docs/DEPLOYMENT-HETZNER.md](./docs/DEPLOYMENT-HETZNER.md). Dort steht der
+> konkrete Weg auf Deutsch, mit geprüften Skripten unter `scripts/deploy/`.
+> Dieses Dokument ist die allgemeinere Fassung und beschreibt auch Varianten mit
+> Managed-Datenbank. Bei Widersprüchen gilt die Hetzner-Anleitung — sie wurde
+> am 15.08.2026 gegen den Code geprüft.
+
+
 > **Complete step-by-step guide for deploying Song-Nexus to production**
 
 **Version:** 1.0.1  
@@ -22,6 +30,33 @@
 9. [Monitoring & Logging](#monitoring--logging)
 10. [Rollback Procedures](#rollback-procedures)
 11. [Troubleshooting](#troubleshooting)
+
+---
+
+## ⚠️ Vor dem Start lesen (ergänzt 15.08.2026)
+
+Diese Anleitung stammt aus Februar 2026. Vier Punkte, die damals fehlten und
+beim Deployment sonst Zeit kosten:
+
+1. **`npm run build` im Frontend ist Pflicht.**
+   `frontend/dist/` steht in `.gitignore`, das Bundle wird nie mitgeliefert.
+   Ohne Build lädt `index.html` ein nicht existierendes `dist/app.bundle.js`.
+
+2. **`USE_HTTPS=false` hinter nginx.**
+   nginx terminiert TLS, der Frontend-Server soll einfaches HTTP auf localhost
+   sprechen. Bis PR #35 war diese Variable wirkungslos (`|| true` im Code) und
+   der Server brach ohne Zertifikate mit `exit(1)` ab.
+
+3. **`TRUST_PROXY=true` setzen.**
+   Ohne diese Einstellung sieht Express hinter nginx nur die Proxy-IP. Das
+   Rate-Limiting würde dann alle Besucher als denselben Client behandeln.
+
+4. **`PAYMENTS_ENABLED` nicht setzen.**
+   Der Verkauf ist fail-closed und bleibt aus. Erst einschalten, wenn PayPal
+   live ist (#11), der Webhook steht (#12) und AGB samt Widerrufsbelehrung
+   veröffentlicht sind (#14).
+
+Der detailliertere, neuere Leitfaden ist `docs/DEPLOYMENT-HETZNER.md`.
 
 ---
 
@@ -52,7 +87,7 @@
 
 ### Infrastructure
 - [ ] Server/VPS provisioned (2GB RAM minimum, 20GB storage)
-- [ ] Node.js 18+ installed
+- [ ] Node.js **>= 22** installiert (Pflicht: nodemailer 9 und webpack-dev-server 6)
 - [ ] PostgreSQL 12+ installed and running
 - [ ] Reverse proxy (Nginx/Apache) configured
 - [ ] Firewall rules configured (ports 80, 443 only)
@@ -206,7 +241,8 @@ psql -h localhost -U song_nexus_user -d song_nexus_prod
 # Download schema from repository
 wget https://raw.githubusercontent.com/Waschtl904/song-nexus/main/schema.sql
 
-# Apply schema (ROOT/schema.sql is the single source of truth)
+# Schema einspielen - schema_clean.sql ist die fuehrende Datei!
+# (schema.sql im Root ist VERALTET und enthaelt Redundanzen)
 psql -h your-db-host -U song_nexus_user -d song_nexus_prod -f schema.sql
 
 # Verify tables created
@@ -271,13 +307,17 @@ nano backend/.env.production
 
 ### Step 2: Install Dependencies
 
-```bash
-# Install root dependencies
-npm install
+`npm ci` statt `npm install`: `npm ci` installiert genau die Fassungen aus
+`package-lock.json`. `npm install` schreibt die `package.json` um und laesst
+den naechsten `git pull` mit einem Konflikt scheitern.
 
-# Install backend dependencies
+```bash
+# Wurzel: nur concurrently, startet Backend und Frontend gemeinsam
+npm ci
+
+# Backend
 cd backend
-npm install --production
+npm ci --omit=dev
 cd ..
 ```
 
@@ -471,11 +511,27 @@ server {
         proxy_set_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
     }
     
-    # Audio Files Caching
-    location /public/audio/ {
+    # Audiodateien
+    #
+    # ACHTUNG: NICHT /public/audio/ freigeben und schon gar nicht per root
+    # direkt von der Platte bedienen. Diese Umgehung des Kaufschutzes wurde
+    # am 15.08.2026 entfernt (PR #46); das Backend antwortet dort mit 404.
+    #
+    # Auslieferung ausschliesslich ueber die geschuetzte Route. Kein
+    # Zwischenspeichern: die Antwort haengt davon ab, ob der Abrufende den
+    # Track gekauft hat.
+    location /api/tracks/audio/ {
         proxy_pass https://localhost:3000;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        add_header Cache-Control "no-store" always;
     }
 }
 ```
@@ -647,9 +703,10 @@ Monitor: `https://yourdomain.com/api/health`
 # If PM2 still has old version
 pm2 restart song-nexus-backend
 
-# Or switch to previous commit
+# Oder auf den vorigen Commit zurueck
 git checkout HEAD~1
-npm install
+npm ci
+cd backend && npm ci --omit=dev && cd ..
 pm2 restart song-nexus-backend
 ```
 

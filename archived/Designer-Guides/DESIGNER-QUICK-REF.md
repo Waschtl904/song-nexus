@@ -5,7 +5,7 @@
 **Status:** Archived (see v2 for updated version)
 
 ## Note
-This file has been archived. See DESIGNER-QUICK-REF-v2.md or MASTER-PROMPT-2026-DEFINITIVE.md for current info.
+This file has been archived. See DESIGNER-QUICK-REF-v2.md or MASTER-PROMPT-2026-AKTUELL.md for current info.
 
 ---
 

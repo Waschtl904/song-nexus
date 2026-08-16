@@ -20,7 +20,9 @@
             --color-text-muted: rgba(255,255,255,0.38);
             --color-bg: #0a0a0a;
             --color-surface: rgba(10,14,26,0.6);
-            --color-border: rgba(0,204,119,0.25);
+            /* 0.25 ergab auf #0a0a0a nur 1,56:1 (WCAG 1.4.11 verlangt 3,0:1).
+               0.55 ergibt 3,42:1. Siehe Issue #54. */
+            --color-border: rgba(0,204,119,0.55);
             --color-border-bright: rgba(0,204,119,0.6);
             --font: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
             --radius: 6px;
@@ -423,7 +425,7 @@
             <div class="notice-title teal-text">Quellcode-verifiziert</div>
             Diese Tabelle basiert auf einer Analyse von <code>backend/server.js</code> und
             <code>frontend/js/api-client.js</code>.
-            Letzte Prüfung: <span class="teal-text">Mai 2026</span>.
+            Letzte Prüfung: <span class="teal-text">Juni 2026</span>.
             Eigene Prüfung: <a href="https://github.com/Waschtl904/song-nexus" target="_blank" rel="noopener noreferrer" class="text-link">github.com/Waschtl904/song-nexus</a>
         </div>
 
@@ -439,10 +441,17 @@
             </thead>
             <tbody>
                 <tr class="cookie-row">
+                    <td><code>auth_token</code></td>
+                    <td>HttpOnly Cookie</td>
+                    <td>15 Minuten (Access) / 7 Tage (Refresh)</td>
+                    <td>JWT-Authentifizierungstoken. <strong>Nur gesetzt wenn eingeloggt.</strong> HttpOnly — kein JavaScript-Zugriff möglich. Kein Tracking-Inhalt.</td>
+                    <td><span class="badge no">Nein</span></td>
+                </tr>
+                <tr class="cookie-row">
                     <td><code>connect.sid</code></td>
                     <td>Session-Cookie</td>
                     <td>15 Minuten</td>
-                    <td>Login-Session (WebAuthn/JWT). Nur gesetzt wenn eingeloggt.</td>
+                    <td>WebAuthn-Challenge-Session (temporär, nur während Login-Vorgang). Nur gesetzt wenn eingeloggt.</td>
                     <td><span class="badge no">Nein</span></td>
                 </tr>
                 <tr class="cookie-row">
@@ -603,5 +612,19 @@
 
 </main>
 
+
+  <!-- Issue #10: Impressum und Datenschutz muessen von jeder oeffentlichen
+       Seite in einem Klick erreichbar sein. Bewusst mit Inline-Styles, damit
+       der Footer unabhaengig davon funktioniert, welches Stylesheet die
+       jeweilige Seite laedt (auth.html und transparency.html binden keins ein). -->
+  <footer role="contentinfo" style="margin-top:3rem;padding:1.5rem 1rem;text-align:center;font-size:0.8rem;line-height:1.8;opacity:0.75;border-top:1px solid rgba(255,255,255,0.08);">
+    <a href="/impressum.html" style="color:inherit;">Impressum</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/datenschutz.html" style="color:inherit;">Datenschutz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/transparency.html" style="color:inherit;">Transparenz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/" style="color:inherit;">Start</a>
+  </footer>
 </body>
 </html>

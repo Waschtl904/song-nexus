@@ -39,22 +39,32 @@ https://localhost:3000/admin/
 
 ### 2. Login Methods
 
-#### Option A: Dev Login (Localhost Only) - RECOMMENDED FOR DEVELOPMENT
+#### Option A: Dev-Admin per Seed-Skript – EMPFOHLEN FÜR ENTWICKLUNG
 
 **Best for:** Local development, quick testing
 
-1. Navigate to `https://localhost:3000/admin/`
-2. Click **"Dev Login (Localhost Only)"** button
-3. System automatically creates dev admin user
-4. ✅ You're logged in!
+1. Dev-Admin einmalig per CLI anlegen:
+   ```bash
+   cd backend
+   npm run seed:dev-admin
+   ```
+   Das Skript gibt E-Mail und ein generiertes Passwort aus.
+2. Zu `https://localhost:3000/admin/` navigieren
+3. Mit diesen Zugangsdaten über das normale Login-Formular anmelden
+4. ✅ Eingeloggt
 
-**How it works:**
-- Frontend sends POST to `/api/auth/dev-login`
-- Backend creates temporary admin user with role `admin`
-- JWT token issued and stored in localStorage
-- Session persists until logout
+**Warum nicht mehr per Knopfdruck?**
 
-**Note:** Only works on `localhost` or `127.0.0.1`. Attempting on production domain will show alert.
+Der frühere "Dev Login"-Button rief `POST /api/auth/dev-login` auf. Dieser Endpunkt
+legte serverseitig einen User mit `role='admin'` an und gab ein gültiges JWT zurück –
+**ohne `NODE_ENV`-Guard** und über `app.use('/api/auth', ...)` öffentlich gemountet.
+Die localhost-Prüfung lief im Browser und war mit `curl` trivial umgehbar.
+
+Damit war auf einer öffentlich erreichbaren Instanz ein vollständiger Admin-Takeover
+mit einem einzigen POST möglich. Endpunkt und Button wurden entfernt (Issue #1).
+
+Das Seed-Skript hat keine HTTP-Angriffsfläche: es läuft nur über die CLI, verweigert
+den Start bei `NODE_ENV=production` und prüft zusätzlich, dass `DB_HOST` lokal ist.
 
 ---
 
@@ -124,6 +134,56 @@ https://localhost:3000/admin/
 ### Tool 1: Track Upload
 
 **Purpose:** Upload music files, set metadata, publish tracks
+
+> **Geaendert am 16.08.2026 — bitte lesen, bevor du hochlaedst.**
+>
+> **Ein Preis ist Pflicht, wenn der Track nicht gratis ist.**
+> Frueher lautete die Bedingung `if (!isFreeBool && price_eur)`. Fehlte das
+> Preisfeld, blieb der Preis stillschweigend bei 0.00 — und heraus kam ein
+> Track mit `is_free = false` und `price_eur = 0.00`. Der ist weder anhoerbar
+> (nur 40 Sekunden Vorschau) noch kaufbar. Er steht im Katalog und fuehrt ins
+> Leere. Genau so ist Track 24 in der Entwicklungsdatenbank entstanden.
+>
+> Jetzt: 400 mit `PRICE_REQUIRED`. Entweder gratis, oder ein Preis groesser
+> als 0 (hoechstens 100). Etwas dazwischen gibt es nicht.
+>
+> **Die Spieldauer misst der Server, nicht mehr der Browser.**
+> Das Formular liest weiterhin `audio.duration` aus, dieser Wert ist aber nur
+> noch Rueckfall. Bei MP3 und WAV wird die Dauer aus der Datei berechnet.
+>
+> Warum: in der Entwicklungsdatenbank stand bei einem vier Minuten langen Song
+> `duration_seconds = 3000`, also 50 Minuten. Aus diesem Wert wurde die
+> Datenrate fuer den Vorschauausschnitt gerechnet — heraus kamen drei Sekunden
+> Ton statt vierzig.
+>
+> Weichen Formular- und Dateiwert stark voneinander ab, steht das im
+> Serverprotokoll. Die Datei gilt.
+>
+> **Nicht veroeffentlichte Tracks sind nicht anhoerbar.**
+> Die Audio-Route prueft `is_published`. Findet sie keinen veroeffentlichten
+> Eintrag zum Dateinamen, antwortet sie mit 404 statt einer Vorschau. Ein
+> hochgeladener, aber noch nicht freigegebener Track laesst sich also nicht
+> ueber den Dateinamen abrufen.
+>
+> **WAV wird angenommen, ist aber teuer.**
+> Der Content-Type richtet sich seit dem 16.08. nach der Dateiendung; vorher
+> war er fest `audio/mpeg`, weshalb WAV-Tracks gar nicht spielten. Zur
+> Groessenordnung: 30 Sekunden WAV sind rund 5 MB, als MP3 knapp 0,5 MB. Fuer
+> die Auslieferung ist MP3 die bessere Wahl.
+
+**Altbestand pruefen**
+
+Falsche Dauerangaben aus der Zeit vor dem Umbau lassen sich nachtraeglich in
+Ordnung bringen:
+
+```bash
+cd backend
+npm run dauer:pruefen        # nur berichten, veraendert nichts
+npm run dauer:korrigieren    # abweichende Werte setzen
+```
+
+Der Bericht zeigt auch Eintraege, deren Datei fehlt, und solche, deren Format
+sich nicht auslesen laesst.
 
 **Access Methods:**
 
@@ -245,7 +305,7 @@ Design configurations stored in database table: `design_system`
 ```
 1. User submits credentials
    ↓
-2. Frontend POST to /api/auth/login or /api/auth/dev-login
+2. Frontend POST to /api/auth/login
    ↓
 3. Backend validates credentials
    ↓
@@ -504,25 +564,20 @@ frontend/admin-upload.html  ✅ (in frontend ROOT)
 
 ### Admin Authentication Endpoints
 
-#### Dev Login (Localhost Only)
-```javascript
-POST /api/auth/dev-login
+#### Dev Login – ENTFERNT (Issue #1)
 
-Headers: {
-  'Content-Type': 'application/json'
-}
+`POST /api/auth/dev-login` wurde entfernt und liefert jetzt `404`.
 
-Response 200:
-{
-  token: "eyJhbGc...",
-  user: {
-    id: 1,
-    email: "dev@localhost",
-    username: "dev",
-    role: "admin"
-  }
-}
+Grund: der Endpunkt erzeugte Admin-Accounts ohne serverseitigen Guard und war
+öffentlich erreichbar. Ersatz für die lokale Entwicklung:
+
+```bash
+cd backend && npm run seed:dev-admin
 ```
+
+Danach normaler Login über `POST /api/auth/login`.
+Regressionstests: `backend/__tests__/auth.test.js`, Block
+`SECURITY: dev-login darf nicht existieren`.
 
 #### Regular Login
 ```javascript

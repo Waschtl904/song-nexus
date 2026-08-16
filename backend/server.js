@@ -1,5 +1,10 @@
 // ============================================================================
-// 🎵 SONG-NEXUS BACKEND v6.7 - INTELLIGENT CACHE STRATEGY
+// 🎵 SONG-NEXUS BACKEND — Version steht in package.json
+//
+// Vorher stand hier fest "v6.7", waehrend package.json 6.2.0 nannte und
+// routes/admin-tracks.js von v7.1 sprach. Drei Zahlen fuer denselben Stand
+// machen die Frage "welche Fassung laeuft hier?" unbeantwortbar. Die
+// Startmeldung liest die Version jetzt aus package.json — eine Quelle.
 // ============================================================================
 // ✅ CACHE MIDDLEWARE: GET /api/tracks (300s), /api/payments/config (3600s), etc.
 // ✅ CACHE INVALIDATION: clearCacheKey() on POST/PUT/DELETE
@@ -19,6 +24,7 @@ const https = require('https');
 const rfs = require('rotating-file-stream');
 const crypto = require('crypto');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
@@ -104,8 +110,32 @@ function getOriginsList() {
     return origins;
 }
 
+// In Produktion die konfigurierten Ursprünge verwenden, nicht einen
+// Platzhalter. Vorher stand hier fest ['https://yourdomain.com'], wodurch
+// ALLOWED_ORIGINS im Produktionsbetrieb wirkungslos war — dokumentiert, aber
+// ohne Wirkung. Aufgefallen ist das erst, als der Server beim Start eine
+// andere Liste meldete als in der .env stand.
+function getProductionOrigins() {
+    const roh = [process.env.ALLOWED_ORIGINS, process.env.FRONTEND_URL]
+        .filter(Boolean)
+        .join(',');
+
+    const origins = [...new Set(
+        roh.split(',').map(o => o.trim()).filter(o => o.length > 0)
+    )];
+
+    if (origins.length === 0) {
+        console.warn('⚠️  Weder ALLOWED_ORIGINS noch FRONTEND_URL gesetzt.');
+        console.warn('   Gleichursprüngliche Aufrufe funktionieren weiterhin — das');
+        console.warn('   Frontend nutzt relative Pfade. Andere Ursprünge blockiert');
+        console.warn('   der Browser. Für den Regelbetrieb beide Werte setzen.');
+    }
+
+    return origins;
+}
+
 const corsOrigins = NODE_ENV === 'production'
-    ? ['https://yourdomain.com']
+    ? getProductionOrigins()
     : getOriginsList();
 
 console.log('🌐 CORS Origins:', corsOrigins);
@@ -133,7 +163,7 @@ app.use((req, res, next) => {
     next();
 });
 
-const getCSPDirectives = () => {
+const getCSPDirectives = (nonce) => {
     const connectSrc = [
         "'self'",
         "https://localhost:*",
@@ -143,7 +173,9 @@ const getCSPDirectives = () => {
         "wss://localhost:*",
         "ws://localhost:*",
         "https://api.paypal.com",
-        "https://api.sandbox.paypal.com"
+        "https://api.sandbox.paypal.com",
+        "https://www.paypal.com",
+        "https://www.sandbox.paypal.com",
     ];
 
     if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
@@ -152,32 +184,68 @@ const getCSPDirectives = () => {
         console.log(`✅ Added ngrok to CSP connectSrc: ${ngrokOrigin}`);
     }
 
+    // In Produktion: echte Domain aus Umgebungsvariable
+    if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
+        connectSrc.push(process.env.FRONTEND_URL);
+    }
+
     return {
-        defaultSrc: ["'self'", "https:", "http:"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        // defaultSrc bewusst eng: nur 'self', kein wildes https:/http:
+        defaultSrc: ["'self'"],
+        // Scripts: Nonce für inline <script>-Blöcke + 'self' für gebündelte Dateien
+        // 'unsafe-inline' wird von Browsern ignoriert wenn nonce present → sicher
+        scriptSrc: ["'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
+        // scriptSrcAttr (onclick= etc.) komplett verbieten — kein inline Event-Handler nötig
+        scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        mediaSrc: ["'self'", "https://localhost:*", "http://localhost:*"],
-        imgSrc: ["'self'", "data:", "https:", "http:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        mediaSrc: ["'self'", "https://localhost:*", "http://localhost:*", "blob:"],
+        imgSrc: ["'self'", "data:", "https:"],
         connectSrc: connectSrc,
+        // Framing komplett verbieten — verhindert Clickjacking
         frameSrc: ["'none'"],
+        frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
+        // Upgrade insecure requests in Produktion
+        ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: [] } : {}),
     };
 };
 
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: getCSPDirectives(),
-        reportUri: ['/api/csp-report'],
-    },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
-    noSniff: true,
-    xssFilter: true,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    hidePoweredBy: true,
-}));
+app.use((req, res, next) => {
+    // Nonce pro Request generieren (bereits oben als res.locals.nonce gesetzt)
+    helmet({
+        contentSecurityPolicy: {
+            directives: getCSPDirectives(res.locals.nonce),
+            reportOnly: false,
+        },
+        // Clickjacking-Schutz: verhindert Einbettung in fremde iframes
+        frameguard: { action: 'deny' },
+        hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+        noSniff: true,
+        // xssFilter ist deprecated in modernen Browsern, CSP reicht
+        xssFilter: false,
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+        hidePoweredBy: true,
+        // Verhindert MIME-Type-Sniffing bei Audio/Downloads
+        crossOriginResourcePolicy: { policy: 'same-site' },
+        crossOriginOpenerPolicy: { policy: 'same-origin' },
+        // Permissions Policy: Kamera/Mikro/Geolocation sperren
+        permittedCrossDomainPolicies: false,
+    })(req, res, next);
+});
+
+// Permissions-Policy Header manuell setzen (Helmet deckt das nicht vollständig ab)
+app.use((req, res, next) => {
+    res.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=(self), usb=(), bluetooth=()'
+    );
+    next();
+});
+
+// Cookie-Parser MUSS vor Session und Routes kommen
+app.use(cookieParser());
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -198,8 +266,39 @@ app.options('*', cors(corsOptions));
 // 🔐 SESSION MIDDLEWARE - CRITICAL: MUST BE BEFORE ROUTES!
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// Fail-fast: keine Dev-Defaults in Produktion (verwandt mit Issue #1)
+//
+// Der Session-Secret hatte den Fallback 'dev-secret-change-in-prod'. Fehlt die
+// Variable in Produktion, lief der Server also mit einem im Repo bekannten
+// Secret weiter – still und ohne Warnung. Dieselbe Klasse von Problem wie ein
+// vergessenes NODE_ENV: die Anwendung startet, ist aber ungeschuetzt.
+// Deshalb: in Produktion lieber gar nicht starten als unsicher starten.
+// ---------------------------------------------------------------------------
+if (NODE_ENV === 'production') {
+    const pflichtSecrets = ['SESSION_SECRET', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+    const fehlend = pflichtSecrets.filter((name) => {
+        const wert = process.env[name];
+        return !wert || wert.length < 32;
+    });
+
+    if (fehlend.length > 0) {
+        console.error('❌ START ABGEBROCHEN: Pflicht-Secrets fehlen oder sind zu kurz (< 32 Zeichen):');
+        fehlend.forEach((name) => console.error(`   - ${name}`));
+        console.error('   Generieren mit: openssl rand -base64 32');
+        console.error('   Wichtig: für jedes Secret einen EIGENEN Wert verwenden.');
+        process.exit(1);
+    }
+
+    if (process.env.SESSION_SECRET === process.env.JWT_SECRET) {
+        console.error('❌ START ABGEBROCHEN: SESSION_SECRET und JWT_SECRET sind identisch.');
+        console.error('   Getrennte Secrets verhindern, dass eine Kompromittierung beide Systeme trifft.');
+        process.exit(1);
+    }
+}
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-secret-change-in-prod',
+    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -705,21 +804,33 @@ app.post('/api/csp-report', (req, res) => {
 console.log('✅ All API routes registered');
 
 // ============================================================================
-// 🎵 STATIC AUDIO DIRECTORY
+// 🎵 AUDIODATEIEN — bewusst KEINE statische Auslieferung mehr
 // ============================================================================
-
-app.use('/public/audio', (req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'https://localhost:5500');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    next();
-});
-
-app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
-console.log('✅ Static audio directory enabled');
+//
+// Hier stand:
+//     app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
+//
+// Das war eine offene Tür. Am laufenden Server nachgemessen:
+//
+//     GET /api/tracks/audio/premium.mp3   ohne Anmeldung -> 206, 640.601 Byte (Vorschau)
+//     GET /public/audio/premium.mp3       ohne Anmeldung -> 200, 960.931 Byte, vollständig
+//
+// Die zweite Antwort war MD5-identisch mit der Originaldatei. Da
+// GET /api/tracks den Dateinamen öffentlich herausgibt, genügte die
+// Trackliste, um jeden Kauf zu umgehen — ohne Konto, ohne Token.
+//
+// Erschwerend: Der Player benutzte genau diesen ungeschützten Weg. Die
+// Tests für /api/tracks/audio/:filename waren grün und prüften eine Route,
+// die im Betrieb niemand aufrief. Grüne Tests haben hier Sicherheit
+// vorgetäuscht, die es nicht gab.
+//
+// Audiodateien laufen ab jetzt ausschließlich über
+// GET /api/tracks/audio/:filename mit Prüfung von is_free, Token und Kauf.
+// Ein Aufruf von /public/audio/... liefert 404.
+//
+// Falls jemals wieder eine statische Auslieferung gebraucht wird: nur für
+// Dateien, die tatsächlich für alle frei sind, und in einem eigenen
+// Verzeichnis — nicht in demselben, in dem die Premium-Dateien liegen.
 
 // ============================================================================
 // 📄 SERVE STATIC FRONTEND FILES
@@ -774,14 +885,18 @@ async function debugDatabaseContent() {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
+const { verifyMailer } = require('./utils/mailer');
+const { version: APP_VERSION } = require('./package.json');
+
 warmupDatabase().then(async () => {
     await debugDatabaseContent();
+    await verifyMailer(); // SMTP-Verbindung testen (nur Warnung bei Fehler, kein Abbruch)
     if (httpsOptions && USE_HTTPS) {
         const server = https.createServer(httpsOptions, app);
         server.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.7 Backend              ║');
+            console.log(`║   🎵 SONG-NEXUS v${APP_VERSION} Backend            ║`);
             console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
@@ -801,7 +916,7 @@ warmupDatabase().then(async () => {
         const server = app.listen(PORT, HOST, () => {
             console.log('');
             console.log('╔════════════════════════════════════════════╗');
-            console.log('║   🎵 SONG-NEXUS v6.7 Backend              ║');
+            console.log(`║   🎵 SONG-NEXUS v${APP_VERSION} Backend            ║`);
             console.log('║   Secure • Cached • Ad-Free                ║');
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);

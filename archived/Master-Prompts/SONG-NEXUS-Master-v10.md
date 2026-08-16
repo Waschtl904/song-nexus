@@ -6,7 +6,7 @@
 **Status:** Archived (for reference only)
 
 ## Note
-This file has been archived. For current project status, see MASTER-PROMPT-2026-DEFINITIVE.md
+This file has been archived. For current project status, see MASTER-PROMPT-2026-AKTUELL.md
 
 ---
 

@@ -81,10 +81,19 @@
             font-family: inherit;
         }
 
+        /* Sichtbarer Fokus (WCAG 2.4.7, Issue #53). Diese Seite bindet
+           styles/main.css nicht ein, die globale :focus-visible-Regel dort
+           erreicht sie also nicht. */
+        input[type="email"]:focus-visible,
+        input[type="password"]:focus-visible,
+        input[type="text"]:focus-visible {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+
         input[type="email"]:focus,
         input[type="password"]:focus,
         input[type="text"]:focus {
-            outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
@@ -200,17 +209,17 @@
                 <input type="password" id="password" placeholder="••••••••" required>
             </div>
 
-            <button onclick="handleLogin()">Login</button>
+            <button data-action="login">Login</button>
 
             <div class="divider">oder</div>
 
-            <button onclick="handleWebAuthn()" class="webauthn-button">
+            <button data-action="webauthn" class="webauthn-button">
                 🔐 WebAuthn / Biometrie
             </button>
 
             <div class="toggle-auth">
                 Kein Konto?
-                <button onclick="toggleForm('register')">Jetzt registrieren</button>
+                <button data-action="show-register">Jetzt registrieren</button>
             </div>
         </div>
 
@@ -236,11 +245,11 @@
                 <input type="password" id="regPasswordConfirm" placeholder="••••••••" required>
             </div>
 
-            <button onclick="handleRegister()">Registrieren</button>
+            <button data-action="register">Registrieren</button>
 
             <div class="toggle-auth">
                 Du hast bereits ein Konto?
-                <button onclick="toggleForm('login')">Zum Login</button>
+                <button data-action="show-login">Zum Login</button>
             </div>
         </div>
 
@@ -249,6 +258,7 @@
         </div>
     </div>
 
+    <script src="js/password-policy.js"></script>
     <script>
         function showError(message) {
             const errorDiv = document.getElementById('errorMsg');
@@ -329,8 +339,11 @@
                 return;
             }
 
-            if (password.length < 8) {
-                showError('Passwort muss mindestens 8 Zeichen lang sein');
+            // Gemeinsame Regel, siehe js/password-policy.js. Verbindlich
+            // prüft das Backend — das hier erspart nur den Umweg.
+            const pwProbleme = PasswortRegel.pruefePasswort(password, { username, email });
+            if (pwProbleme.length > 0) {
+                showError(pwProbleme.join(' '));
                 return;
             }
 
@@ -365,6 +378,19 @@
         }
 
         // Check if already logged in
+        // Event-Delegation — ersetzt alle onclick= Attribute
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            switch (btn.dataset.action) {
+                case 'login':         handleLogin();           break;
+                case 'webauthn':      handleWebAuthn();        break;
+                case 'register':      handleRegister();        break;
+                case 'show-register': toggleForm('register');  break;
+                case 'show-login':    toggleForm('login');     break;
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('auth_token');
             if (token) {
@@ -386,6 +412,20 @@
             }
         });
     </script>
+
+  <!-- Issue #10: Impressum und Datenschutz muessen von jeder oeffentlichen
+       Seite in einem Klick erreichbar sein. Bewusst mit Inline-Styles, damit
+       der Footer unabhaengig davon funktioniert, welches Stylesheet die
+       jeweilige Seite laedt (auth.html und transparency.html binden keins ein). -->
+  <footer role="contentinfo" style="margin-top:3rem;padding:1.5rem 1rem;text-align:center;font-size:0.8rem;line-height:1.8;opacity:0.75;border-top:1px solid rgba(255,255,255,0.08);">
+    <a href="/impressum.html" style="color:inherit;">Impressum</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/datenschutz.html" style="color:inherit;">Datenschutz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/transparency.html" style="color:inherit;">Transparenz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/" style="color:inherit;">Start</a>
+  </footer>
 </body>
 
 </html>

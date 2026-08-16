@@ -2,7 +2,19 @@
 // 🔧 CONFIG.JS - FRONTEND CONFIGURATION + API ENDPOINTS
 // ============================================================================
 
-const API_BASE_URL = 'https://localhost:3000/api';
+// Relativer Pfad, absichtlich ohne Hostnamen.
+//
+// Vorher stand hier 'https://localhost:3000/api'. Dieser Wert wird beim
+// webpack-Build fest ins Bundle geschrieben (webpack ersetzt nur NODE_ENV,
+// keine URLs). In Produktion hat damit der Browser JEDES Besuchers versucht,
+// dessen EIGENEN Rechner auf Port 3000 anzusprechen — jeder Aufruf der
+// Schnittstelle wäre fehlgeschlagen.
+//
+// Ein relativer Pfad zeigt immer auf die Adresse, unter der die Seite gerade
+// läuft: lokal auf Port 5500 (dessen Server /api an das Backend weiterleitet),
+// in Produktion auf die echte Domain — mit und ohne www. Damit sind alle
+// Aufrufe gleichursprünglich und CORS wird gar nicht erst gebraucht.
+const API_BASE_URL = '/api';
 
 export const API_ENDPOINTS = {
     // Auth Routes
@@ -118,7 +130,19 @@ export function getAudioUrl(trackId) {
     }
     // ✅ FIXED: trackId already contains .mp3 extension!
     // Don't add .mp3 again!
-    return `${API_BASE_URL.replace('/api', '')}/public/audio/${trackId}`;
+    // Geschuetzte Route, NICHT /public/audio.
+    //
+    // /public/audio war eine statische Auslieferung ohne jede Pruefung: ein
+    // Aufruf ohne Anmeldung lieferte die vollstaendige Datei eines
+    // Premium-Tracks, MD5-identisch mit dem Original. Da /api/tracks den
+    // Dateinamen oeffentlich herausgibt, genuegte die Trackliste, um jeden
+    // Kauf zu umgehen.
+    //
+    // /api/tracks/audio/:filename prueft is_free, Token und Kauf und liefert
+    // sonst nur die 40-Sekunden-Vorschau. Genau diese Route ist auch die,
+    // fuer die es Tests gibt - der Player benutzte sie bisher nicht, weshalb
+    // die gruenen SECURITY-Tests eine Sicherheit vorgaben, die es nicht gab.
+    return `${API_BASE_URL}/tracks/audio/${trackId}`;
 }
 
 // ============================================================================

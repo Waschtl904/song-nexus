@@ -1,0 +1,100 @@
+name: CI
+
+# Läuft bei jedem Push und Pull Request auf die Hauptbranches.
+# Zweck: nach längeren Projektpausen sofort sichtbar machen, was noch läuft.
+on:
+  push:
+    branches: [main, 'dev/**']
+  pull_request:
+    branches: [main, 'dev/**']
+  workflow_dispatch:
+
+# Läuft ein neuer Push auf denselben Branch, wird der alte Lauf abgebrochen.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend – Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          # Muss zur engines-Angabe in backend/package.json passen.
+          # nodemailer 9 zieht @peculiar/x509 mit, das Node >= 22 verlangt.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        working-directory: backend
+        run: npm ci
+
+      - name: Tests
+        working-directory: backend
+        # Die Testsuite setzt ihre Secrets selbst (siehe __tests__/*.test.js),
+        # daher braucht CI keine Repository-Secrets.
+        run: npm run test:ci
+
+  audit:
+    name: Backend – Sicherheitslücken
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: npm audit (bricht ab bei high oder critical)
+        working-directory: backend
+        # Genau die Klasse Problem, die im August 2026 zu 11 offenen
+        # Lücken geführt hat (Issue #3). Ab jetzt schlägt der Build fehl.
+        run: npm audit --audit-level=high
+
+  frontend:
+    name: Frontend – Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        working-directory: frontend
+        # frontend/package-lock.json ist seit diesem PR versioniert,
+        # daher npm ci für reproduzierbare Installationen.
+        run: npm ci
+
+      - name: Production-Build
+        working-directory: frontend
+        run: npm run build
+
+  secrets:
+    name: Secret-Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Vollständige Historie, damit auch alte Commits geprüft werden –
+          # genau dort lagen die Werte aus Issue #2.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

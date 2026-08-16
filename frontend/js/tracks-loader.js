@@ -6,6 +6,32 @@ import { APIClient } from './api-client.js';
 
 let designConfig = null;
 
+// ---------------------------------------------------------------------------
+// Issue #8: Soft-Launch. Solange der Verkauf nicht freigeschaltet ist, darf
+// die Oberfläche keinen Preis versprechen, den man nicht bezahlen kann.
+//
+// Bewusst mit false vorbelegt und auch im Fehlerfall false: lieber "bald
+// verfügbar" anzeigen als einen Kaufpreis, der ins Leere führt. Der
+// eigentliche Schutz sitzt ohnehin im Backend (503 PAYMENTS_DISABLED) –
+// das hier ist reine Ehrlichkeit gegenüber dem Besucher.
+// ---------------------------------------------------------------------------
+let paymentsEnabled = false;
+
+async function loadPaymentsConfig() {
+    try {
+        const config = await APIClient.get('/payments/config');
+        paymentsEnabled = config?.payments_enabled === true;
+        console.log(
+            paymentsEnabled
+                ? '💰 Verkauf aktiv'
+                : '🔌 Verkauf deaktiviert – Preise werden als "bald verfügbar" angezeigt'
+        );
+    } catch (err) {
+        paymentsEnabled = false;
+        console.warn('⚠️ Zahlungs-Config nicht erreichbar, Verkauf gilt als deaktiviert:', err.message);
+    }
+}
+
 async function loadDesignConfig() {
     try {
         const response = await fetch('./config/design.config.json');
@@ -49,7 +75,7 @@ export class TracksLoader {
 
     async init() {
         console.log('🔄 TracksLoader initializing...');
-        await loadDesignConfig();
+        await Promise.all([loadDesignConfig(), loadPaymentsConfig()]);
         this.setupInfiniteScroll();
         await this.loadTracks(false);
     }
@@ -149,7 +175,16 @@ export class TracksLoader {
                 if (track.price_eur !== null && track.price_eur !== undefined) {
                     priceNum = parseFloat(track.price_eur) || 0;
                 }
-                const priceDisplay = track.is_free ? 'FREE' : `€${priceNum.toFixed(2)}`;
+                // Gratis-Tracks sind immer "FREE". Bezahltracks zeigen ihren
+                // Preis nur, wenn er auch bezahlbar ist (Issue #8).
+                let priceDisplay;
+                if (track.is_free) {
+                    priceDisplay = 'FREE';
+                } else if (paymentsEnabled) {
+                    priceDisplay = `€${priceNum.toFixed(2)}`;
+                } else {
+                    priceDisplay = 'BALD';
+                }
                 const badgeClass = track.is_free ? 'badge-free' : 'badge-paid';
 
                 console.log(`📊 Track ${track.id}: ${track.name} | Price: ${priceNum} | Free: ${track.is_free}`);
@@ -160,20 +195,20 @@ export class TracksLoader {
             <div class="track-header">
               <div class="track-info">
                 <h3 class="track-title">${this.escapeHtml(track.name || track.title)}</h3>
-                <p class="track-artist">${this.escapeHtml(track.artist || 'Unknown')}</p>
+                ${track.artist && !['Unknown', 'New', 'comp', 'unknown', 'new'].includes(track.artist.trim()) ? `<p class="track-artist">${this.escapeHtml(track.artist)}</p>` : ''}
                 <div class="track-meta">
-                  <span class="track-duration">⏱️ ${duration}</span>
-                  <span class="track-genre">${this.escapeHtml(track.genre || 'Other')}</span>
+                  <span class="track-duration">${duration}</span>
+                  <span class="track-genre">${this.escapeHtml(track.genre || '')}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Price & Badge -->
+            <!-- Price & Status -->
             <div class="track-footer">
-              <span class="track-price">${priceDisplay}</span>
-              <span class="track-badge ${badgeClass}">
-                ${track.is_free ? '🎵 FREE' : '💰 PAID'}
-              </span>
+              <span
+                class="track-price ${track.is_free ? 'free' : ''}${!track.is_free && !paymentsEnabled ? ' soon' : ''}"
+                ${!track.is_free && !paymentsEnabled ? 'title="Kauf noch nicht freigeschaltet – 40-Sekunden-Vorschau verfügbar"' : ''}
+              >${priceDisplay}</span>
             </div>
 
             <!-- Play Button -->
@@ -209,7 +244,6 @@ export class TracksLoader {
                     playBtn.style.height = `${height}px`;
                     playBtn.style.backgroundSize = 'cover';
                     playBtn.style.backgroundRepeat = 'no-repeat';
-                    // FIX: Use background-position to crop transparent edges
                     playBtn.style.backgroundPosition = 'center 20%';
                     playBtn.style.backgroundColor = 'transparent';
                     playBtn.style.border = 'none';
@@ -218,6 +252,22 @@ export class TracksLoader {
                     playBtn.style.display = 'block';
                     playBtn.style.margin = '8px auto 0';
                     playBtn.style.overflow = 'hidden';
+
+                    // Individuelle Abnutzung per Track-ID (deterministisch)
+                    // Jeder Track bekommt immer dieselbe Variation, aber anders als andere
+                    const id = track.id || 0;
+                    const variations = [
+                        // hue-rotate, brightness, contrast, saturate, sepia
+                        'brightness(0.88) contrast(1.12) saturate(0.80) sepia(0.10)',  // leicht verblasst
+                        'brightness(1.05) contrast(0.95) saturate(1.15) hue-rotate(5deg)',  // frisch
+                        'brightness(0.82) contrast(1.20) saturate(0.65) sepia(0.22)',  // stark verrostet
+                        'brightness(0.95) contrast(1.08) saturate(0.90) hue-rotate(-8deg)',  // kühl
+                        'brightness(1.10) contrast(0.90) saturate(1.25) sepia(0.05)',  // poliert
+                        'brightness(0.78) contrast(1.25) saturate(0.55) sepia(0.35)',  // alt & abgenutzt
+                        'brightness(0.92) contrast(1.05) saturate(1.05) hue-rotate(12deg)',  // warm
+                        'brightness(1.02) contrast(1.15) saturate(0.75) sepia(0.15)',  // patina
+                    ];
+                    playBtn.style.filter = variations[id % variations.length];
 
                     console.log(`🎬 Play button styled: ${imageUrl} (${width}x${height}) with background-position adjustment`);
 

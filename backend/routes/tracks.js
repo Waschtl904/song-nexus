@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
+const { bytesProSekunde } = require('../utils/audio-rate');
 const { pool } = require('../db');
 const { verifyToken, verifyTokenSync } = require('../middleware/auth-middleware');
 const router = express.Router();
@@ -139,15 +140,27 @@ router.get('/audio/:filename', async (req, res) => {
     const trackResult = await pool.query(
       `SELECT id, is_free, free_preview_duration, duration_seconds
        FROM tracks
-       WHERE audio_filename = $1 AND is_deleted = FALSE
+       WHERE audio_filename = $1
+         AND is_deleted = FALSE
+         AND is_published = TRUE
        LIMIT 1`,
       [filename]
     );
 
     if (trackResult.rows.length === 0) {
-      console.warn(`⚠️ No track record for audio file: ${filename}`);
-      console.log('🎶 No DB record found, treating as 40s preview');
-      return servePreview(filepath, filename, null, req, res);
+      // Fail closed. Vorher wurde hier eine 40-Sekunden-Vorschau ausgeliefert
+      // ("treating as 40s preview"). Das bedeutete:
+      //
+      //   - ein nicht veroeffentlichter Track war anhoerbar, sobald man den
+      //     Dateinamen kannte
+      //   - jede Datei im Audio-Verzeichnis OHNE Datenbankeintrag war
+      //     teilweise oeffentlich, etwa ein abgebrochener Upload
+      //
+      // Wenn die Datenbank einen Track nicht als veroeffentlicht kennt, gibt
+      // es keinen Grund, davon irgendetwas auszuliefern. Ein Standardwert,
+      // der im Zweifel Daten herausgibt, zeigt in die falsche Richtung.
+      console.warn(`⚠️ Kein veroeffentlichter Track zu dieser Datei: ${filename} — 404`);
+      return res.status(404).json({ error: 'Audio file not found' });
     }
 
     const track = trackResult.rows[0];
@@ -164,11 +177,21 @@ router.get('/audio/:filename', async (req, res) => {
       console.log('✅ FREE TRACK - Full access for everyone');
     } else {
       // 🔐 PREMIUM TRACK: Check token & purchase
+      // Token aus der Kopfzeile ODER dem Cookie.
+      //
+      // Das Cookie ist hier nicht optional: Der Player laedt ueber ein
+      // <audio src="...">-Element, und ein solcher Abruf kann keine
+      // Authorization-Kopfzeile mitschicken. Ohne diesen Rueckfall bekaeme
+      // ein Kaeufer dauerhaft nur die Vorschau seines eigenen Songs.
       const authHeader = req.headers.authorization || '';
-      console.log(`🔑 Auth header present: ${!!authHeader}`);
+      const cookieToken = req.cookies?.auth_token || '';
+      const token = authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7)
+        : cookieToken;
 
-      if (authHeader.startsWith('Bearer ')) {
-        const token = authHeader.slice(7);
+      console.log(`🔑 Token vorhanden: ${!!token} (${authHeader ? 'Kopfzeile' : cookieToken ? 'Cookie' : 'keines'})`);
+
+      if (token) {
         console.log(`🔑 Token present: ${token.substring(0, 20)}...`);
 
         try {
@@ -193,7 +216,7 @@ router.get('/audio/:filename', async (req, res) => {
           console.warn('⚠️ Token verification failed:', e.message);
         }
       } else {
-        console.log('❌ No token provided - 40s preview only');
+        console.log('❌ Kein Token (weder Kopfzeile noch Cookie) - nur 40s Vorschau');
       }
     }
 
@@ -204,7 +227,12 @@ router.get('/audio/:filename', async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
-    res.setHeader('Content-Type', 'audio/mpeg');
+    // Der Content-Type war fest 'audio/mpeg' — auch bei .wav-Dateien.
+    // Zwei deiner Tracks liegen als WAV vor; der Browser bekam eine
+    // RIFF/WAVE-Datei als MPEG angekuendigt. Dass dein Browser den
+    // Content-Type auswertet, hat er schon einmal gezeigt:
+    // "HTTP-Content-Type text/html wird nicht unterstuetzt".
+    res.setHeader('Content-Type', audioContentType(filename));
     res.setHeader('Accept-Ranges', 'bytes');
 
     if (hasFullAccess) {
@@ -292,50 +320,105 @@ function serveFullFile(filepath, filename, filesize, range, res) {
 // HELPER: Serve 40 Sekunden Preview
 // ============================================================================
 
+// Content-Type nach Dateiendung. Ein falscher Typ laesst den Browser die
+// Datei ablehnen, obwohl die Bytes in Ordnung sind.
+const AUDIO_TYPEN = {
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.oga': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.opus': 'audio/opus',
+  '.webm': 'audio/webm',
+};
+
+function audioContentType(filename) {
+  const endung = path.extname(String(filename || '')).toLowerCase();
+  return AUDIO_TYPEN[endung] || 'application/octet-stream';
+}
+
 function servePreview(filepath, filename, track, req, res) {
   try {
     const stat = fs.statSync(filepath);
     const filesize = stat.size;
-    const PREVIEW_SECONDS = 40;
-    let avgBytesPerSecond = 128000;
 
-    if (track && track.duration_seconds && track.duration_seconds > 0) {
-      avgBytesPerSecond = Math.floor(filesize / track.duration_seconds);
-      console.log(`📊 Calculated speed: ${avgBytesPerSecond} bytes/sec`);
-    }
+    // Wie lang darf die Vorschau sein?
+    //
+    // Vorher stand hier fest 40 Sekunden, obwohl die Spalte
+    // free_preview_duration extra dafuer da ist, geladen wird und dann
+    // ungenutzt blieb. Jetzt zaehlt der Wert pro Track, mit 40 als Rueckfall.
+    const gewuenscht = Number(track && track.free_preview_duration);
+    const PREVIEW_SECONDS =
+      Number.isFinite(gewuenscht) && gewuenscht > 0 ? gewuenscht : 40;
 
-    const previewBytes = avgBytesPerSecond * PREVIEW_SECONDS;
-    const maxPreviewEnd = Math.min(filesize - 1, previewBytes);
-    console.log(`🎶 Preview: ~${PREVIEW_SECONDS}s = ~${Math.floor(previewBytes / 1024)} KB`);
+    // Wie viele Bytes ist eine Sekunde wert?
+    //
+    // Vorher: filesize / duration_seconds, also vollstaendig abhaengig von
+    // einem Wert aus der Datenbank. Stimmte der nicht, stimmte die Vorschau
+    // nicht — zu kurz bei zu grosser Dauer, im Grenzfall der ganze Song bei
+    // zu kleiner. Die Datenrate steht aber in der Datei selbst.
+    const { bytesProSekunde: rate, quelle } = bytesProSekunde(
+      filepath,
+      filesize,
+      track && track.duration_seconds
+    );
+
+    // Die Vorschau ist ab hier eine Sache fuer sich: eine Datei von
+    // vorschauGroesse Bytes. Nicht ein Ausschnitt aus einer groesseren.
+    //
+    // Das ist der Kern der Aenderung. Vorher meldete der Server
+    //
+    //     Content-Range: bytes 0-640600/960931
+    //
+    // also die volle Dateigroesse als Gesamtlaenge, obwohl nur der vordere
+    // Teil kam. Der Browser rechnete daraus eine Spieldauer von knapp vier
+    // Minuten, las weiter — und bekam 416 Range Not Satisfiable. Der Ton
+    // brach ab, die Anzeige log.
+    //
+    // Wenn die Gesamtlaenge die Vorschaulaenge ist, passt beides zusammen:
+    // die angezeigte Dauer stimmt, und es wird nichts angefordert, was es
+    // nicht gibt.
+    const vorschauGroesse = Math.max(1, Math.min(filesize, rate * PREVIEW_SECONDS));
+    const letztesByte = vorschauGroesse - 1;
+
+    console.log(
+      `🎶 Vorschau: ${PREVIEW_SECONDS}s x ${rate} Byte/s (${quelle}) ` +
+      `= ${Math.floor(vorschauGroesse / 1024)} KB von ${Math.floor(filesize / 1024)} KB`
+    );
 
     const range = req.headers.range;
 
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
       let start = parseInt(parts[0], 10);
-      let end = parts[1] ? parseInt(parts[1], 10) : maxPreviewEnd;
+      let end = parts[1] ? parseInt(parts[1], 10) : letztesByte;
 
       if (isNaN(start) || start < 0) start = 0;
-      if (isNaN(end) || end > maxPreviewEnd) end = maxPreviewEnd;
+      if (isNaN(end) || end > letztesByte) end = letztesByte;
 
-      if (start > end || start >= filesize) {
-        res.status(416).send('Requested range not satisfiable');
+      if (start > end || start > letztesByte) {
+        // Gesamtlaenge mitgeben, damit der Client weiss, woran er ist.
+        res.status(416);
+        res.setHeader('Content-Range', `bytes */${vorschauGroesse}`);
+        res.end();
         return;
       }
 
       res.status(206);
-      res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${vorschauGroesse}`);
       res.setHeader('Content-Length', end - start + 1);
       res.setHeader('Cache-Control', 'no-store');
-      console.log(`💤 206 Preview: bytes ${start}-${end} (max ${maxPreviewEnd})`);
+      console.log(`💤 206 Vorschau: Bytes ${start}-${end} von ${vorschauGroesse}`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
     } else {
       res.status(206);
-      res.setHeader('Content-Range', `bytes 0-${maxPreviewEnd}/${filesize}`);
-      res.setHeader('Content-Length', maxPreviewEnd + 1);
+      res.setHeader('Content-Range', `bytes 0-${letztesByte}/${vorschauGroesse}`);
+      res.setHeader('Content-Length', vorschauGroesse);
       res.setHeader('Cache-Control', 'no-store');
-      console.log(`💤 206 Preview: bytes 0-${maxPreviewEnd}/${filesize}`);
-      fs.createReadStream(filepath, { start: 0, end: maxPreviewEnd }).pipe(res);
+      console.log(`💤 206 Vorschau: Bytes 0-${letztesByte} von ${vorschauGroesse}`);
+      fs.createReadStream(filepath, { start: 0, end: letztesByte }).pipe(res);
     }
   } catch (err) {
     console.error('❌ servePreview error:', err);

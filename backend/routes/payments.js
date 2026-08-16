@@ -23,13 +23,57 @@ function client() {
 }
 
 // ============================================================================
+// 🔌 FEATURE-FLAG: PAYMENTS_ENABLED (Issue #8)
+// ============================================================================
+//
+// Erlaubt den Soft-Launch: die Plattform geht mit Gratis-Tracks online,
+// während PayPal-Live-Verifizierung (#11), Webhook (#12), AGB und
+// Widerrufsbelehrung (#14) noch offen sind.
+//
+// Bewusst fail-closed: Zahlungen sind AUS, solange nicht ausdrücklich
+// PAYMENTS_ENABLED=true gesetzt ist. Fehlt die Variable auf dem Server,
+// wird kein Geld eingezogen. Bei einem Feature, das Zahlungen auslöst, ist
+// ein vergessenes Env-Flag sonst genau der Fall, den man nicht will.
+//
+// Absichtlich NICHT gesperrt werden die lesenden Routen und der Download:
+// bereits gekaufte Tracks müssen erreichbar bleiben, auch wenn der Verkauf
+// zwischenzeitlich pausiert wird. Gesperrt ist nur, was neues Geld bewegt.
+// ============================================================================
+
+function paymentsEnabled() {
+  // Bei jedem Aufruf neu lesen, damit Tests das Flag umschalten können.
+  return process.env.PAYMENTS_ENABLED === 'true';
+}
+
+function requirePaymentsEnabled(req, res, next) {
+  if (paymentsEnabled()) return next();
+
+  console.warn(`🔌 Zahlung blockiert (PAYMENTS_ENABLED != true): ${req.method} ${req.originalUrl}`);
+  return res.status(503).json({
+    error: 'Zahlungen sind derzeit deaktiviert',
+    code: 'PAYMENTS_DISABLED',
+    message: 'Der Verkauf ist noch nicht freigeschaltet. Gratis-Tracks sind uneingeschränkt verfügbar.',
+  });
+}
+
+console.log(
+  paymentsEnabled()
+    ? '💰 Zahlungen AKTIV (PAYMENTS_ENABLED=true)'
+    : '🔌 Zahlungen DEAKTIVIERT – Soft-Launch-Modus (PAYMENTS_ENABLED != true)'
+);
+
+// ============================================================================
 // 🔒 GET /api/payments/config - PayPal Config für Frontend
 // ============================================================================
 
 router.get('/config', (req, res) => {
+  const enabled = paymentsEnabled();
   res.json({
-    paypal_client_id: process.env.PAYPAL_CLIENT_ID,
+    // Bei deaktivierten Zahlungen keine Client-ID ausliefern – es gibt keinen
+    // Grund, sie preiszugeben, wenn ohnehin kein Checkout stattfinden kann.
+    paypal_client_id: enabled ? process.env.PAYPAL_CLIENT_ID : null,
     paypal_mode: process.env.PAYPAL_MODE || 'sandbox',
+    payments_enabled: enabled,
   });
 });
 
@@ -37,9 +81,13 @@ router.get('/config', (req, res) => {
 // 💰 POST /api/payments/create-order - Create PayPal Order für Track
 // ============================================================================
 
-router.post('/create-order', verifyToken, [
+router.post('/create-order', requirePaymentsEnabled, verifyToken, [
   body('track_id').isInt().withMessage('Track ID must be an integer'),
-  body('price').isFloat({ min: 0.01, max: 100 }).withMessage('Invalid price'),
+  // price ist optional und NICHT maßgeblich. Der Preis kommt aus
+  // tracks.price_eur. Schickt der Client dennoch einen Wert, muss er passen —
+  // sonst 400 mit PRICE_MISMATCH. Das macht eine Manipulation sichtbar,
+  // statt sie still zu überschreiben.
+  body('price').optional().isFloat({ min: 0.01, max: 100 }).withMessage('Invalid price'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -50,9 +98,18 @@ router.post('/create-order', verifyToken, [
   const userId = req.user.id;
 
   try {
-    // 1️⃣ Verify track exists
+    // 1️⃣ Track laden — MIT Preis.
+    //
+    // Vorher wurden nur id, name und artist geladen und der Preis aus
+    // req.body übernommen. Damit bestimmte der Browser, was ein Song kostet:
+    // ein Aufruf mit price 0.01 für einen Track zu 4.99 wurde angenommen.
+    // Der Validator prüfte nur die Spanne 0.01 bis 100, nicht die
+    // Übereinstimmung mit dem Track.
+    //
+    // Preise gehören serverseitig bestimmt. Alles andere ist eine
+    // Vertrauensgrenze an der falschen Stelle.
     const trackResult = await pool.query(
-      'SELECT id, name, artist FROM tracks WHERE id = $1',
+      'SELECT id, name, artist, price_eur, is_free, is_published, is_deleted FROM tracks WHERE id = $1',
       [track_id]
     );
 
@@ -61,6 +118,43 @@ router.post('/create-order', verifyToken, [
     }
 
     const track = trackResult.rows[0];
+
+    if (track.is_deleted === true) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    // Nicht veröffentlichte Tracks lassen sich nicht kaufen.
+    if (track.is_published !== true) {
+      return res.status(400).json({ error: 'Track ist nicht zum Verkauf freigegeben' });
+    }
+
+    // Ein Gratis-Track hat keinen Kaufvorgang.
+    if (track.is_free === true) {
+      return res.status(400).json({ error: 'Dieser Track ist kostenlos' });
+    }
+
+    // Der maßgebliche Preis, ausschließlich aus der Datenbank.
+    const serverPreis = Number(track.price_eur);
+
+    if (!Number.isFinite(serverPreis) || serverPreis <= 0) {
+      console.error(`❌ Track ${track_id} hat keinen brauchbaren Preis: ${track.price_eur}`);
+      return res.status(409).json({ error: 'Für diesen Track ist kein Preis hinterlegt' });
+    }
+
+    // Falls der Client einen Preis mitgeschickt hat, muss er passen. Ein
+    // stiller Austausch würde eine Manipulation verschleiern; eine klare
+    // Ablehnung macht sie sichtbar.
+    if (price !== undefined && price !== null) {
+      const clientPreis = Number(price);
+      if (!Number.isFinite(clientPreis) || Math.abs(clientPreis - serverPreis) > 0.005) {
+        console.warn(`⚠️ Preis vom Client (${price}) weicht vom Serverpreis (${serverPreis}) ab — abgelehnt`);
+        return res.status(400).json({
+          error: 'Preis stimmt nicht mit dem Track überein',
+          code: 'PRICE_MISMATCH',
+          expected: serverPreis.toFixed(2)
+        });
+      }
+    }
 
     // 2️⃣ Check if already purchased
     const purchaseCheck = await pool.query(
@@ -72,7 +166,8 @@ router.post('/create-order', verifyToken, [
       return res.status(400).json({ error: 'Track already purchased' });
     }
 
-    console.log(`💰 Creating PayPal order: €${price} for track "${track.name}" (user ${userId})`);
+    const preisText = serverPreis.toFixed(2);
+    console.log(`💰 PayPal-Bestellung: €${preisText} für "${track.name}" (Benutzer ${userId})`);
 
     // 3️⃣ Create PayPal Order
     const request = new checkoutNodeJssdk.orders.OrdersCreateRequest();
@@ -82,14 +177,14 @@ router.post('/create-order', verifyToken, [
       purchase_units: [{
         amount: {
           currency_code: 'EUR',
-          value: price.toString(),
+          value: preisText,
           breakdown: {
-            item_total: { currency_code: 'EUR', value: price.toString() },
+            item_total: { currency_code: 'EUR', value: preisText },
           },
         },
         items: [{
           name: `🎵 ${track.name} - ${track.artist}`,
-          unit_amount: { currency_code: 'EUR', value: price.toString() },
+          unit_amount: { currency_code: 'EUR', value: preisText },
           quantity: '1',
           sku: `TRACK_${track_id}`,
           category: 'DIGITAL_GOODS',
@@ -111,10 +206,10 @@ router.post('/create-order', verifyToken, [
 
     // 4️⃣ Save order to DB
     const orderResult = await pool.query(
-      `INSERT INTO orders (user_id, paypal_order_id, amount, currency, description, status)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO orders (user_id, track_id, paypal_order_id, amount, currency, description, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [userId, orderId, price, 'EUR', `Track: ${track.name}`, 'CREATED']
+      [userId, track_id, orderId, serverPreis, 'EUR', `Track: ${track.name}`, 'CREATED']
     );
 
     const dbOrderId = orderResult.rows[0].id;
@@ -124,7 +219,7 @@ router.post('/create-order', verifyToken, [
       order_id: orderId,
       status: 'CREATED',
       track_id: track_id,
-      price: price
+      price: serverPreis
     });
   } catch (err) {
     console.error('❌ PayPal create-order error:', err.message);
@@ -136,19 +231,30 @@ router.post('/create-order', verifyToken, [
 // ✅ POST /api/payments/capture-order/:orderId - Capture Payment
 // ============================================================================
 
-router.post('/capture-order/:orderId', verifyToken, [
-  body('track_id').isInt().withMessage('Track ID required'),
+// Kein body('track_id')-Validator mehr: Welcher Track freigeschaltet wird,
+// steht in der Bestellung und wird nicht mehr vom Client bestimmt.
+router.post('/capture-order/:orderId', requirePaymentsEnabled, verifyToken, [
+  body('track_id').optional().isInt(),
 ], async (req, res) => {
   const { orderId } = req.params;
-  const { track_id } = req.body;
   const userId = req.user.id;
 
   try {
     console.log(`✅ Capturing order: ${orderId} for user ${userId}`);
 
-    // 1️⃣ Verify order belongs to user
+    // 1️⃣ Bestellung laden — MIT track_id.
+    //
+    // Vorher kam die track_id aus req.body und wurde ungeprüft in purchases
+    // eingetragen. Geprüft wurde nur, ob die PayPal-Bestellung zum
+    // angemeldeten Benutzer gehört. Damit waren bezahltes und
+    // freigeschaltetes Produkt nicht miteinander verbunden: günstigen Track
+    // bestellen, bezahlen, beim Freischalten die ID eines teureren Tracks
+    // senden.
+    //
+    // Maßgeblich ist ab jetzt ausschließlich orders.track_id, festgeschrieben
+    // beim Anlegen der Bestellung.
     const orderCheck = await pool.query(
-      'SELECT id, amount FROM orders WHERE paypal_order_id = $1 AND user_id = $2',
+      'SELECT id, amount, track_id, status FROM orders WHERE paypal_order_id = $1 AND user_id = $2',
       [orderId, userId]
     );
 
@@ -157,6 +263,30 @@ router.post('/capture-order/:orderId', verifyToken, [
     }
 
     const order = orderCheck.rows[0];
+    const track_id = order.track_id;
+
+    // Bestellungen von vor der Einführung dieser Spalte haben keine
+    // Zuordnung. Sie hier zu raten wäre schlimmer, als abzulehnen.
+    if (track_id === null || track_id === undefined) {
+      console.error(`❌ Bestellung ${orderId} hat keine track_id — kann nicht freigeschaltet werden`);
+      return res.status(409).json({
+        error: 'Dieser Bestellung ist kein Track zugeordnet. Bitte neu bestellen.',
+        code: 'ORDER_WITHOUT_TRACK'
+      });
+    }
+
+    // Falls der Client dennoch eine track_id mitschickt und sie abweicht,
+    // wird das protokolliert. Sie wird nicht verwendet — aber ein solcher
+    // Aufruf ist ein Hinweis auf einen Manipulationsversuch oder einen
+    // veralteten Client.
+    if (req.body?.track_id !== undefined && Number(req.body.track_id) !== Number(track_id)) {
+      console.warn(`⚠️ Client wollte Track ${req.body.track_id} freischalten, bestellt war ${track_id} — Bestellung ist maßgeblich`);
+    }
+
+    // Doppeltes Freischalten derselben Bestellung verhindern.
+    if (order.status === 'COMPLETED') {
+      return res.status(409).json({ error: 'Diese Bestellung wurde bereits abgeschlossen', code: 'ALREADY_COMPLETED' });
+    }
 
     // 2️⃣ Capture at PayPal
     const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(orderId);
@@ -310,6 +440,135 @@ router.get('/stats', verifyToken, async (req, res) => {
     console.error('❌ Payment stats error:', err);
     res.status(500).json({ error: 'Failed to fetch payment stats' });
   }
+});
+
+// ============================================================================
+// ⬇️  GET /api/payments/download/:trackId - Sicherer Datei-Download
+// ============================================================================
+// Nur für eingeloggte User, die den Track gekauft haben.
+// Generiert einen temporären signierten Token (10 Min) und leitet weiter.
+
+const crypto = require('crypto');
+
+// Einfacher In-Memory Token Store (reicht für Single-Server; für Multi-Server → Redis)
+const downloadTokens = new Map();
+
+// Aufräumen: abgelaufene Tokens alle 5 Minuten entfernen
+//
+// .unref() ist hier entscheidend: ohne den Aufruf hält der Timer die Node-
+// Event-Loop dauerhaft offen. Folge war, dass `jest --detectOpenHandles` nicht
+// mehr zurückkehrt – in CI lief der Test-Job in den Timeout, obwohl alle 59
+// Tests nach rund 25 Sekunden grün waren.
+//
+// unref() sagt Node: dieser Timer ist kein Grund, den Prozess am Leben zu
+// halten. Im laufenden Server ändert sich nichts, weil dort der HTTP-Listener
+// die Event-Loop offen hält und das Intervall wie gewohnt feuert.
+//
+// Der eigentliche Konstruktionsfehler bleibt Issue #13: die Tokens liegen im
+// Prozessspeicher und sind nach jedem Restart verloren.
+const downloadTokenCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of downloadTokens.entries()) {
+    if (data.expiresAt < now) downloadTokens.delete(token);
+  }
+}, 5 * 60 * 1000);
+
+downloadTokenCleanup.unref();
+
+router.get('/download/:trackId', verifyToken, async (req, res) => {
+  const trackId = parseInt(req.params.trackId);
+  const userId  = req.user.id;
+
+  if (isNaN(trackId)) return res.status(400).json({ error: 'Ungültige Track-ID' });
+
+  try {
+    // 1️⃣ Kaufprüfung
+    const purchaseResult = await pool.query(
+      `SELECT p.id, t.audio_filename, t.name, t.artist
+       FROM purchases p
+       JOIN tracks t ON t.id = p.track_id
+       WHERE p.user_id = $1 AND p.track_id = $2
+       LIMIT 1`,
+      [userId, trackId]
+    );
+
+    if (purchaseResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Kein Kaufnachweis für diesen Track' });
+    }
+
+    const { audio_filename, name, artist } = purchaseResult.rows[0];
+
+    // 2️⃣ Signierten Einmal-Token generieren (gültig 10 Minuten)
+    const token = crypto.randomBytes(32).toString('hex');
+    downloadTokens.set(token, {
+      userId,
+      trackId,
+      audio_filename,
+      trackName: `${artist} - ${name}`,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    console.log(`⬇️  Download-Token erstellt: User ${userId} → Track ${trackId} (${audio_filename})`);
+
+    res.json({
+      download_url: `/api/payments/download-file/${token}`,
+      expires_in:   600,
+      track_name:   `${artist} - ${name}`,
+    });
+  } catch (err) {
+    console.error('❌ Download token error:', err);
+    res.status(500).json({ error: 'Serverfehler beim Download' });
+  }
+});
+
+// ============================================================================
+// ⬇️  GET /api/payments/download-file/:token - Dateiauslieferung via Token
+// ============================================================================
+// Kein Auth-Header nötig — Token ist der Beweis. Einmalig verwendbar.
+
+const path_mod = require('path');
+const fs_mod   = require('fs');
+
+router.get('/download-file/:token', async (req, res) => {
+  const { token } = req.params;
+  const tokenData = downloadTokens.get(token);
+
+  if (!tokenData) {
+    return res.status(403).send('Download-Link ungültig oder abgelaufen.');
+  }
+
+  if (tokenData.expiresAt < Date.now()) {
+    downloadTokens.delete(token);
+    return res.status(403).send('Download-Link abgelaufen. Bitte neu anfordern.');
+  }
+
+  // Token sofort löschen — Einmalverwendung
+  downloadTokens.delete(token);
+
+  const filepath = path_mod.join(__dirname, '../public/audio', tokenData.audio_filename);
+
+  if (!fs_mod.existsSync(filepath)) {
+    console.error(`❌ Audiodatei nicht gefunden: ${filepath}`);
+    return res.status(404).send('Audiodatei nicht gefunden.');
+  }
+
+  // Sicherer Dateiname für den Browser
+  const safeFilename = tokenData.trackName
+    .replace(/[^a-zA-Z0-9\s\-_.äöüÄÖÜß]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 100) + '.mp3';
+
+  const stat = fs_mod.statSync(filepath);
+
+  console.log(`⬇️  Download: "${safeFilename}" für User ${tokenData.userId}`);
+
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Length', stat.size);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  fs_mod.createReadStream(filepath).pipe(res);
 });
 
 module.exports = router;

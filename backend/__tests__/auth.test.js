@@ -105,7 +105,7 @@ afterAll(async () => {
 // POST /api/auth/register
 // ===========================================================================
 describe('POST /api/auth/register', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
 
   test('201 - erfolgreiche Registrierung liefert user + token', async () => {
     // User existiert noch nicht
@@ -117,7 +117,7 @@ describe('POST /api/auth/register', () => {
 
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'neu@example.com', password: 'geheim123', username: 'neuer' });
+      .send({ email: 'neu@example.com', password: 'korrekt-pferd-batterie-klammer', username: 'neuer' });
 
     expect(res.statusCode).toBe(201);
     expect(res.body).toHaveProperty('token');
@@ -130,7 +130,7 @@ describe('POST /api/auth/register', () => {
 
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'doppelt@example.com', password: 'geheim123', username: 'jemand' });
+      .send({ email: 'doppelt@example.com', password: 'korrekt-pferd-batterie-klammer', username: 'jemand' });
 
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/already exists/i);
@@ -145,7 +145,7 @@ describe('POST /api/auth/register', () => {
     expect(res.body).toHaveProperty('errors');
   });
 
-  test('400 - Passwort zu kurz (< 8 Zeichen)', async () => {
+  test('400 - Passwort zu kurz (< 12 Zeichen)', async () => {
     const res = await request(app)
       .post('/api/auth/register')
       .send({ email: 'test@example.com', password: 'kurz', username: 'jemand' });
@@ -157,7 +157,7 @@ describe('POST /api/auth/register', () => {
   test('400 - Username zu kurz (< 3 Zeichen)', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'test@example.com', password: 'geheim123', username: 'ab' });
+      .send({ email: 'test@example.com', password: 'korrekt-pferd-batterie-klammer', username: 'ab' });
 
     expect(res.statusCode).toBe(400);
     expect(res.body).toHaveProperty('errors');
@@ -166,7 +166,7 @@ describe('POST /api/auth/register', () => {
   test('400 - ungültige E-Mail', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'kein-email', password: 'geheim123', username: 'jemand' });
+      .send({ email: 'kein-email', password: 'korrekt-pferd-batterie-klammer', username: 'jemand' });
 
     expect(res.statusCode).toBe(400);
     expect(res.body).toHaveProperty('errors');
@@ -177,7 +177,7 @@ describe('POST /api/auth/register', () => {
 // POST /api/auth/login
 // ===========================================================================
 describe('POST /api/auth/login', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
 
   test('200 - erfolgreicher Login liefert user + token', async () => {
     const hash = await makeHash('richtigesPasswort');
@@ -234,7 +234,7 @@ describe('POST /api/auth/login', () => {
   });
 
   test('200 - Login auch per E-Mail möglich', async () => {
-    const hash = await makeHash('geheim123');
+    const hash = await makeHash('korrekt-pferd-batterie-klammer');
 
     pool.query
       .mockResolvedValueOnce({
@@ -244,7 +244,7 @@ describe('POST /api/auth/login', () => {
 
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ username: 'user@example.com', password: 'geheim123' });
+      .send({ username: 'user@example.com', password: 'korrekt-pferd-batterie-klammer' });
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('token');
@@ -255,7 +255,7 @@ describe('POST /api/auth/login', () => {
 // POST /api/auth/verify
 // ===========================================================================
 describe('POST /api/auth/verify', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
 
   test('200 - gültiger Token wird als valid bestätigt', async () => {
     const token = makeToken();
@@ -304,7 +304,7 @@ describe('POST /api/auth/verify', () => {
 // GET /api/auth/me
 // ===========================================================================
 describe('GET /api/auth/me', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
 
   test('200 - gibt das eigene Profil zurück', async () => {
     const token = makeToken({ id: 5, role: 'user', email: 'ich@example.com', username: 'ichselbst' });
@@ -345,7 +345,7 @@ describe('GET /api/auth/me', () => {
 // POST /api/auth/logout
 // ===========================================================================
 describe('POST /api/auth/logout', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
 
   test('200 - Logout mit gültigem Token bestätigt', async () => {
     const token = makeToken();
@@ -369,7 +369,7 @@ describe('POST /api/auth/logout', () => {
 // POST /api/auth/refresh-token
 // ===========================================================================
 describe('POST /api/auth/refresh-token', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
 
   test('200 - liefert neues Token für eingeloggten User', async () => {
     const token = makeToken({ id: 3, role: 'user', email: 'fresh@example.com', username: 'freshuser' });
@@ -437,5 +437,78 @@ describe('SECURITY: Token-Manipulation', () => {
       .set('Authorization', `Bearer ${manipulierterToken}`);
 
     expect(res.statusCode).toBe(403);
+  });
+});
+
+// ===========================================================================
+// SECURITY: dev-login darf nicht existieren (Regression zu Issue #1)
+// ===========================================================================
+//
+// Der frühere Endpunkt POST /api/auth/dev-login legte einen User mit
+// role='admin' an und gab ein gültiges JWT zurück – ohne NODE_ENV-Guard und
+// öffentlich gemountet. Diese Tests stellen sicher, dass er nicht durch einen
+// Merge, ein Revert oder Copy-Paste zurückkehrt.
+//
+// Ersatz für den lokalen Komfort: npm run seed:dev-admin
+// ===========================================================================
+describe('SECURITY: dev-login darf nicht existieren', () => {
+  test('404 - POST /api/auth/dev-login existiert nicht', async () => {
+    const res = await request(app).post('/api/auth/dev-login');
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('404 - auch mit Body wird kein Account erzeugt', async () => {
+    const res = await request(app)
+      .post('/api/auth/dev-login')
+      .send({ email: 'dev@localhost' });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('kein Token und kein Auth-Cookie in der Antwort', async () => {
+    const res = await request(app).post('/api/auth/dev-login');
+
+    expect(res.body.token).toBeUndefined();
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  test('Groß-/Kleinschreibung und Slash-Varianten sind ebenfalls tot', async () => {
+    for (const pfad of [
+      '/api/auth/dev-login/',
+      '/api/auth/DEV-LOGIN',
+      '/api/auth/devlogin',
+      '/api/auth/dev_login',
+    ]) {
+      const res = await request(app).post(pfad);
+      expect(res.statusCode).toBe(404);
+    }
+  });
+
+  test('GET auf den alten Pfad liefert ebenfalls 404', async () => {
+    const res = await request(app).get('/api/auth/dev-login');
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('Quellcode-Prüfung: routes/auth.js registriert keine dev-login-Route', () => {
+    // Bewusst als statische Prüfung: fängt auch einen Wiedereinbau, der durch
+    // eine geänderte Mount-Struktur nicht mehr über HTTP sichtbar wäre.
+    const fsReal = jest.requireActual('fs');
+    const pathReal = jest.requireActual('path');
+    const quelle = fsReal.readFileSync(
+      pathReal.join(__dirname, '..', 'routes', 'auth.js'),
+      'utf8'
+    );
+
+    // Kommentare ausblenden, damit die Dokumentation im Code nicht anschlägt
+    const ohneKommentare = quelle
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((zeile) => !zeile.trim().startsWith('//'))
+      .join('\n');
+
+    expect(ohneKommentare).not.toMatch(/dev-login/i);
+    expect(ohneKommentare).not.toMatch(/dev123456/);
   });
 });

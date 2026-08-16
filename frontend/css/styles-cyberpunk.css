@@ -70,7 +70,8 @@ body {
     height: 100%;
     object-fit: cover;
     object-position: center;
-    filter: brightness(0.6) contrast(1.1);
+    /* Heller als vorher — Stadtbild klar sichtbar wie im alten Design */
+    filter: brightness(0.85) contrast(1.05);
 }
 
 /* Scanlines Animation */
@@ -250,9 +251,14 @@ h2 {
     transition: var(--transition);
 }
 
+.form-group input:focus-visible,
+.form-control:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
 .form-group input:focus,
 .form-control:focus {
-    outline: none;
     border-color: var(--color-primary);
     background: rgba(0, 0, 0, 0.5);
     box-shadow: 0 0 12px rgba(var(--color-primary-rgb, 0, 204, 119), 0.25), 
@@ -370,24 +376,24 @@ h2 {
 
 /* Card Styling */
 .track-card {
-    background: linear-gradient(135deg,
-            rgba(255, 20, 147, 0.12) 0%,
-            rgba(var(--color-primary-rgb, 0, 204, 119), 0.08) 50%,
-            rgba(50, 184, 198, 0.12) 100%);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--color-primary);
+    /* Dunkel & matter wie im alten Design */
+    background: rgba(4, 8, 20, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 255, 204, 0.08);
     border-radius: var(--border-radius);
     padding: 20px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.3s ease, border-color 0.3s ease,
+                box-shadow 0.3s ease, transform 0.3s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 0 25px rgba(var(--color-primary-rgb, 0, 204, 119), 0.3),
-                inset 0 0 20px rgba(var(--color-primary-rgb, 0, 204, 119), 0.08);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 240px;
+    min-height: 200px;
+    height: 100%;
 }
 
 .track-card::before {
@@ -404,16 +410,12 @@ h2 {
 }
 
 .track-card:hover {
-    border-color: var(--color-primary);
-    background: linear-gradient(135deg,
-            rgba(255, 20, 147, 0.2) 0%,
-            rgba(var(--color-primary-rgb, 0, 204, 119), 0.15) 50%,
-            rgba(50, 184, 198, 0.2) 100%);
-    box-shadow: 0 0 45px rgba(var(--color-primary-rgb, 0, 204, 119), 0.6),
-                0 0 25px rgba(255, 20, 147, 0.2),
-                inset 0 0 25px rgba(var(--color-primary-rgb, 0, 204, 119), 0.12);
-    transform: translateY(-6px) scale(1.02);
-    backdrop-filter: blur(0);
+    background: rgba(4, 14, 32, 0.90);
+    border-color: rgba(0, 255, 204, 0.40);
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.15), 0 4px 24px rgba(0, 0, 0, 0.65);
+    transform: translateY(-3px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 .track-card:hover::before {
@@ -526,7 +528,6 @@ button.button-metal-play {
     /* Reset Button Styles */
     padding: 0;
     border: none;
-    outline: none;
     color: transparent;
     font-size: 0;
     line-height: 0;
@@ -541,6 +542,17 @@ button.button-metal-play {
     min-width: 140px;
     max-width: 140px;
     box-shadow: none;
+}
+
+/* Sichtbarer Fokus (WCAG 2.4.7, Issue #53).
+   Die globale Regel :focus-visible in styles/main.css:146 kann hier nicht
+   greifen: button.button-metal-play ist (0,1,1) gegen (0,1,0), und diese
+   Datei wird von Webpack als <style> nach dem <link> eingefuegt.
+   Darum ein eigener Ring - :focus-visible, damit er beim Mausklick ausbleibt. */
+button.button-metal-play:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: 4px;
 }
 
 button.button-metal-play:hover:not(:disabled) {

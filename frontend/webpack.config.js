@@ -211,33 +211,63 @@ function resolveReferences(config, visited = new Set()) {
             return value;
         }
 
-        // Handle @ref syntax
-        if (typeof value === 'string' && value.startsWith('@ref ')) {
-            const refPath = value.substring(5).trim();
+        // ------------------------------------------------------------------
+        // @ref-Auflösung
+        //
+        // Vorher wurde nur der Fall behandelt, dass der GESAMTE Wert eine
+        // einzige Referenz ist: startsWith('@ref ') und dann alles ab
+        // Zeichen 5 als Pfad. Zwei Sorten Werte gingen dabei kaputt:
+        //
+        //   "@ref spacing.8 @ref spacing.16"
+        //     -> Pfad wurde zu "spacing.8 @ref spacing.16"
+        //     -> Warnung "Reference not found"
+        //
+        //   "1px solid @ref colors.border"
+        //     -> startsWith() war false, der Wert blieb unangetastet,
+        //        und zwar OHNE jede Warnung
+        //
+        // In beiden Fällen landete der Rohtext im erzeugten CSS:
+        //   --button-primary-padding: @ref spacing.8 @ref spacing.16;
+        //   --button-outline-border:  1px solid @ref colors.border;
+        // Das ist ungültig, der Browser verwirft die Deklaration.
+        //
+        // Jetzt wird jede Referenz einzeln im String ersetzt. Damit sind
+        // mehrere Referenzen pro Wert und Referenzen mitten im Text erlaubt,
+        // was die Konfiguration ohnehin voraussetzt.
+        // ------------------------------------------------------------------
+        if (typeof value === 'string' && value.includes('@ref ')) {
             visited.add(pathStr);
 
-            // Navigate the config to find the value
-            const parts = refPath.split('.');
-            let refValue = config;
+            const ergebnis = value.replace(/@ref\s+([A-Za-z0-9_$.]+)/g, (treffer, refPath) => {
+                // Abschliessende Punkte sind Satzzeichen, nicht Teil des Pfads
+                const pfad = refPath.replace(/\.+$/, '');
+                const parts = pfad.split('.');
 
-            for (const part of parts) {
-                if (refValue && typeof refValue === 'object' && part in refValue) {
-                    refValue = refValue[part];
-                } else {
-                    console.warn(`⚠️ Reference not found: @ref ${refPath}`);
-                    visited.delete(pathStr);
-                    return value;
+                let refValue = config;
+                for (const part of parts) {
+                    if (refValue && typeof refValue === 'object' && part in refValue) {
+                        refValue = refValue[part];
+                    } else {
+                        console.warn(`⚠️ Reference not found: @ref ${pfad} (bei ${pathStr || 'root'})`);
+                        return treffer; // Original stehen lassen, damit der Fehler sichtbar bleibt
+                    }
                 }
-            }
+
+                // Verkettete Referenz weiterverfolgen
+                if (typeof refValue === 'string' && refValue.includes('@ref ')) {
+                    refValue = processValue(refValue, [...path, pfad]);
+                }
+
+                if (refValue === null || typeof refValue === 'object') {
+                    console.warn(`⚠️ @ref ${pfad} zeigt auf ein Objekt, nicht auf einen Wert`);
+                    return treffer;
+                }
+
+                return String(refValue);
+            });
 
             visited.delete(pathStr);
-
-            // Recursively resolve if result is also a @ref
-            if (typeof refValue === 'string' && refValue.startsWith('@ref ')) {
-                return processValue(refValue, [...path, refPath]);
-            }
-
-            return refValue;
+            return ergebnis;
         }
 
         // Recursively process objects

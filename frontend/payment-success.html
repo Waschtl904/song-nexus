@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="./styles/main.css">
     <style>
         .success-container {
             max-width: 600px;
@@ -154,7 +154,7 @@
 </head>
 
 <body>
-    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+    <button class="theme-toggle" data-action="toggle-theme" title="Toggle Theme">🌙</button>
 
     <div class="container">
         <div class="success-container">
@@ -199,13 +199,13 @@
             </p>
 
             <div class="button-group">
-                <button class="button" id="downloadBtn" onclick="downloadTrack()" style="display: none;">
+                <button class="button" id="downloadBtn" data-action="download-track" style="display: none;">
                     ⬇️ Download Track
                 </button>
-                <button class="button" onclick="goToLibrary()" id="libraryBtn">
+                <button class="button" data-action="go-library" id="libraryBtn">
                     📚 Go to Library
                 </button>
-                <button class="button button-secondary" onclick="goHome()" id="homeBtn">
+                <button class="button button-secondary" data-action="go-home" id="homeBtn">
                     🏠 Back to Home
                 </button>
             </div>
@@ -498,7 +498,32 @@
                 showError('An unexpected error occurred. Please refresh and try again.', 'UNCAUGHT_ERROR');
             }
         });
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        switch (btn.dataset.action) {
+            case 'toggle-theme':   toggleTheme();   break;
+            case 'download-track': downloadTrack(); break;
+            case 'go-library':     goToLibrary();   break;
+            case 'go-home':        goHome();        break;
+        }
+    });
     </script>
+
+  <!-- Issue #10: Impressum und Datenschutz muessen von jeder oeffentlichen
+       Seite in einem Klick erreichbar sein. Bewusst mit Inline-Styles, damit
+       der Footer unabhaengig davon funktioniert, welches Stylesheet die
+       jeweilige Seite laedt (auth.html und transparency.html binden keins ein). -->
+  <footer role="contentinfo" style="margin-top:3rem;padding:1.5rem 1rem;text-align:center;font-size:0.8rem;line-height:1.8;opacity:0.75;border-top:1px solid rgba(255,255,255,0.08);">
+    <a href="/impressum.html" style="color:inherit;">Impressum</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/datenschutz.html" style="color:inherit;">Datenschutz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/transparency.html" style="color:inherit;">Transparenz</a>
+    &nbsp;&middot;&nbsp;
+    <a href="/" style="color:inherit;">Start</a>
+  </footer>
 </body>
 
 </html>

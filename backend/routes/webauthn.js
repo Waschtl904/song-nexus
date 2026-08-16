@@ -16,6 +16,9 @@ const {
     generateAuthenticationOptions
 } = require('@simplewebauthn/server');
 
+const { setAuthCookie } = require('../middleware/auth-middleware');
+const { pruefePasswort } = require('../utils/password-policy');
+
 // ============================================================================
 // 🔧 HELPER FUNCTIONS
 // ============================================================================
@@ -332,11 +335,12 @@ router.post('/register-verify', async (req, res) => {
         );
 
         const token = generateJWTToken(userId, req.session.username, req.session.email);
+        setAuthCookie(res, token);
 
         console.log('\n🎉🎉🎉 REGISTRATION SUCCESSFUL! 🎉🎉🎉\n');
         res.json({
             verified: true,
-            token,
+            token, // Beibehalten für Rückwärtskompatibilität
             user: {
                 id: userId,
                 username: req.session.username,
@@ -437,11 +441,12 @@ router.post('/authenticate-verify', async (req, res) => {
         );
 
         const token = generateJWTToken(user.id, user.username, user.email);
+        setAuthCookie(res, token);
 
         console.log('\n✅ WEBAUTHN LOGIN SUCCESSFUL!\n');
         res.json({
             verified: true,
-            token,
+            token, // Beibehalten für Rückwärtskompatibilität
             user: {
                 id: user.id,
                 username: user.username,
@@ -470,9 +475,13 @@ router.post('/register-password', async (req, res) => {
             return res.status(400).json({ error: 'Username, email, and password required' });
         }
 
-        if (password.length < 8) {
-            console.log('❌ Password too short');
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        // Dieselbe Regel wie bei /api/auth/register. Dieser Endpunkt ist der,
+        // den das Frontend tatsächlich aufruft — eine Verschärfung nur in
+        // auth.js hätte hier nichts geändert.
+        const passwortProbleme = pruefePasswort(password, { username, email });
+        if (passwortProbleme.length > 0) {
+            console.log('❌ Passwort erfüllt die Regeln nicht');
+            return res.status(400).json({ error: passwortProbleme.join(' ') });
         }
 
         if (password !== passwordConfirm) {
@@ -529,11 +538,12 @@ router.post('/register-password', async (req, res) => {
         console.log('✅ Password hash verified in database');
 
         const token = generateJWTToken(user.id, user.username, user.email);
+        setAuthCookie(res, token);
 
         console.log('\n✅ PASSWORD REGISTRATION SUCCESSFUL!\n');
         res.json({
             verified: true,
-            token,
+            token, // Beibehalten für Rückwärtskompatibilität
             user: {
                 id: user.id,
                 username: user.username,
@@ -610,11 +620,12 @@ router.post('/authenticate-password', async (req, res) => {
         );
 
         const token = generateJWTToken(user.id, user.username, user.email);
+        setAuthCookie(res, token);
 
         console.log('\n✅ PASSWORD LOGIN SUCCESSFUL!\n');
         res.json({
             verified: true,
-            token,
+            token, // Beibehalten für Rückwärtskompatibilität
             user: {
                 id: user.id,
                 username: user.username,
@@ -795,13 +806,14 @@ router.post('/verify-magic-link', async (req, res) => {
         );
 
         const jwtToken = generateJWTToken(user.id, user.username, user.email);
+        setAuthCookie(res, jwtToken);
 
         console.log('   ✅ User authenticated');
         console.log('\n✅ MAGIC LINK LOGIN SUCCESSFUL!\n');
 
         res.json({
             verified: true,
-            token: jwtToken,
+            token: jwtToken, // Beibehalten für Rückwärtskompatibilität
             user: {
                 id: user.id,
                 username: user.username,
@@ -877,11 +889,14 @@ router.get('/magic-link', async (req, res) => {
         );
 
         const jwtToken = generateJWTToken(user.id, user.username, user.email);
+        setAuthCookie(res, jwtToken);
 
         console.log('   ✅ User authenticated');
         console.log('\n✅ MAGIC LINK LOGIN SUCCESSFUL (via GET)!\n');
 
-        res.redirect(`${process.env.FRONTEND_URL || 'https://localhost:5500'}/?authToken=${jwtToken}&user=${user.username}`);
+        // Token nicht mehr in URL (Sicherheitsrisiko: URL-Logs, Referer-Header)
+        // Cookie wurde bereits gesetzt — Redirect zur Startseite genügt
+        res.redirect(`${process.env.FRONTEND_URL || 'https://localhost:5500'}/?user=${encodeURIComponent(user.username)}`);
 
     } catch (error) {
         console.error('❌ Magic link GET error:', error.message);

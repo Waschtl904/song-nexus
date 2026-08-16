@@ -2,7 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../db');
-const { verifyToken, generateJWT } = require('../middleware/auth-middleware');
+const { verifyToken, generateJWT, setAuthCookie, clearAuthCookie } = require('../middleware/auth-middleware');
+const { sendPasswordResetEmail } = require('../utils/mailer');
+const { passwortValidator } = require('../utils/password-policy');
 const router = express.Router();
 
 // ============================================================================
@@ -11,7 +13,7 @@ const router = express.Router();
 
 router.post('/register', [
   body('email').isEmail().normalizeEmail().withMessage('Invalid email'),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('password').custom(passwortValidator()),
   body('username').isLength({ min: 3, max: 20 }).trim().escape().withMessage('Username 3-20 chars'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -48,13 +50,14 @@ router.post('/register', [
     const user = result.rows[0];
     console.log(`✅ User registered: ${user.username} (${user.email})`);
 
-    // 4️⃣ Generate JWT token
+    // 4️⃣ Generate JWT token + als HttpOnly Cookie setzen
     const token = generateJWT(user);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       message: 'User registered successfully',
       user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token,
+      token, // Beibehalten für Rückwärtskompatibilität (wird in späterer Version entfernt)
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -123,14 +126,15 @@ router.post('/login', [
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
     console.log(`✅ Password valid, last_login updated: ${user.username}`);
 
-    // 4️⃣ Generate JWT token
+    // 4️⃣ Generate JWT token + als HttpOnly Cookie setzen
     const token = generateJWT(user);
     console.log(`✅ JWT token generated for user: ${user.username}`);
+    setAuthCookie(res, token);
 
     res.json({
       message: 'Login successful',
       user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token,
+      token, // Beibehalten für Rückwärtskompatibilität
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -139,55 +143,31 @@ router.post('/login', [
 });
 
 // ============================================================================
-// 🧨 POST /api/auth/dev-login - Development Quick Login
+// ⛔ ENTFERNT: POST /api/auth/dev-login
 // ============================================================================
-
-router.post('/dev-login', async (req, res) => {
-  try {
-    console.log('🧨 Dev login attempt...');
-
-    const devEmail = 'dev@localhost';
-    const devUsername = 'devuser';
-    const devPassword = 'dev123456';
-
-    // 1️⃣ Check if dev user exists
-    let userResult = await pool.query(
-      'SELECT id, email, username, role FROM users WHERE email = $1',
-      [devEmail]
-    );
-
-    let user;
-    if (userResult.rows.length === 0) {
-      // Create dev user if not exists
-      console.log('📃 Creating dev user...');
-      const hashedPassword = await bcrypt.hash(devPassword, 10);
-      userResult = await pool.query(
-        `INSERT INTO users (email, username, password_hash, role, is_active)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, email, username, role`,
-        [devEmail, devUsername, hashedPassword, 'admin', true]
-      );
-      console.log('✅ Dev user created');
-    } else {
-      console.log('✅ Dev user already exists');
-    }
-
-    user = userResult.rows[0];
-
-    // 2️⃣ Generate token
-    const token = generateJWT(user);
-
-    res.json({
-      success: true,
-      message: '✅ Dev login successful',
-      user: { id: user.id, email: user.email, username: user.username, role: user.role },
-      token,
-    });
-  } catch (err) {
-    console.error('❌ Dev login error:', err);
-    res.status(500).json({ error: 'Dev login failed' });
-  }
-});
+//
+// Dieser Endpunkt legte einen User mit role='admin' an und gab ein gültiges
+// JWT zurück – ohne jeden NODE_ENV-Guard. Der Router ist über
+// app.use('/api/auth', ...) öffentlich gemountet, damit war ein vollständiger
+// Admin-Takeover per einzelnem POST möglich (Issue #1).
+//
+// Die clientseitige localhost-Prüfung im Admin-Hub war KEIN Schutz – sie lief
+// im Browser und war mit curl trivial umgehbar.
+//
+// Der Endpunkt wurde bewusst NICHT nur weggeguarded, sondern ersetzt:
+// Ein HTTP-Endpunkt, der Admin-Accounts erzeugt, ist auch mit Guard eine
+// Fehlkonfiguration von der Katastrophe entfernt (z. B. vergessenes
+// NODE_ENV=production). Für den lokalen Komfort gibt es stattdessen:
+//
+//     cd backend && npm run seed:dev-admin
+//
+// Das Skript läuft ausschließlich über die CLI, verweigert den Start bei
+// NODE_ENV=production und hat keine HTTP-Angriffsfläche.
+// Siehe backend/scripts/seed-dev-admin.js
+//
+// ⚠️  NICHT wieder hinzufügen. Regressionstest: __tests__/auth.test.js
+//     ('SECURITY: dev-login darf nicht existieren')
+// ============================================================================
 
 // ============================================================================
 // 🔍 POST /api/auth/verify - Verify JWT Token is Valid
@@ -228,8 +208,8 @@ router.get('/me', verifyToken, async (req, res) => {
 // ============================================================================
 
 router.post('/logout', verifyToken, (req, res) => {
-  // Stateless: Just acknowledge logout (token removed on client)
   console.log(`✅ User ${req.user.id} logged out`);
+  clearAuthCookie(res); // HttpOnly Cookie löschen
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
@@ -251,12 +231,118 @@ router.post('/refresh-token', verifyToken, async (req, res) => {
 
     const user = result.rows[0];
     const token = generateJWT(user);
+    setAuthCookie(res, token); // Cookie erneuern
 
     console.log(`✅ Token refreshed for user: ${user.username}`);
-    res.json({ token });
+    res.json({ token }); // Beibehalten für Rückwärtskompatibilität
   } catch (err) {
     console.error('❌ Refresh token error:', err);
     res.status(500).json({ error: 'Failed to refresh token' });
+  }
+});
+
+// ============================================================================
+// 🔑 POST /api/auth/password-reset/request — Reset-Token anfordern
+// ============================================================================
+router.post('/password-reset/request', [
+  body('email').isEmail().normalizeEmail().withMessage('Ungültige E-Mail'),
+], async (req, res) => {
+  // Immer 200 zurückgeben (verhindert User-Enumeration)
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(200).json({ message: 'OK' });
+
+  const { email } = req.body;
+  try {
+    const result = await pool.query('SELECT id, email, username FROM users WHERE email = $1 AND is_active = true', [email]);
+    if (result.rows.length === 0) return res.status(200).json({ message: 'OK' });
+
+    const user = result.rows[0];
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 Stunde
+
+    // Token in DB speichern (Spalte wird ggf. angelegt)
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3, created_at = NOW()`,
+      [user.id, token, expiresAt]
+    );
+
+    // E-Mail versenden (dev: nur Log, prod: echte E-Mail via Nodemailer)
+    await sendPasswordResetEmail(user.email, token, process.env.FRONTEND_URL || 'http://localhost:3000');
+
+    res.status(200).json({ message: 'OK' });
+  } catch (err) {
+    console.error('Password reset request error:', err);
+    res.status(200).json({ message: 'OK' }); // Kein Fehler nach außen
+  }
+});
+
+// ============================================================================
+// 🔑 POST /api/auth/password-reset/verify — Token prüfen
+// ============================================================================
+router.post('/password-reset/verify', [
+  body('token').notEmpty().trim(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Token fehlt' });
+
+  const { token } = req.body;
+  try {
+    const result = await pool.query(
+      `SELECT prt.user_id, prt.expires_at, u.email
+       FROM password_reset_tokens prt
+       JOIN users u ON u.id = prt.user_id
+       WHERE prt.token = $1`,
+      [token]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Ungültiger Token' });
+    if (new Date(result.rows[0].expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token abgelaufen. Bitte neu anfordern.' });
+    }
+    res.json({ valid: true });
+  } catch (err) {
+    console.error('Password reset verify error:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// ============================================================================
+// 🔑 POST /api/auth/password-reset/confirm — Neues Passwort setzen
+// ============================================================================
+router.post('/password-reset/confirm', [
+  body('token').notEmpty().trim(),
+  body('newPassword').custom(passwortValidator()),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { token, newPassword } = req.body;
+  try {
+    const result = await pool.query(
+      `SELECT prt.user_id, prt.expires_at
+       FROM password_reset_tokens prt
+       WHERE prt.token = $1`,
+      [token]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Ungültiger Token' });
+    if (new Date(result.rows[0].expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token abgelaufen' });
+    }
+
+    const userId = result.rows[0].user_id;
+    const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '10');
+    const hashedPassword = await bcrypt.hash(newPassword, bcryptRounds);
+
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, userId]);
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+
+    console.log(`✅ Passwort erfolgreich zurückgesetzt für User ID ${userId}`);
+    res.json({ message: 'Passwort erfolgreich geändert' });
+  } catch (err) {
+    console.error('Password reset confirm error:', err);
+    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 

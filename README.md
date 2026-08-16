@@ -2,42 +2,28 @@
 
 > **A modern, full-stack music streaming platform with advanced authentication, real-time audio streaming, and PayPal payment integration.**
 
-![Status](https://img.shields.io/badge/Status-Active%20Development-blue?style=flat-square)
-![Version](https://img.shields.io/badge/Version-6.2.0-blue?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Pre--Launch-orange?style=flat-square)
+![CI](https://github.com/Waschtl904/song-nexus/actions/workflows/ci.yml/badge.svg?branch=dev%2Fv1.0)
+![Version](https://img.shields.io/badge/Version-6.3.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Tech Stack](https://img.shields.io/badge/Tech-Node.js%20|%20Express%20|%20PostgreSQL%20|%20Jest-informational?style=flat-square)
-![Tests](https://img.shields.io/badge/Tests-39%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-150%20passing-brightgreen?style=flat-square)
+![Node](https://img.shields.io/badge/Node-%3E%3D22-brightgreen?style=flat-square)
+![Audit](https://img.shields.io/badge/npm%20audit-0%20vulnerabilities-brightgreen?style=flat-square)
 
 ---
 
-## 🖥️ YOUR WINDOWS 11 LAPTOP SETUP
+## ⚡ Aktueller Branch
 
-### ⚠️ IMPORTANT: Your Single Working Directory
+Der führende Branch ist **`dev/v1.0`**, nicht `main`. `main` ist veraltet (Issue #5).
 
-**All development work happens in ONE location ONLY:**
-
-```
-C:\Users\sebas\Desktop\SongSeite
-```
-
-**This directory contains:**
-- ✅ All project code (backend/, frontend/)
-- ✅ All documentation files (README.md, *.md)
-- ✅ Database schema (schema.sql)
-- ✅ Node.js packages (node_modules/)
-- ✅ Environment configurations (.env files)
-- ✅ Git repository (.git/)
-
-**NEVER:**
-- ❌ Create copies in other locations
-- ❌ Work in different folders
-- ❌ Mix with other projects
-
-**Keep synchronized with GitHub:**
 ```powershell
-cd C:\Users\sebas\Desktop\SongSeite
-git pull origin main
+git pull origin dev/v1.0
 ```
+
+**Vor jedem Pull `git status` prüfen.** Unversionierte oder lokal geänderte Dateien lassen den Pull abbrechen — das ist die häufigste Stolperstelle in diesem Projekt.
+
+Der lokale Arbeitspfad steht bewusst nicht mehr hier, sondern in `docs/SETUP-WINDOWS.md`.
 
 ---
 
@@ -47,13 +33,15 @@ git pull origin main
 
 - 🔐 **Triple Authentication** – WebAuthn (Biometric), Password, Magic Link
 - 🎵 **Advanced Audio Streaming** – HTTP Range Requests, 40s Preview for paid tracks
-- 💳 **Secure Payments** – PayPal integration for track purchases
+- 💳 **Zahlungen** – PayPal-Anbindung vorhanden, aber **standardmäßig abgeschaltet**; im Frontend existiert noch kein Kauf-Button (Issue #12)
 - 📊 **Full Admin Dashboard** – Secure management console with JWT authentication
 - 📤 **Track Management** – Upload, categorize, and monetize music
 - 📈 **Analytics** – Play history, user statistics, leaderboards
 - ⚡ **High Performance** – Webpack bundling, optimized API endpoints
 - 🔒 **Security First** – JWT tokens, CORS, Helmet, rate limiting, SSL/TLS
-- 🧪 **Fully Tested** – 39 Jest tests passing across Auth, Tracks, and Payments
+- 🧪 **Getestet** – 67 Jest-Tests (Auth, Tracks, Payments), CI bei jedem Push
+- 🔌 **Soft-Launch-Modus** – Verkauf ist standardmäßig deaktiviert (`PAYMENTS_ENABLED`)
+- ⚖️ **Rechtsseiten** – Impressum und Datenschutz vorhanden; AGB und Widerruf fehlen noch (Issue #14)
 
 ---
 
@@ -84,10 +72,15 @@ This file contains:
 - docs/SETUP-WINDOWS.md
 - docs/PROJECT-STRUCTURE.md
 
-❌ **IGNORE (Legacy/outdated):**
-- MASTER-PROMPT-2026-DEFINITIVE.md (old version)
-- MASTER-CONTEXT-PROMPT.md (old version)
-- REPOSITORY-STRUCTURE.md (use PROJECT-STRUCTURE.md instead)
+✅ **Ebenfalls aktuell:**
+- LAUNCH-PLAN.md — Weg zum Launch, 4 Milestones
+- docs/SECURITY-GUIDE.md
+- docs/DEPLOYMENT-HETZNER.md
+
+**Entfernt am 15.08.2026:** `MASTER-PROMPT-2026-DEFINITIVE.md`, `MASTER-CONTEXT-PROMPT.md`
+und `REPOSITORY-STRUCTURE.md`. Drei veraltete Dokumente, die als "ignorieren"
+markiert waren, haben bei jedem Wiedereinstieg Zeit gekostet und zu
+widersprüchlichen Annahmen geführt. Die Git-Historie bewahrt sie.
 
 ---
 
@@ -223,14 +216,18 @@ https://localhost:3000/admin/
 ## 🛠️ Tech Stack
 
 ### **Backend**
-- **Runtime:** Node.js 18+
+- **Runtime:** Node.js **>= 22** (Pflicht, siehe unten)
 - **Framework:** Express.js v4
-- **Version:** 6.2.0
+- **Version:** 6.3.0
 - **Authentication:** WebAuthn, JWT (jsonwebtoken), bcryptjs
 - **API:** REST with 35+ endpoints
 - **Server:** HTTPS with mkcert (local SSL)
-- **Security:** Helmet, CORS, express-rate-limit, csrf-csrf, mongo-sanitize, xss-clean
-- **Testing:** Jest 29 + Supertest 7 (39 tests, all passing)
+- **Security:** Helmet, CORS, express-rate-limit, csrf-csrf, mongo-sanitize
+- **Uploads:** multer 2.x · **Mail:** nodemailer 9.x
+- **Testing:** Jest 29 + Supertest 7 (**150 Tests**, alle grün)
+
+> **Warum Node >= 22 zwingend ist:** `nodemailer 9` zieht `@peculiar/x509` mit (`node >= 22`),
+> `webpack-dev-server 6` verlangt `>= 22.15.0`. Beide `package.json` haben ein `engines`-Feld.
 
 ### **Frontend**
 - **Language:** JavaScript (ES6+)
@@ -264,31 +261,48 @@ SONG-NEXUS/
 │   ├── MASTER-PROMPT-2026-AKTUELL.md       🔴 START HERE EVERY SESSION!
 │   ├── DATABASE.md                         ✅ Database schema documentation
 │   ├── PRODUCTION-DEPLOYMENT.md            ✅ Deployment guide
-│   └── schema.sql                          ✅ DATABASE SCHEMA (single source of truth)
+│   └── schema_clean.sql                    ✅ DATABASE SCHEMA (führend)
+│   └── schema.sql                          ⚠️ VERALTET, nicht verwenden
 │
 ├── 📂 docs/
 │   ├── ADMIN-GUIDE.md                      ✅ Admin Hub documentation
 │   ├── PROJECT-STRUCTURE.md                ✅ Complete project organization
 │   └── SETUP-WINDOWS.md                    ✅ Windows 11 Pro setup guide
 │
-├── 📂 backend/                             Express.js REST API Server (v6.2.0)
+├── 📂 migrations/                          SQL-Migrationen, nach Datum benannt
+│   ├── 2026-08-15-orders-track-id.sql      orders.track_id – Bestellung kennt ihren Track
+│   └── 2026-08-15_cleanup-dev-accounts.sql
+│
+├── 📂 backend/                             Express.js REST API Server (v6.3.0)
 │   ├── 📂 routes/
 │   │   ├── auth.js                         Auth endpoints (register, login, verify, me, logout, refresh)
 │   │   ├── tracks.js                       Tracks + Audio streaming with access control
 │   │   └── payments.js                     PayPal integration
+│   │   └── admin-tracks.js                 Upload; misst Dauer selbst, Preis ist Pflicht
 │   ├── 📂 middleware/
 │   │   └── auth-middleware.js              JWT verification (sync + async)
-│   ├── 📂 __tests__/                       ✅ Jest test suite
-│   │   ├── auth.test.js                    25 tests – Auth routes
-│   │   ├── tracks.test.js                  14 tests – Tracks + Audio streaming
-│   │   ├── payments.test.js                Payments tests
-│   │   └── setup.js                        Test setup & teardown
+│   ├── 📂 utils/
+│   │   ├── audio-rate.js                   Datenrate aus dem Dateikopf (WAV exakt, MP3 aus dem Rahmen)
+│   │   ├── password-policy.js              Passwortregel – die einzige Quelle
+│   │   ├── cache-invalidator.js            Zwischenspeicher der Trackliste leeren
+│   │   └── mailer.js                       Versand von E-Mails
+│   ├── 📂 scripts/
+│   │   ├── seed-dev-admin.js               Admin-Konto für die Entwicklung anlegen
+│   │   └── dauer-pruefen.js                duration_seconds gegen die Dateien prüfen
+│   ├── 📂 __tests__/                       ✅ 150 Tests in 5 Suiten
+│   │   ├── auth.test.js                    Anmeldung, Registrierung, Token
+│   │   ├── tracks.test.js                  Trackliste + Zugriffsschutz auf Audiodateien
+│   │   ├── payments.test.js                Bestellung, Freischaltung, Preisautorität
+│   │   ├── password-policy.test.js         die Passwortregel
+│   │   ├── audio-rate.test.js              Datenrate – ohne fs-Mock, mit echten Dateien
+│   │   ├── setup.js                        Test setup & teardown
+│   │   └── README.md                       Strategie und bekannte Fallstricke
 │   ├── 📂 public/
 │   │   └── audio/                          MP3/WAV files served by streaming endpoint
 │   ├── 📂 certs/                           SSL certificates
 │   ├── server.js                           Express server entry point
 │   ├── app.js                              Express app (exported for testing)
-│   ├── package.json                        v6.2.0 – includes npm test scripts
+│   ├── package.json                        v6.3.0 – Version wird von server.js daraus gelesen
 │   └── .env.example
 │
 ├── 📂 frontend/                            React + Webpack Frontend
@@ -297,13 +311,15 @@ SONG-NEXUS/
 │   │   └── design-editor.html              🎨 Design editor
 │   ├── admin-upload.html                   📤 Track upload
 │   ├── 📂 js/                              JavaScript modules
+│   │   └── password-policy.js              gespiegelte Fassung der Backend-Regel
 │   ├── 📂 css/                             Stylesheets
 │   ├── 📂 dist/                            Webpack output (generated)
 │   └── webpack.config.js
 │
 ├── sync-repo.ps1                           ✅ Repository sync utility (PowerShell)
 ├── package.json                            Root package (concurrently)
-└── schema.sql                              DATABASE SCHEMA (ROOT – single source of truth)
+├── schema_clean.sql                        DATABASE SCHEMA (ROOT – führend)
+└── schema.sql                              ⚠️ VERALTET, enthält Redundanzen
 ```
 
 ---
@@ -349,8 +365,11 @@ POST   /api/auth/verify           # Verify JWT token
 GET    /api/auth/me               # Get current user profile
 POST   /api/auth/refresh-token    # Refresh JWT
 POST   /api/auth/logout           # Logout (requires token)
-POST   /api/auth/dev-login        # Dev-only quick login
 ```
+
+> **Entfernt:** `POST /api/auth/dev-login` existiert nicht mehr (Issue #1).
+> Der Endpunkt legte einen Admin-Account ohne serverseitigen Guard an.
+> Lokalen Admin stattdessen per CLI anlegen: `cd backend && npm run seed:dev-admin`
 
 ### Tracks & Audio
 ```
@@ -512,7 +531,12 @@ git push origin main
 
 ## 🚀 Deployment
 
-**Complete deployment guide:** See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+**Deployment auf Hetzner-VPS (operativ, deutsch):**
+[docs/DEPLOYMENT-HETZNER.md](./docs/DEPLOYMENT-HETZNER.md) — mit Skripten unter
+`scripts/deploy/`, die sich am Ende selbst überprüfen.
+
+**Allgemeine Fassung (englisch, auch Managed-DB):**
+[PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
 
 ### Quick Steps
 
@@ -536,7 +560,8 @@ git push origin main
 - Admin track management
 - Play history tracking
 - Database schema (10 tables, 22 indexes)
-- **Jest test suite: 39 tests all passing** (Auth, Tracks, Payments)
+- **Jest-Testsuite: 150 Tests, alle grün** (Auth, Tracks, Payments)
+- CI über GitHub Actions: Tests, `npm audit`, Frontend-Build, Secret-Scan
 - Secure Admin Hub with JWT login
 - Windows 11 Pro setup guide
 
@@ -594,7 +619,8 @@ Make sure `NODE_ENV=test` is set and your test DB exists. See `__tests__/setup.j
 |------|---------|
 | [MASTER-PROMPT-2026-AKTUELL.md](./MASTER-PROMPT-2026-AKTUELL.md) | 🔴 START HERE – session context |
 | [DATABASE.md](./DATABASE.md) | Complete DB schema |
-| [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md) | Deployment guide |
+| [docs/DEPLOYMENT-HETZNER.md](./docs/DEPLOYMENT-HETZNER.md) | **Deployment auf Hetzner-VPS** — operative Anleitung mit Skripten |
+| [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md) | Deployment, allgemeine Fassung |
 | [docs/SETUP-WINDOWS.md](./docs/SETUP-WINDOWS.md) | Windows 11 setup |
 | [docs/ADMIN-GUIDE.md](./docs/ADMIN-GUIDE.md) | Admin Hub docs |
 | [docs/PROJECT-STRUCTURE.md](./docs/PROJECT-STRUCTURE.md) | Project organization |
@@ -610,12 +636,13 @@ MIT License © 2025–2026 Song-Nexus Contributors – See `LICENSE` for details
 ## 👤 Author
 
 **Sebastian** – Tool-maker turned Web Developer  
-📍 Vienna, AT | 📧 sebastian.schmalnauer@gmx.at  
+📍 Bad Ischl, Oberösterreich, AT | 📧 sebastian.schmalnauer@gmx.at  
 🐛 [GitHub Issues](https://github.com/Waschtl904/song-nexus/issues)
 
 ---
 
-**Last Updated:** May 14, 2026  
-**Backend Version:** 6.2.0  
-**Status:** 🟡 Active Development  
-**Tests:** ✅ 39 passing
+**Zuletzt aktualisiert:** 15. August 2026 (gegen den Code auf `dev/v1.0` geprüft)  
+**Backend-Version:** 6.3.0 · **Frontend-Version:** 8.0.0  
+**Status:** 🟠 Pre-Launch — Code bereit für Soft-Launch, Deployment offen (Issue #6)  
+**Tests:** ✅ 67 grün · **npm audit:** ✅ 0 Vulnerabilities  
+**Fahrplan:** siehe [LAUNCH-PLAN.md](./LAUNCH-PLAN.md)

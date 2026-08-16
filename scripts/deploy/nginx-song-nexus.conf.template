@@ -1,0 +1,143 @@
+# ============================================================================
+# nginx-Konfiguration fuer SONG-NEXUS
+# ============================================================================
+# Platzhalter DEINE_DOMAIN vor dem Einsatz ersetzen - das macht
+# 04-nginx-ssl.sh automatisch.
+#
+# Ablage: /etc/nginx/sites-available/song-nexus
+# ============================================================================
+
+# --- HTTP: alles auf HTTPS umleiten, ausser der ACME-Pruefung ---------------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name DEINE_DOMAIN www.DEINE_DOMAIN;
+
+    # Let's Encrypt muss diesen Pfad unverschluesselt erreichen koennen,
+    # sonst schlaegt die Zertifikatserneuerung fehl.
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# --- HTTPS ------------------------------------------------------------------
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name DEINE_DOMAIN www.DEINE_DOMAIN;
+
+    # Zertifikatspfade fuellt Certbot aus
+    ssl_certificate     /etc/letsencrypt/live/DEINE_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/DEINE_DOMAIN/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    # ------------------------------------------------------------------------
+    # Upload-Groesse
+    # ------------------------------------------------------------------------
+    # Ohne diese Zeile bricht nginx bei 1 MB ab (Standardwert) und liefert
+    # 413, obwohl die Anwendung 100 MB erlaubt (MAX_FILE_SIZE=104857600).
+    # Der Admin-Upload von Audiodateien wuerde also stumm scheitern.
+    client_max_body_size 105M;
+
+    # Sicherheits-Header
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options    "nosniff" always;
+    add_header X-Frame-Options           "SAMEORIGIN" always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy        "geolocation=(), microphone=(), camera=()" always;
+
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css application/json application/javascript
+               text/xml application/xml image/svg+xml;
+    gzip_min_length 1024;
+
+    root /var/www/song-nexus/frontend;
+    index index.html;
+
+    # ------------------------------------------------------------------------
+    # Quelldateien sperren
+    # ------------------------------------------------------------------------
+    # root zeigt auf das Frontend-Verzeichnis, in dem auch der Quellcode,
+    # node_modules, package.json, webpack.config.js und server.js liegen.
+    # Ohne diese Sperre waeren die alle oeffentlich abrufbar.
+    # ACHTUNG: /js/ darf NICHT gesperrt werden. Die Seiten laden
+    # js/init.js und js/admin.js zur Laufzeit direkt, nicht ueber das
+    # Bundle. Eine Sperre auf /js/ nimmt die Admin-Seite ausser Betrieb.
+    location ~ ^/(node_modules|webpack)/ { deny all; return 404; }
+    location ~ ^/certs/                  { deny all; return 404; }
+    location ~ ^/config/.*\.(md|html)$   { deny all; return 404; }
+    location ~ ^/(server\.js|webpack\.config\.js|package(-lock)?\.json)$ { deny all; return 404; }
+    location ~ /\.  { deny all; return 404; }   # .env, .git, .DS_Store
+
+    # API an Node weiterleiten
+    location /api/ {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Audio-Auslieferung laeuft ueber /api/tracks/audio/ und braucht
+    # eigene Einstellungen: kein Zwischenpuffer, damit der Player sofort
+    # Ton bekommt, und ein hoher Zeitgrenzwert fuer lange Dateien.
+    #
+    # Die Reihenfolge in der Datei spielt hier keine Rolle: bei Prefix-Regeln
+    # waehlt nginx die LAENGSTE Uebereinstimmung, also diese und nicht
+    # location /api/. Nur bei regulaeren Ausdruecken zaehlt die Reihenfolge.
+    #
+    # Die frueher hier stehende Weiterleitung fuer /public/audio/ ist
+    # entfallen: das Backend liefert Audiodateien nicht mehr statisch aus,
+    # weil dieser Weg den Kaufschutz vollstaendig umging.
+    location /api/tracks/audio/ {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_buffering    off;
+    }
+
+    # Gebautes Bundle darf gecacht werden
+    location /dist/ {
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location ~* \.(png|jpe?g|webp|svg|ico|woff2?|mp3)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    # CSS nur kurz cachen: _design-tokens.css wird bei jedem Build neu erzeugt
+    location ~* \.css$ {
+        expires 1h;
+        add_header Cache-Control "public, must-revalidate";
+    }
+
+    # ------------------------------------------------------------------------
+    # Fehlerseiten
+    # ------------------------------------------------------------------------
+    # Bewusst KEIN "try_files ... /index.html". SONG-NEXUS ist keine
+    # Single-Page-Anwendung, sondern hat 11 einzelne HTML-Seiten. Ein
+    # Fallback auf index.html wuerde fuer jeden Tippfehler in der URL
+    # Status 200 liefern - genau der Fehler, durch den die toten Links
+    # monatelang unentdeckt blieben (Issue #10).
+    location / {
+        try_files $uri $uri/ $uri.html =404;
+    }
+
+    error_page 404 /404.html;
+    location = /404.html { internal; }
+}
