@@ -857,6 +857,11 @@ async function warmupDatabase() {
     }
 }
 
+/**
+ * Gibt beim Start den Inhalt von design_system aus.
+ * Nur fuer die Entwicklung gedacht - der Aufruf ist auf NODE_ENV !==
+ * 'production' begrenzt, siehe Startkette weiter unten.
+ */
 async function debugDatabaseContent() {
     try {
         console.log("🕵️ DEBUG: Prüfe Datenbank-Inhalt...");
@@ -879,7 +884,19 @@ const { verifyMailer } = require('./utils/mailer');
 const { version: APP_VERSION } = require('./package.json');
 
 warmupDatabase().then(async () => {
-    await debugDatabaseContent();
+    // DEBUG-Ausgabe nur ausserhalb von Produktion.
+    //
+    // Der Aufruf stand bisher ohne Bedingung hier und lief damit auch auf dem
+    // Server mit: eine zusaetzliche Abfrage bei jedem Start und eine
+    // console.table im Produktionsprotokoll. Der Inhalt ist harmlos - id,
+    // is_active und color_primary aus design_system, keine Nutzerdaten -
+    // aber ein Protokoll soll nur enthalten, was jemand lesen will.
+    //
+    // Aufgefallen in der Startausgabe, festgehalten in Issue #47.
+    if (NODE_ENV !== 'production') {
+        await debugDatabaseContent();
+    }
+
     await verifyMailer(); // SMTP-Verbindung testen (nur Warnung bei Fehler, kein Abbruch)
     if (httpsOptions && USE_HTTPS) {
         const server = https.createServer(httpsOptions, app);
