@@ -783,6 +783,7 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/play-history', require('./routes/play-history'));
 app.use('/api/admin/tracks', require('./routes/admin-tracks'));
+app.use('/api/admin/herkunft', require('./routes/admin-herkunft'));
 
 console.log('✅ Auth/Payments/Users routes registered (NO CACHE)');
 
