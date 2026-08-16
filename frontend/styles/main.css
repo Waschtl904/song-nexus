@@ -881,7 +881,14 @@ header {
   background: rgba(0,255,204,0.15);
   border-radius: 2px;
   cursor: pointer;
-  outline: none;
+}
+
+/* Sichtbarer Fokus (WCAG 2.4.7, Issue #53).
+   Vorher stand hier outline: none. Die globale Regel in Zeile 146 hat dieselbe
+   Spezifitaet (0,1,0), steht aber weiter oben in der Datei und verlor darum. */
+.volume-slider:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .volume-slider::-webkit-slider-thumb {
@@ -1034,8 +1041,14 @@ header {
   background: rgba(0,255,204,0.04);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  outline: none;
   transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+/* Issue #53: vorher outline: none, der Ersatz war nur ein Rahmenwechsel auf
+   --color-border - also genau die Farbe, die laut Issue #54 zu schwach war. */
+.form-control:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .form-control::placeholder { color: var(--color-text-faint); }
