@@ -15,7 +15,7 @@ npm run test:coverage # mit Abdeckungsbericht
 `npm install` statt `npm ci` schreibt die `package.json` um und hat schon
 einmal einen Konflikt beim nächsten `git pull` verursacht.
 
-## Die sechs Suiten
+## Die sieben Suiten
 
 | Datei | Prüft |
 |---|---|
@@ -25,10 +25,11 @@ einmal einen Konflikt beim nächsten `git pull` verursacht.
 | `password-policy.test.js` | die Passwortregel als eigenes Modul |
 | `audio-rate.test.js` | Datenrate aus dem Dateikopf — **ohne fs-Mock, mit echten Dateien** |
 | `server-paritaet.test.js` | **Abweichung zwischen `app.js` und `server.js`** — statische Quelltextprüfung, kein HTTP |
+| `design-tokens-css.test.js` | CSS-Aufbau aus einem Datenbanksatz — reine Funktion, keine Datenbank (Issue #67) |
 
 ## Strategie
 
-Drei der sechs Suiten **mocken `db.js`** (`pool.query`), damit keine echte
+Drei der sieben Suiten **mocken `db.js`** (`pool.query`), damit keine echte
 PostgreSQL-Verbindung nötig ist — `auth`, `tracks` und `payments`:
 
 - Tests laufen ohne laufende Datenbank, auch in GitHub Actions
@@ -40,9 +41,16 @@ echten Bytes die richtige Datenrate lesen lässt. Ein Mock könnte nur
 bestätigen, was der Test ohnehin annimmt. Die Suite legt deshalb echte
 Dateien in einem temporären Verzeichnis an und liest sie zurück.
 
-`password-policy.test.js` braucht keine Datenbank, weil es ein reines Modul
-prüft. `server-paritaet.test.js` lädt weder `app.js` noch `server.js`, sondern
-liest beide als Text — Begründung im Kopf der Datei.
+`password-policy.test.js` und `design-tokens-css.test.js` brauchen keine
+Datenbank, weil sie reine Module prüfen. `server-paritaet.test.js` lädt weder
+`app.js` noch `server.js`, sondern liest beide als Text — Begründung im Kopf
+der Datei.
+
+Das ist kein Zufall, sondern die Lehre aus #67: der Escaping-Fehler im
+CSS-Aufbau hat monatelang überlebt, weil die Funktion mitten in `server.js`
+stand und dort nicht prüfbar war. Als eigenes Modul war sie in einer
+Viertelstunde abgedeckt. **Was geprüft werden soll, muss sich einzeln laden
+lassen.**
 
 ## Zwei Fallen, in die wir schon getappt sind
 
@@ -102,3 +110,19 @@ grüne Suite weniger, als sie zu sagen scheint.
    (Issue #16)
 3. Tests für den Admin-Upload — die Preispflicht und die serverseitige
    Dauermessung sind bisher nur von Hand geprüft
+
+## Eine dritte Falle: der leere Durchlauf
+
+`design-tokens-css.test.js` enthält einen Test namens „es gibt überhaupt
+Deklarationszeilen", `server-paritaet.test.js` einen namens „die Extraktion
+funktioniert". Beide prüfen nichts Fachliches, sondern nur, dass die
+nachfolgenden Prüfungen überhaupt etwas zu tun bekommen.
+
+Der Grund ist beim Nachstellen von #67 sichtbar geworden: mit dem alten,
+fehlerhaften Aufbau bestand die Ausgabe aus einer einzigen Zeile. Die
+Zeilenliste war damit leer, und alle Schleifen `for (const zeile of inhalt)`
+liefen grün durch, weil es nichts zu prüfen gab. Erst der Mindestzahl-Test
+hat den Fehler gemeldet.
+
+**Wo eine Prüfung über eine Liste läuft, gehört ein Test dazu, der die Liste
+nicht leer sein lässt.**

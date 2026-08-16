@@ -31,6 +31,9 @@ const app = express();
 // ✅ CSRF MIDDLEWARE IMPORT
 const { attachCSRFToken, validateCSRFToken } = require('./middleware/csrf-middleware');
 
+// CSS-Aufbau fuer die Design-Tokens (Issue #67)
+const { cssAusDatenbanksatz } = require('./utils/design-tokens-css');
+
 // ============================================================================
 // 🔒 HTTPS CERTIFICATE SETUP (mkcert for Development)
 // ============================================================================
@@ -710,30 +713,17 @@ function regenerateDesignTokens(dbRow) {
     try {
         console.log('🎨 Regenerating _design-tokens.css from database...');
 
-        let css = ':root {\\n';
-
-        if (dbRow.color_primary) css += `  --color-primary: ${dbRow.color_primary};\\n`;
-        if (dbRow.color_secondary) css += `  --color-secondary: ${dbRow.color_secondary};\\n`;
-        if (dbRow.color_accent_teal) css += `  --color-accent-teal: ${dbRow.color_accent_teal};\\n`;
-        if (dbRow.color_accent_green) css += `  --color-accent-green: ${dbRow.color_accent_green};\\n`;
-        if (dbRow.color_accent_red) css += `  --color-accent-red: ${dbRow.color_accent_red};\\n`;
-        if (dbRow.color_text_primary) css += `  --color-text-primary: ${dbRow.color_text_primary};\\n`;
-        if (dbRow.color_background) css += `  --color-background: ${dbRow.color_background};\\n`;
-
-        if (dbRow.font_family_base) css += `  --font-family-base: ${dbRow.font_family_base};\\n`;
-        if (dbRow.font_size_base) css += `  --font-size-base: ${dbRow.font_size_base}px;\\n`;
-        if (dbRow.font_weight_normal) css += `  --font-weight-normal: ${dbRow.font_weight_normal};\\n`;
-        if (dbRow.font_weight_bold) css += `  --font-weight-bold: ${dbRow.font_weight_bold};\\n`;
-
-        if (dbRow.spacing_unit) css += `  --space-8: ${dbRow.spacing_unit}px;\\n`;
-        if (dbRow.border_radius) css += `  --radius-base: ${dbRow.border_radius}px;\\n`;
-
-        if (dbRow.button_background_color) css += `  --button-primary-background: ${dbRow.button_background_color};\\n`;
-        if (dbRow.button_text_color) css += `  --button-primary-text-color: ${dbRow.button_text_color};\\n`;
-        if (dbRow.button_border_radius) css += `  --button-primary-border-radius: ${dbRow.button_border_radius}px;\\n`;
-        if (dbRow.button_padding) css += `  --button-primary-padding: ${dbRow.button_padding};\\n`;
-
-        css += '}\\n';
+        // Der CSS-Aufbau liegt seit Issue #67 in backend/utils/design-tokens-css.js.
+        //
+        // Vorher stand er hier und verwendete '\\n' statt '\n' - in JavaScript
+        // ein Backslash gefolgt von n, kein Zeilenumbruch. Die Datei bestand
+        // damit aus einer einzigen Zeile, und weil \n in CSS die Escape-Sequenz
+        // fuer den Buchstaben n ist, wurde JEDE Deklaration verworfen.
+        //
+        // Der Fehler ueberlebte, weil er hier nicht pruefbar war: server.js
+        // laesst sich in einem Test nicht laden (#47). Als eigenes Modul ist
+        // der Aufbau eine reine Funktion und hat jetzt eine Testsuite.
+        const css = cssAusDatenbanksatz(dbRow);
 
         const tokenPath = path.join(__dirname, '../frontend/dist/_design-tokens.css');
         const tokenDir = path.dirname(tokenPath);
