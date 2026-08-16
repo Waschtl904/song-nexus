@@ -4,7 +4,7 @@
 
 const express = require('express');
 const { pool } = require('../db');
-const { verifyToken } = require('../middleware/auth-middleware');
+const { verifyToken, istAdmin } = require('../middleware/auth-middleware');
 const router = express.Router();
 
 // ============================================================================
@@ -68,8 +68,13 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
         const { userId } = req.params;
         const { limit = 50, offset = 0 } = req.query;
 
-        // Security: Users can only see their own history (unless admin)
-        if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+        // Security: Users can only see their own history (unless admin).
+        //
+        // Die Rolle wird gegen die DATENBANK geprueft, nicht gegen das Token
+        // (Issue #24). Die Kurzschlussauswertung sorgt dafuer, dass die Abfrage
+        // nur laeuft, wenn jemand fremde Daten will -- der Normalfall "eigene
+        // Daten" kostet keine zusaetzliche Abfrage.
+        if (req.user.id !== parseInt(userId, 10) && !(await istAdmin(req.user.id))) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -105,8 +110,9 @@ router.delete('/user/:userId', verifyToken, async (req, res) => {
     try {
         const { userId } = req.params;
 
-        // Security: Users can only delete their own history (unless admin)
-        if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+        // Security: Users can only delete their own history (unless admin).
+        // Rolle gegen die Datenbank, nicht gegen das Token (Issue #24).
+        if (req.user.id !== parseInt(userId, 10) && !(await istAdmin(req.user.id))) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -136,8 +142,9 @@ router.get('/stats/user/:userId', verifyToken, async (req, res) => {
     try {
         const { userId } = req.params;
 
-        // Security: Users can only see their own stats (unless admin)
-        if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+        // Security: Users can only see their own stats (unless admin).
+        // Rolle gegen die Datenbank, nicht gegen das Token (Issue #24).
+        if (req.user.id !== parseInt(userId, 10) && !(await istAdmin(req.user.id))) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
