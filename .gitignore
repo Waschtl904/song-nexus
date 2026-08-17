@@ -53,6 +53,11 @@ logs/
 app.log
 *.tmp
 
+# Jest-Fehlerausgaben, die per Redirect (> datei.txt) beim Debuggen entstehen.
+# Siehe Issue #86: auth-fail.txt, payments-fail.txt, setup-fail.txt wurden
+# versehentlich mitcommittet, weil dieses Muster noch fehlte.
+*-fail.txt
+
 # ============================================================================
 # UPLOADS & GENERATED FILES
 # ============================================================================
@@ -167,4 +172,3 @@ coverage/
 # ============================================================================
 .env.test.local
 .env.production.local
-
