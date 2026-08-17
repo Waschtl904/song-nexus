@@ -216,7 +216,6 @@ export class TracksLoader {
               class="button-metal-play"
               data-track-id="${track.id}"
               aria-label="Play ${this.escapeHtml(track.name || track.title)}"
-              title="Play"
               type="button"
             ></button>
           </div>
@@ -226,7 +225,10 @@ export class TracksLoader {
                 const playBtn = trackCard.querySelector('.button-metal-play');
                 if (playBtn) {
                     // 1. Get image URL from config (absolute path)
-                    let imageUrl = '/assets/images/metal-play-button-optimized.webp';
+                    // Freigestellte Fassung: die Grafik endet exakt an der Kante der
+                    // Metallplatte. Die alte Datei hatte breite leere Raender, dadurch
+                    // war die Schaltflaeche sichtbar groesser als der Knopf darin.
+                    let imageUrl = '/assets/images/metal-play-button.webp';
                     if (designConfig?.components?.buttons?.track_play?.image_url) {
                         imageUrl = designConfig.components.buttons.track_play.image_url;
                         // Ensure absolute path
@@ -236,15 +238,16 @@ export class TracksLoader {
                     }
 
                     // 2. Set dimensions from config
-                    const width = designConfig?.components?.buttons?.track_play?.width || 140;
-                    const height = designConfig?.components?.buttons?.track_play?.height || 70;
+                    // 128 x 72 entspricht dem Seitenverhaeltnis der freigestellten Platte (1,78).
+                    const width = designConfig?.components?.buttons?.track_play?.width || 128;
+                    const height = designConfig?.components?.buttons?.track_play?.height || 72;
                     
                     playBtn.style.backgroundImage = `url('${imageUrl}')`;
                     playBtn.style.width = `${width}px`;
                     playBtn.style.height = `${height}px`;
-                    playBtn.style.backgroundSize = 'cover';
+                    playBtn.style.backgroundSize = 'contain';
                     playBtn.style.backgroundRepeat = 'no-repeat';
-                    playBtn.style.backgroundPosition = 'center 20%';
+                    playBtn.style.backgroundPosition = 'center';
                     playBtn.style.backgroundColor = 'transparent';
                     playBtn.style.border = 'none';
                     playBtn.style.padding = '0';
@@ -267,7 +270,10 @@ export class TracksLoader {
                         'brightness(0.92) contrast(1.05) saturate(1.05) hue-rotate(12deg)',  // warm
                         'brightness(1.02) contrast(1.15) saturate(0.75) sepia(0.15)',  // patina
                     ];
-                    playBtn.style.filter = variations[id % variations.length];
+                    // Abnutzung und leichte Schieflage als CSS-Variablen, damit die Optik
+                    // inklusive Hover im Stylesheet bleibt und nicht inline festhaengt.
+                    playBtn.style.setProperty('--wear-filter', variations[id % variations.length]);
+                    playBtn.style.setProperty('--wear-rotate', (((id % 7) - 3) * 0.6) + 'deg');
 
                     console.log(`🎬 Play button styled: ${imageUrl} (${width}x${height}) with background-position adjustment`);
 

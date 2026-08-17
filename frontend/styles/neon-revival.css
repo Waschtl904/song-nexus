@@ -276,6 +276,10 @@ header {
 .track-card[data-prime]::before {
   content: attr(data-prime);
   position: absolute;
+  /* main.css setzt an dieser Stelle inset: 0 fuer die alte Glasschicht.
+     left/bottom muessen daher ausdruecklich zurueckgesetzt werden, sonst
+     spannt der Kasten ueber die ganze Karte und die Zahl rutscht nach links. */
+  inset: auto;
   top: var(--space-3);
   right: var(--space-4);
   font-size: var(--text-xs);
@@ -467,22 +471,57 @@ header {
   box-shadow: 0 0 14px rgba(139, 92, 246, 0.22);
 }
 
-/* Metall-Play-Button */
+/* Metall-Play-Button
+   Die Grafik ist freigestellt, deshalb darf die Schaltflaeche keinen eigenen
+   Rahmen und keinen rechteckigen Schatten haben — sonst sieht man einen Kasten,
+   der groesser ist als die Metallplatte. Glow und Schatten laufen ueber
+   drop-shadow und folgen damit der Silhouette des Knopfes.
+   --wear-filter und --wear-rotate setzt js/tracks-loader.js pro Track. */
 .button-metal-play {
-  border-radius: 10px;
-  transition: transform var(--transition), filter var(--transition), box-shadow var(--transition);
-  box-shadow: 0 0 0 1px rgba(0, 255, 204, 0.22), 0 6px 18px rgba(0, 0, 0, 0.5);
+  --wear-filter: none;
+  --wear-rotate: 0deg;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  filter: var(--wear-filter) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+  transform: rotate(var(--wear-rotate));
+  transition: transform var(--transition), filter var(--transition);
 }
 
-.button-metal-play:hover {
-  transform: scale(1.05);
-  filter: brightness(1.15) saturate(1.1);
-  box-shadow: 0 0 0 1px var(--color-primary), 0 0 24px rgba(0, 255, 204, 0.35);
+.button-metal-play:hover,
+.button-metal-play:focus-visible {
+  transform: rotate(var(--wear-rotate)) scale(1.06);
+  filter:
+    var(--wear-filter)
+    brightness(1.12)
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 10px var(--color-primary))
+    drop-shadow(0 0 22px rgba(0, 255, 204, 0.45));
+}
+
+.button-metal-play:active {
+  transform: rotate(var(--wear-rotate)) scale(0.97);
 }
 
 .track-card:has(.track-price.soon) .button-metal-play:hover,
-.track-card:has(.track-price:not(.free)) .button-metal-play:hover {
-  box-shadow: 0 0 0 1px var(--color-accent2), 0 0 24px var(--color-accent2-glow);
+.track-card:has(.track-price:not(.free)) .button-metal-play:hover,
+.track-card:has(.track-price.soon) .button-metal-play:focus-visible,
+.track-card:has(.track-price:not(.free)) .button-metal-play:focus-visible {
+  filter:
+    var(--wear-filter)
+    brightness(1.12)
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 10px var(--color-accent2))
+    drop-shadow(0 0 22px var(--color-accent2-glow));
+}
+
+/* Tastaturfokus bleibt sichtbar (Issue #53) — nur bei Tastaturnutzung,
+   der Maus-Hover kommt ohne Rahmen aus. */
+.button-metal-play:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 6px;
 }
 
 /* ----------------------------------------------------------------------------
