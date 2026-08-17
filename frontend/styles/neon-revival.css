@@ -1,0 +1,418 @@
+/* ============================================================================
+   SONG-NEXUS — NEON REVIVAL LAYER
+   Wird NACH styles/main.css geladen und ueberschreibt nur Optik, keine Struktur.
+   Ziel: die Bildsprache des alten Designs zurueckholen
+         (Stadtbild praesent, Glas-Panels, farbige Karten-Glows, Neon-Schild)
+         ohne die Barrierefreiheits-Fixes aus Issue #54 zu verlieren.
+   ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+   1. ERWEITERTE TOKENS
+   ---------------------------------------------------------------------------- */
+:root,
+[data-theme='dark'],
+[data-theme='light'] {
+  /* Magenta war vorher #cc00ff und damit fast unsichtbar im Layout.
+     #ff3ad6 entspricht dem Pink der alten Stadtbild-Reflexionen. */
+  --color-accent2:      #ff3ad6;
+  --color-accent2-soft: rgba(255, 58, 214, 0.16);
+  --color-accent2-glow: rgba(255, 58, 214, 0.42);
+
+  --color-primary-soft: rgba(0, 255, 204, 0.14);
+
+  /* Glas-Panels: dunkel genug fuer Text, transparent genug fuers Stadtbild */
+  --glass:        rgba(4, 12, 22, 0.58);
+  --glass-strong: rgba(4, 12, 22, 0.86);
+  --glass-rim:    rgba(0, 255, 204, 0.28);
+
+  --blur-panel: blur(14px) saturate(125%);
+}
+
+/* ----------------------------------------------------------------------------
+   2. HINTERGRUND — Stadtbild wieder in den Vordergrund
+   Vorher: flaechiger Dunkel-Wash ueber dem ganzen Bild -> Bild wirkte tot.
+   Jetzt: leichter Farb-Wash + Vignette, Lesbarkeit kommt aus den Panels.
+   ---------------------------------------------------------------------------- */
+.hero-background-image {
+  filter: saturate(118%) contrast(106%);
+}
+
+body::before {
+  background:
+    radial-gradient(120% 90% at 50% 0%,  rgba(0, 255, 204, 0.10) 0%, transparent 55%),
+    radial-gradient(100% 80% at 12% 62%, rgba(255, 58, 214, 0.12) 0%, transparent 60%),
+    linear-gradient(180deg,
+      rgba(2, 6, 14, 0.72) 0%,
+      rgba(2, 6, 14, 0.34) 28%,
+      rgba(2, 6, 14, 0.40) 62%,
+      rgba(2, 6, 14, 0.86) 100%);
+}
+
+/* Scanlines — sehr dezent, nur Textur, kein Muster das flimmert */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.022) 0px,
+    rgba(255, 255, 255, 0.022) 1px,
+    transparent 1px,
+    transparent 3px);
+}
+
+/* ----------------------------------------------------------------------------
+   3. NEON-SCHILD & HEADER
+   ---------------------------------------------------------------------------- */
+header {
+  background: linear-gradient(180deg, rgba(2, 6, 14, 0.72) 0%, rgba(2, 6, 14, 0.28) 100%);
+  border-bottom: 1px solid rgba(0, 255, 204, 0.16);
+  box-shadow: 0 1px 24px rgba(0, 255, 204, 0.10);
+}
+
+#neonSign {
+  font-size: clamp(1.15rem, 0.9rem + 1vw, 1.7rem);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #d8fff5;
+  text-shadow:
+    0 0 4px  #ffffff,
+    0 0 10px var(--color-primary),
+    0 0 26px var(--color-primary),
+    0 0 54px rgba(0, 255, 204, 0.55);
+}
+
+.logo-svg {
+  filter: drop-shadow(0 0 8px var(--color-primary)) drop-shadow(0 0 18px rgba(0, 255, 204, 0.5));
+}
+
+.nav-link {
+  color: #a9ded4;
+}
+
+/* ----------------------------------------------------------------------------
+   4. HERO — Glas-Panel statt frei stehender Text
+   ---------------------------------------------------------------------------- */
+.hero {
+  max-width: 760px;
+  margin-top: var(--space-10);
+  padding: var(--space-10) var(--space-10) var(--space-8);
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.05) 0%, var(--glass) 45%, rgba(255, 58, 214, 0.06) 100%);
+  border: 1px solid var(--glass-rim);
+  border-radius: 14px;
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4) inset,
+    0 0 40px rgba(0, 255, 204, 0.12),
+    0 18px 60px rgba(0, 0, 0, 0.55);
+  position: relative;
+}
+
+/* Ecken-Ticks — Terminal-Rahmen, rein dekorativ */
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.hero::before {
+  top: -1px; left: -1px;
+  border-top: 2px solid var(--color-primary);
+  border-left: 2px solid var(--color-primary);
+  border-top-left-radius: 14px;
+}
+
+.hero::after {
+  bottom: -1px; right: -1px;
+  border-bottom: 2px solid var(--color-accent2);
+  border-right: 2px solid var(--color-accent2);
+  border-bottom-right-radius: 14px;
+}
+
+.hero-heading {
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #e6fffa;
+  text-shadow:
+    0 0 5px  #ffffff,
+    0 0 16px var(--color-primary),
+    0 0 40px rgba(0, 255, 204, 0.5);
+}
+
+.hero-subtitle {
+  color: #bfe8de;
+}
+
+.hero-subtitle .highlight {
+  color: #fff;
+  text-shadow: 0 0 12px var(--color-accent2-glow);
+}
+
+.hero-meta {
+  gap: var(--space-10);
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(0, 255, 204, 0.14);
+}
+
+.hero-stat-value {
+  font-size: clamp(1.4rem, 1rem + 1.4vw, 2.1rem);
+  color: #d8fff5;
+  text-shadow: 0 0 10px var(--color-primary), 0 0 28px rgba(0, 255, 204, 0.45);
+}
+
+.hero-stat-label { color: #86c4b7; }
+
+/* ----------------------------------------------------------------------------
+   5. SEKTIONS-KOEPFE
+   ---------------------------------------------------------------------------- */
+.section-header {
+  border-left: none;
+  padding-left: 0;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent2) 45%, transparent 100%) 1;
+  border-bottom-style: solid;
+}
+
+.section-title {
+  font-weight: 900;
+  color: #dcfff7;
+  text-shadow: 0 0 6px var(--color-primary), 0 0 22px rgba(0, 255, 204, 0.45);
+}
+
+.section-title::before {
+  content: '// ';
+  color: var(--color-accent2);
+  text-shadow: 0 0 12px var(--color-accent2-glow);
+}
+
+.section-subtitle { color: #7fb9ac; }
+
+/* ----------------------------------------------------------------------------
+   6. TRACK-KARTEN — farbige Glas-Panels
+   Farbe kodiert Bedeutung: Cyan = gratis spielbar, Magenta = Premium.
+   ---------------------------------------------------------------------------- */
+.track-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-6);
+}
+
+.track-card {
+  background: linear-gradient(160deg, rgba(0, 255, 204, 0.14) 0%, var(--glass-strong) 48%, rgba(3, 10, 20, 0.94) 100%);
+  border: 1px solid rgba(0, 255, 204, 0.34);
+  border-radius: 14px;
+  padding: var(--space-6);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  box-shadow:
+    0 0 26px rgba(0, 255, 204, 0.13),
+    0 14px 38px rgba(0, 0, 0, 0.5);
+  min-height: 260px;
+}
+
+/* Oberkante als Neon-Leuchtstreifen */
+.track-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 12%; right: 12%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  box-shadow: 0 0 14px var(--color-primary);
+  pointer-events: none;
+}
+
+/* Premium-Variante: Magenta. Greift ueber den Preis-Zustand, also ohne
+   zusaetzliche Klasse im JS. */
+.track-card:has(.track-price.soon),
+.track-card:has(.track-price:not(.free)) {
+  background: linear-gradient(160deg, rgba(255, 58, 214, 0.17) 0%, var(--glass-strong) 48%, rgba(9, 4, 18, 0.94) 100%);
+  border-color: rgba(255, 58, 214, 0.36);
+  box-shadow:
+    0 0 26px rgba(255, 58, 214, 0.14),
+    0 14px 38px rgba(0, 0, 0, 0.5);
+}
+
+.track-card:has(.track-price.soon)::after,
+.track-card:has(.track-price:not(.free))::after {
+  background: linear-gradient(90deg, transparent, var(--color-accent2), transparent);
+  box-shadow: 0 0 14px var(--color-accent2);
+}
+
+.track-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-primary);
+  box-shadow:
+    0 0 34px rgba(0, 255, 204, 0.30),
+    0 20px 46px rgba(0, 0, 0, 0.6);
+}
+
+.track-card:has(.track-price.soon):hover,
+.track-card:has(.track-price:not(.free)):hover {
+  border-color: var(--color-accent2);
+  box-shadow:
+    0 0 34px rgba(255, 58, 214, 0.32),
+    0 20px 46px rgba(0, 0, 0, 0.6);
+}
+
+.track-card::before { display: none; }  /* alte Hover-Glasschicht entfaellt */
+
+.track-title {
+  font-size: var(--text-lg);
+  font-weight: 900;
+  color: #e8fffa;
+  text-shadow: 0 0 6px var(--color-primary), 0 0 20px rgba(0, 255, 204, 0.4);
+  margin-bottom: var(--space-2);
+}
+
+.track-card:has(.track-price.soon) .track-title,
+.track-card:has(.track-price:not(.free)) .track-title {
+  text-shadow: 0 0 6px var(--color-accent2), 0 0 20px var(--color-accent2-glow);
+}
+
+.track-meta {
+  gap: var(--space-1);
+  color: #9ed4c8;
+  letter-spacing: 0.04em;
+}
+
+.track-genre,
+.track-duration { text-transform: uppercase; }
+
+/* Preis als Badge statt nackter Text */
+.track-price {
+  display: inline-block;
+  padding: 0.2rem var(--space-3);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.10em;
+  border: 1px solid currentColor;
+}
+
+.track-price.free {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 14px rgba(0, 255, 204, 0.22);
+}
+
+.track-price.soon,
+.track-price:not(.free) {
+  color: #ffb0ec;
+  background: var(--color-accent2-soft);
+  box-shadow: 0 0 14px var(--color-accent2-soft);
+}
+
+/* Metall-Play-Button: Neon-Rand statt nackter Graustufen-Grafik */
+.button-metal-play {
+  border-radius: 10px;
+  transition: transform var(--transition), filter var(--transition), box-shadow var(--transition);
+  box-shadow: 0 0 0 1px rgba(0, 255, 204, 0.22), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.button-metal-play:hover {
+  transform: scale(1.05);
+  filter: brightness(1.15) saturate(1.1);
+  box-shadow: 0 0 0 1px var(--color-primary), 0 0 24px rgba(0, 255, 204, 0.35);
+}
+
+.track-card:has(.track-price.soon) .button-metal-play:hover,
+.track-card:has(.track-price:not(.free)) .button-metal-play:hover {
+  box-shadow: 0 0 0 1px var(--color-accent2), 0 0 24px var(--color-accent2-glow);
+}
+
+/* ----------------------------------------------------------------------------
+   7. STICKY PLAYER — Glas + Neon-Rahmen
+   ---------------------------------------------------------------------------- */
+.sticky-player {
+  background: linear-gradient(165deg, rgba(0, 255, 204, 0.07) 0%, var(--glass-strong) 60%, rgba(4, 10, 20, 0.9) 100%) !important;
+  border: 1px solid var(--glass-rim) !important;
+  border-radius: 14px !important;
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  box-shadow:
+    0 0 34px rgba(0, 255, 204, 0.18),
+    0 22px 60px rgba(0, 0, 0, 0.6) !important;
+}
+
+.player-header .track-name {
+  color: #dcfff7;
+  text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+}
+
+.btn-control {
+  border-color: rgba(0, 255, 204, 0.35) !important;
+  transition: box-shadow var(--transition), color var(--transition);
+}
+
+.btn-control:hover {
+  color: var(--color-primary);
+  box-shadow: 0 0 16px rgba(0, 255, 204, 0.4);
+}
+
+.waveform { opacity: 0.95; }
+
+/* ----------------------------------------------------------------------------
+   8. BUTTONS
+   ---------------------------------------------------------------------------- */
+.button {
+  box-shadow: 0 0 14px rgba(0, 255, 204, 0.28);
+}
+
+.button:hover {
+  box-shadow: 0 0 20px var(--color-primary), 0 0 44px rgba(0, 255, 204, 0.35);
+}
+
+.button-secondary {
+  border-color: rgba(0, 255, 204, 0.45);
+  background: rgba(4, 12, 22, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ----------------------------------------------------------------------------
+   9. FOOTER
+   ---------------------------------------------------------------------------- */
+footer {
+  background: linear-gradient(180deg, rgba(2, 6, 14, 0.55) 0%, rgba(2, 6, 14, 0.92) 100%);
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--color-primary), var(--color-accent2), transparent) 1;
+  border-top-style: solid;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ----------------------------------------------------------------------------
+   10. MOBIL
+   ---------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .hero {
+    padding: var(--space-6) var(--space-5);
+    margin-top: var(--space-6);
+  }
+
+  .hero-meta { gap: var(--space-6); }
+  .track-card { min-height: 0; }
+}
+
+/* ----------------------------------------------------------------------------
+   11. REDUZIERTE BEWEGUNG / KONTRAST
+   ---------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  #neonSign { animation: none; }
+  .hero { animation: none; }
+}
+
+@media (prefers-contrast: more) {
+  body::before { background: rgba(2, 6, 14, 0.9); }
+  body::after { display: none; }
+  .track-card,
+  .hero,
+  .sticky-player { backdrop-filter: none; background: rgba(2, 6, 14, 0.95); }
+}
