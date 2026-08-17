@@ -73,16 +73,21 @@ function mounts(datei) {
 }
 
 /**
- * Bekannte Abweichung, Stand 16.08.2026.
+ * Bekannte Abweichung, Stand 17.08.2026 (Issue #86).
  *
  * Diese Eintraege stehen absichtlich nur in server.js. Die Liste ist eine
  * Bestandsaufnahme, kein Freibrief: sie soll schrumpfen, nicht wachsen.
  * Wer hier etwas ergaenzt, sollte in der PR-Beschreibung sagen, warum die
  * Route im Test nicht erreichbar sein muss.
+ *
+ * 'USE /api/' ist NICHT mehr Teil dieser Liste: seit #86 mounten beide
+ * Dateien requireTrustedSource auf genau diesem Pfad, der Mount ist also
+ * keine Abweichung mehr (auch wenn die Ratenbegrenzung weiterhin nur in
+ * server.js unter demselben Pfad haengt - die Textpruefung sieht nur den
+ * Pfad, nicht die Anzahl oder den Zweck der Mounts dort).
  */
 const BEKANNTE_ABWEICHUNG = [
   // Ratenbegrenzung - in app.js nicht vorhanden, daher ungetestet (#47)
-  'USE /api/',
   'USE /api/auth/',
   'USE /api/auth/login',
   'USE /api/auth/webauthn/',
@@ -156,6 +161,15 @@ describe('Paritaet der Routentabellen von app.js und server.js (#47)', () => {
 
     expect(verwaist).toEqual([]);
   });
+
+  test('/api/ ist in beiden Dateien gemountet (Issue #86, requireTrustedSource)', () => {
+    // Vor #86 stand 'USE /api/' in BEKANNTE_ABWEICHUNG - dort lag nur die
+    // Ratenbegrenzung, die es in app.js nicht gibt. Seit #86 mounten beide
+    // Dateien zusaetzlich requireTrustedSource auf demselben Pfad, daher ist
+    // der Mount selbst keine Abweichung mehr.
+    expect(inApp.has('USE /api/')).toBe(true);
+    expect(inServer.has('USE /api/')).toBe(true);
+  });
 });
 
 describe('DEBUG-Ausgabe laeuft nicht in Produktion (Regression zu #47)', () => {
@@ -197,7 +211,6 @@ describe('Produktionskonfiguration steht nur in server.js (Bestandsaufnahme zu #
     ['CORS-Herkunft fuer Produktion', /function getProductionOrigins/],
     ['CSP-Direktiven', /contentSecurityPolicy:\s*\{/],
     ['HSTS', /hsts:\s*\{/],
-    ['echte CSRF-Pruefung', /validateCSRFToken/],
     ['statische Auslieferung des Frontends', /express\.static\(frontendPath\)/],
     ['USE_HTTPS-Verzweigung', /httpsOptions && USE_HTTPS/],
   ];
@@ -208,5 +221,42 @@ describe('Produktionskonfiguration steht nur in server.js (Bestandsaufnahme zu #
 
   test.each(nurInServer)('%s fehlt in app.js und ist damit ungetestet', (_name, muster) => {
     expect(app).not.toMatch(muster);
+  });
+});
+
+describe('Issue #86: validateCSRFToken ist keine echte CSRF-Pruefung mehr, requireTrustedSource ersetzt sie in beiden Dateien', () => {
+  // Vorher stand hier die gegenteilige Behauptung: 'echte CSRF-Pruefung' war
+  // in nurInServer gelistet, mit dem Muster /validateCSRFToken/, und ein
+  // Test bestaetigte ausdruecklich, dass server.js dieses Muster enthaelt.
+  // Das war die Stelle, die die kaputte Pruefung als funktionierend auswies.
+  //
+  // Diese Suite dreht die Behauptung um: validateCSRFToken/attachCSRFToken
+  // duerfen in KEINER der beiden Dateien mehr vorkommen, und die neue
+  // Middleware muss in BEIDEN stehen.
+  const server = ohneKommentare(lese('server.js'));
+  const app = ohneKommentare(lese('app.js'));
+
+  test('server.js referenziert validateCSRFToken nicht mehr', () => {
+    expect(server).not.toMatch(/validateCSRFToken/);
+  });
+
+  test('server.js referenziert attachCSRFToken nicht mehr', () => {
+    expect(server).not.toMatch(/attachCSRFToken/);
+  });
+
+  test('app.js referenziert validateCSRFToken nicht mehr', () => {
+    expect(app).not.toMatch(/validateCSRFToken/);
+  });
+
+  test('app.js referenziert attachCSRFToken nicht mehr', () => {
+    expect(app).not.toMatch(/attachCSRFToken/);
+  });
+
+  test('server.js verwendet requireTrustedSource', () => {
+    expect(server).toMatch(/requireTrustedSource/);
+  });
+
+  test('app.js verwendet requireTrustedSource', () => {
+    expect(app).toMatch(/requireTrustedSource/);
   });
 });
