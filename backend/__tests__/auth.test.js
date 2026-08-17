@@ -93,14 +93,6 @@ function makeToken(user = { id: 1, role: 'user', email: 'test@example.com', user
 async function makeHash(plain) {
   return bcrypt.hash(plain, 4);
 }
-/**
- * Simuliert einen legitimen Same-Origin-Browserrequest.
- * Nötig seit requireTrustedSource (Issue #86) alle schreibenden /api-Requests
- * auf Origin / Sec-Fetch-Site prüft.
- */
-function sameOrigin(req) {
-  return req.set('Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
-}
 
 // ---------------------------------------------------------------------------
 // Tear down: DB-Pool schlieÃŸen damit Jest sauber beendet
@@ -520,4 +512,3 @@ describe('SECURITY: dev-login darf nicht existieren', () => {
     expect(ohneKommentare).not.toMatch(/dev123456/);
   });
 });
-
