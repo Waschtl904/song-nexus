@@ -28,9 +28,6 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 
-// ✅ CSRF MIDDLEWARE IMPORT
-const { attachCSRFToken, validateCSRFToken } = require('./middleware/csrf-middleware');
-
 // CSS-Aufbau fuer die Design-Tokens (Issue #67)
 const { cssAusDatenbanksatz } = require('./utils/design-tokens-css');
 
@@ -142,6 +139,26 @@ const corsOrigins = NODE_ENV === 'production'
     : getOriginsList();
 
 console.log('🌐 CORS Origins:', corsOrigins);
+
+// ============================================================================
+// 🛡️ REQUEST-SOURCE-PRUEFUNG (ersetzt CSRF-Tokens, Issue #86)
+// ============================================================================
+//
+// War: attachCSRFToken/validateCSRFToken aus middleware/csrf-middleware.js.
+// Der Token wurde ueber GET /api/design-system ausgeliefert, das aber 24h
+// gecacht ist, und im Frontend gibt es an keiner Stelle Code, der ein Token
+// beschafft oder mitsendet. Geschuetzt war damit real nur eine unkritische
+// Route (PUT /api/design-system/:id), und selbst dort funktionierte der
+// Mechanismus wegen der Cache-Kette nicht zuverlaessig.
+//
+// Ist: eine zustandslose Pruefung fuer alle unsicheren Methoden unter /api/,
+// basierend auf Sec-Fetch-Site mit Origin/Referer-Rueckfall gegen dieselbe
+// corsOrigins-Liste, die auch CORS verwendet. Kein Token, keine Map, kein
+// _csrf im Querystring. SameSite=Lax auf den Cookies bleibt zusaetzlich
+// bestehen.
+const { requireTrustedSource } = require('./middleware/request-source-middleware');
+app.use('/api/', requireTrustedSource(corsOrigins));
+console.log('✅ Request-Source-Pruefung aktiv (ersetzt CSRF-Tokens, Issue #86)');
 
 // ============================================================================
 // ✅ CORS CONFIGURATION (BEFORE everything!)
@@ -456,7 +473,7 @@ function validateDesignInput(data) {
 console.log('🔧 Registering DESIGN-SYSTEM API (with cache)...');
 
 // GET design system settings from database - CACHED 86400s (24h)
-app.get('/api/design-system', cacheMiddleware(86400), attachCSRFToken, async (req, res) => {
+app.get('/api/design-system', cacheMiddleware(86400), async (req, res) => {
     try {
         console.log('📨 GET /api/design-system');
 
@@ -571,8 +588,8 @@ app.get('/api/design-system', cacheMiddleware(86400), attachCSRFToken, async (re
     }
 });
 
-// PUT update design system (with CSRF + Permission check + ADMIN ROLE) - INVALIDATES CACHE
-app.put('/api/design-system/:id', validateCSRFToken, verifyToken, requireAdmin, async (req, res) => {
+// PUT update design system (with Request-Source-Pruefung + Permission check + ADMIN ROLE) - INVALIDATES CACHE
+app.put('/api/design-system/:id', verifyToken, requireAdmin, async (req, res) => {
     try {
         console.log('📝 PUT /api/design-system/:id received');
         console.log('   ID:', req.params.id);
@@ -909,14 +926,14 @@ warmupDatabase().then(async () => {
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ 🔒 HTTPS Server running on https://${HOST}:${PORT} (mkcert)`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Rate Limit');
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + Request-Source-Check + Rate Limit');
             console.log('⚡ Caching: Design-System (24h) | Tracks (5m) | Blog (10m)');
             console.log('📊 Cache Monitor: GET /api/cache/stats | DELETE /api/cache/clear (ADMIN)');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: GET (CACHED 24h) | PUT (ADMIN + CSRF)');
+            console.log('🎨 Design-System API: GET (CACHED 24h) | PUT (ADMIN)');
             console.log('🎯 Rate Limits: General (30/min) | Login (5/min) | WebAuthn (20/15min)');
             console.log('');
         });
@@ -929,14 +946,14 @@ warmupDatabase().then(async () => {
             console.log('╚════════════════════════════════════════════╝');
             console.log(`✅ HTTP Server running on http://${HOST}:${PORT}`);
             console.log(`🌍 Environment: ${NODE_ENV}`);
-            console.log('🛡️  Security: Helmet + CORS + CSP + Session + CSRF + Rate Limit');
+            console.log('🛡️  Security: Helmet + CORS + CSP + Session + Request-Source-Check + Rate Limit');
             console.log('⚡ Caching: Design-System (24h) | Tracks (5m) | Blog (10m)');
             console.log('📊 Cache Monitor: GET /api/cache/stats | DELETE /api/cache/clear (ADMIN)');
             console.log(`📁 Audio: ${path.join(__dirname, 'public/audio')}`);
             console.log(`📁 Frontend: ${frontendPath}`);
             console.log(`🗄️  DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
             console.log('🔐 WebAuthn RP: localhost');
-            console.log('🎨 Design-System API: GET (CACHED 24h) | PUT (ADMIN + CSRF)');
+            console.log('🎨 Design-System API: GET (CACHED 24h) | PUT (ADMIN)');
             console.log('🎯 Rate Limits: General (30/min) | Login (5/min) | WebAuthn (20/15min)');
             console.log('');
         });
