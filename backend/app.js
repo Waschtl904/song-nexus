@@ -70,8 +70,18 @@ app.use(session({
   },
 }));
 
-// CSRF Middleware (Passthrough im Test – kein echter CSRF-Check noetig)
-const { attachCSRFToken } = require('./middleware/csrf-middleware');
+// Request-Source-Pruefung (ersetzt CSRF-Tokens, Issue #86)
+//
+// War: attachCSRFToken aus csrf-middleware.js wurde importiert, aber auf
+// keine einzige Route angewendet - der Kommentar nannte es "Passthrough",
+// tatsaechlich war es toter Code. Damit lief der Testkontext ohne jeden
+// CSRF-Schutz, waehrend server.js zumindest eine (unwirksame) Pruefung hatte.
+//
+// Ist: dieselbe requireTrustedSource wie in server.js, mit der lokalen
+// Test-Origin. So prueft server-paritaet.test.js echte Parität statt zwei
+// unterschiedliche Sicherheitslagen.
+const { requireTrustedSource } = require('./middleware/request-source-middleware');
+app.use('/api/', requireTrustedSource(['https://localhost:5500']));
 
 // Auth Middleware laden
 const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
