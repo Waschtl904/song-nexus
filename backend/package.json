@@ -26,7 +26,7 @@
       "**/__tests__/**/*.test.js"
     ],
     "setupFilesAfterEnv": [
-      "<rootDir>/__tests__/setup.js"
+      "<rootDir>/jest.setup.js"
     ],
     "verbose": true,
     "collectCoverageFrom": [
@@ -73,3 +73,4 @@
     "npm": ">=10.0.0"
   }
 }
+
