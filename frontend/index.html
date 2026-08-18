@@ -24,6 +24,7 @@
   <link rel="canonical" href="https://song-nexus.com">
 
   <!-- Favicon — hex + note SVG -->
+  <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%230a0c0a' width='32' height='32'/%3E%3Cpolygon points='16,2 28,9 28,23 16,30 4,23 4,9' fill='none' stroke='%2300cc44' stroke-width='2'/%3E%3Ctext x='16' y='22' font-size='14' fill='%2300cc44' text-anchor='middle' font-family='monospace'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
 
   <!-- Preconnect for Google Fonts -->
@@ -38,6 +39,9 @@
   <!-- Main stylesheet (replaces all multi-file imports) -->
   <link rel="stylesheet" href="./styles/main.css">
 
+  <!-- Neon-Revival-Layer: Optik-Overlay (Issue: Design-Rueckkehr) -->
+  <link rel="stylesheet" href="./styles/neon-revival.css">
+
   <!-- 🎨 DESIGN-SYSTEM STYLES (injected dynamically by runtime loader) -->
   <style id="design-system-styles">
     /* Design-System variables are injected here at runtime */
@@ -51,11 +55,11 @@
        ========================================================================= -->
   <div id="heroBackground" class="hero-background-container" role="presentation" aria-hidden="true">
     <picture>
-      <source srcset="./assets/images/Hintergrundbild 1.webp" type="image/webp">
-      <source srcset="./assets/images/Hintergrundbild 1.jpeg" type="image/jpeg">
-      <img src="./assets/images/Hintergrundbild 1.jpeg"
+      <source srcset="./assets/images/stadt-nexus.webp" type="image/webp">
+      <source srcset="./assets/images/stadt-nexus.jpg" type="image/jpeg">
+      <img src="./assets/images/stadt-nexus.jpg"
            alt="" class="hero-background-image"
-           loading="lazy" decoding="async">
+           fetchpriority="high" decoding="async">
     </picture>
   </div>
 
@@ -428,6 +432,12 @@
 
   <!-- Externe Init-Datei ersetzt alle Inline-Scripts (CSP-konform) -->
   <script src="./js/init.js" defer></script>
+
+  <!-- Nexus FX: Code-Regen, Mathe-Ornamente, Hero-Terminal, Eastereggs -->
+  <script src="./js/nexus-fx.js" defer></script>
+
+  <!-- Maschinenkonsole: Hebel, Raeder, Kippschalter -->
+  <script src="./js/nexus-controls.js" defer></script>
 
 </body>
 

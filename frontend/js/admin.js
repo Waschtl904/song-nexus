@@ -167,11 +167,18 @@ const Admin = {
 
             console.log('📋 Form data:', { name, artist, genre, price, isFree });
 
-            // ✅ Entferne alte Fields, füge neue hinzu (für Backend)
+            // Felder fuer das Backend setzen — mit set statt append.
+            //
+            // append hat die Werte doppelt eingetragen: das Formular schickt
+            // is_free bereits selbst mit, sobald das Kaestchen angehakt ist.
+            // Auf der Serverseite kam dadurch ein Array ['true','true'] an,
+            // und die Pruefung is_free === 'true' schlug fehl. Ergebnis: ein
+            // Gratis-Track wurde als Bezahltrack ohne Preis behandelt und der
+            // Upload mit der Meldung abgewiesen, es fehle ein Preis.
             formData.delete('price');
-            formData.append('price_eur', isFree ? '0.00' : price);
-            formData.append('is_published', 'true');
-            formData.append('is_free', isFree ? 'true' : 'false');
+            formData.set('price_eur', isFree ? '0.00' : price);
+            formData.set('is_published', 'true');
+            formData.set('is_free', isFree ? 'true' : 'false');
 
             const token = Auth.getToken();
             if (!token) {
@@ -191,16 +198,31 @@ const Admin = {
                     // ❌ WICHTIG: Nicht 'Content-Type' setzen bei FormData!
                     // Browser setzt das automatisch mit Boundary
                 },
+                // Damit die Anmeldung auch ueber das HttpOnly-Cookie greift,
+                // wenn im Speicher kein Token mehr liegt.
+                credentials: 'include',
                 body: formData
             });
 
             console.log('📊 Response status:', response.status);
 
-            const result = await response.json();
+            // Antwort robust auswerten: bei 413 oder einem Fehler aus einer
+            // vorgelagerten Ebene kommt HTML zurueck, nicht JSON. response.json()
+            // ist dann selbst gescheitert und hat die eigentliche Ursache
+            // verschluckt — man sah nur einen Parser-Fehler.
+            const rohtext = await response.text();
+            let result = {};
+            try {
+                result = rohtext ? JSON.parse(rohtext) : {};
+            } catch (parseErr) {
+                console.warn('⚠️ Antwort war kein JSON:', rohtext.slice(0, 300));
+                result = { error: `HTTP ${response.status} — Antwort des Servers: ${rohtext.slice(0, 200) || '(leer)'}` };
+            }
             console.log('📦 Response:', result);
 
             if (!response.ok) {
-                throw new Error(result.error || result.message || `HTTP ${response.status}`);
+                const code = result.code ? ` [${result.code}]` : '';
+                throw new Error((result.error || result.message || `HTTP ${response.status}`) + code);
             }
 
             statusDiv.className = 'status-message success';

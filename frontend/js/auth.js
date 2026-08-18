@@ -5,7 +5,22 @@
 
 import { APIClient } from './api-client.js';
 import { WebAuthn } from './webauthn.js';
-import PasswortRegel from './password-policy.js';
+// password-policy.js ist bewusst ein klassisches Skript (UMD), damit auth.html
+// und password-reset.html es per <script src> laden koennen. Einen
+// Default-Export gibt es darum nicht. Unter webpack fiel das nicht auf, weil
+// dessen CommonJS-Interop einen erfindet. Sobald auth.js aber direkt als
+// ES-Modul im Browser laeuft — admin-upload.html laedt js/admin.js mit
+// type="module", und das zieht auth.js nach — bricht der Import hart ab:
+// "doesn't provide an export named: 'default'". Die ganze Adminseite stand
+// damit still, kein Klick auf Hochladen konnte etwas tun.
+//
+// Deshalb nur als Nebeneffekt einbinden. Das Skript legt sich selbst als
+// globalThis.PasswortRegel ab, in beiden Welten.
+import './password-policy.js';
+
+function holePasswortRegel() {
+    return (typeof globalThis !== 'undefined' && globalThis.PasswortRegel) || null;
+}
 
 // HELPER FUNCTIONS
 function getAuthToken() {
@@ -29,6 +44,16 @@ export const Auth = {
     // ========================================================================
 
     init() {
+        // Mehrfachinitialisierung verhindern: Auth.init() wurde aus main.js,
+        // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+        // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+        // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+        if (this._initialisiert) {
+            console.warn('⚠️ Auth.init() erneut aufgerufen — uebersprungen');
+            return;
+        }
+        this._initialisiert = true;
+
         console.log('🔐 Auth module initializing...');
         this.token = getAuthToken();
         this.loadUserFromStorage();
@@ -354,7 +379,10 @@ export const Auth = {
 
             // Gemeinsame Regel, siehe js/password-policy.js. Das Backend
             // prüft verbindlich; hier geht es um sofortige Rückmeldung.
-            const pwProbleme = PasswortRegel.pruefePasswort(password, { username, email });
+            const regel = holePasswortRegel();
+            const pwProbleme = regel
+                ? regel.pruefePasswort(password, { username, email })
+                : [];   // Ohne Regel im Browser entscheidet allein das Backend.
             if (pwProbleme.length > 0) {
                 this.showStatus(statusEl, pwProbleme.join(' '), 'error');
                 return;

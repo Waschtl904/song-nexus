@@ -29,9 +29,18 @@ const router = express.Router();
 // ============================================================================
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
+    destination: async (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../public/audio');
-        cb(null, uploadDir);
+        // Fehlt das Verzeichnis (frischer Checkout, leerer Ordner nicht im
+        // Git), scheiterte multer mit ENOENT und der Upload brach mit einem
+        // nichtssagenden Fehler ab.
+        try {
+            await fs.mkdir(uploadDir, { recursive: true });
+            cb(null, uploadDir);
+        } catch (err) {
+            console.error('❌ Audio-Verzeichnis nicht anlegbar:', err.message);
+            cb(err);
+        }
     },
     filename: (req, file, cb) => {
         const timestamp = Date.now();
@@ -47,17 +56,35 @@ const storage = multer.diskStorage({
     }
 });
 
+// Welche Dateien darf man hochladen?
+//
+// Vorher musste sowohl die Endung als auch der MIME-Typ in einer knappen
+// Liste stehen. Den MIME-Typ liefert aber der Browser, und unter Windows
+// liest er ihn aus der Registrierung: dieselbe MP3 kommt je nach System als
+// audio/mpeg, audio/mp3 oder sogar application/octet-stream an, eine WAV als
+// audio/wav, audio/wave, audio/x-wav oder audio/vnd.wave. Jede dieser
+// Varianten wurde mit "Dateiformat nicht erlaubt" abgewiesen, obwohl die
+// Datei in Ordnung war.
+//
+// Deshalb entscheidet jetzt die Endung. Der MIME-Typ wird nur noch geloggt,
+// weil er als Angabe des Clients ohnehin nicht vertrauenswuerdig ist. Die
+// eigentliche Formatpruefung passiert danach beim Lesen des Dateikopfs
+// (utils/audio-rate) und beim Ausliefern (audioContentType).
+const ERLAUBTE_ENDUNGEN = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.oga', '.opus'];
+
 const fileFilter = (req, file, cb) => {
-    const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/mp4'];
-    const allowedExts = ['.mp3', '.wav', '.flac', '.m4a'];
     const ext = path.extname(file.originalname).toLowerCase();
 
-    console.log(`🎵 File upload attempt: ${file.originalname} (${file.mimetype})`);
+    console.log(`🎵 Upload-Versuch: ${file.originalname} (MIME laut Browser: ${file.mimetype})`);
 
-    if (!allowedMimes.includes(file.mimetype) || !allowedExts.includes(ext)) {
-        console.warn(`❌ File rejected: ${file.originalname}`);
-        return cb(new Error('Dateiformat nicht erlaubt! Nur MP3/WAV/FLAC.'));
+    if (!ERLAUBTE_ENDUNGEN.includes(ext)) {
+        console.warn(`❌ Abgewiesen, Endung "${ext}" nicht erlaubt: ${file.originalname}`);
+        return cb(new Error(
+            `Dateiformat nicht erlaubt: "${ext || 'ohne Endung'}". ` +
+            `Erlaubt sind ${ERLAUBTE_ENDUNGEN.join(', ')}.`
+        ));
     }
+
     cb(null, true);
 };
 

@@ -1,0 +1,988 @@
+/* ============================================================================
+   SONG-NEXUS — NEON REVIVAL LAYER  v2
+   Wird NACH styles/main.css geladen und ueberschreibt nur Optik, keine Struktur.
+
+   Bildsprache: Blade Runner / Ghost in the Shell / Matrix-Terminal
+   Palette:  Cyan  #00ffcc  = Leitfarbe, spielbar, System-OK
+             Violet #8b5cf6 = Zweitakzent, Premium, Code-Ebene
+   Kernidee: Karten sind Milchglas. Beim Hover klart das Glas auf und die
+             Stadt dahinter wird scharf sichtbar.
+   ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+   1. TOKENS
+   ---------------------------------------------------------------------------- */
+:root,
+[data-theme='dark'],
+[data-theme='light'] {
+  /* Electric Violet ersetzt Magenta in der gesamten Oberflaeche.
+     Magenta bleibt nur noch als Stadtlicht im Hintergrundbild. */
+  --color-accent2:      #8b5cf6;
+  --color-accent2-text: #c4b5fd;   /* fuer Text: 7,1:1 auf #05080d */
+  --color-accent2-soft: rgba(139, 92, 246, 0.18);
+  --color-accent2-glow: rgba(139, 92, 246, 0.45);
+
+  --color-primary-soft: rgba(0, 255, 204, 0.14);
+
+  /* Gedeckter Text war #3a7a6a und damit nur 2,2:1 auf dem dunklen Grund —
+     unter der WCAG-AA-Grenze von 4,5:1. #7fb9ac erreicht rund 8:1. */
+  --color-text-faint: #7fb9ac;
+
+  /* Milchglas */
+  --glass:        rgba(6, 10, 22, 0.62);
+  --glass-strong: rgba(6, 10, 22, 0.84);
+  --glass-clear:  rgba(4, 8, 18, 0.30);   /* Hover-Zustand: Glas klart auf */
+  --glass-rim:    rgba(0, 255, 204, 0.28);
+
+  --blur-panel: blur(16px) saturate(130%);
+  --blur-none:  blur(0px) saturate(105%);
+
+  --ease-glass: 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ----------------------------------------------------------------------------
+   2. HINTERGRUND
+   Stadtbild bleibt praesent, Lesbarkeit kommt aus den Panels statt aus
+   einem flaechigen Grauschleier.
+   ---------------------------------------------------------------------------- */
+.hero-background-image {
+  filter: saturate(115%) contrast(104%);
+}
+
+body::before {
+  background:
+    radial-gradient(120% 85% at 50% 0%,   rgba(0, 255, 204, 0.08) 0%, transparent 55%),
+    radial-gradient(90%  75% at 8%  55%,  rgba(139, 92, 246, 0.14) 0%, transparent 62%),
+    radial-gradient(90%  75% at 95% 45%,  rgba(0, 255, 204, 0.10) 0%, transparent 60%),
+    linear-gradient(180deg,
+      rgba(2, 5, 12, 0.70) 0%,
+      rgba(2, 5, 12, 0.30) 26%,
+      rgba(2, 5, 12, 0.38) 60%,
+      rgba(2, 5, 12, 0.88) 100%);
+}
+
+/* Scanlines — nur Textur */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.022) 0px,
+    rgba(255, 255, 255, 0.022) 1px,
+    transparent 1px,
+    transparent 3px);
+}
+
+/* Matrix-Code-Regen (Canvas aus js/nexus-fx.js) */
+#codeRain {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.38;
+  mix-blend-mode: screen;
+}
+
+/* ----------------------------------------------------------------------------
+   3. HEADER & NEON-SCHILD
+   ---------------------------------------------------------------------------- */
+header {
+  background: linear-gradient(180deg, rgba(2, 5, 12, 0.78) 0%, rgba(2, 5, 12, 0.26) 100%);
+  border-bottom: 1px solid rgba(0, 255, 204, 0.16);
+  box-shadow: 0 1px 26px rgba(0, 255, 204, 0.10);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#neonSign {
+  font-size: clamp(1.15rem, 0.9rem + 1vw, 1.7rem);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #d8fff5;
+  cursor: pointer;
+  text-shadow:
+    0 0 4px  #ffffff,
+    0 0 10px var(--color-primary),
+    0 0 26px var(--color-primary),
+    0 0 54px rgba(0, 255, 204, 0.55);
+}
+
+.logo-svg {
+  filter: drop-shadow(0 0 8px var(--color-primary)) drop-shadow(0 0 18px rgba(0, 255, 204, 0.5));
+}
+
+.nav-link { color: #a9ded4; }
+
+/* ----------------------------------------------------------------------------
+   4. HERO — Glas-Panel mit Terminal
+   ---------------------------------------------------------------------------- */
+.hero {
+  max-width: 780px;
+  margin-top: var(--space-10);
+  padding: var(--space-10) var(--space-10) var(--space-8);
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.05) 0%, var(--glass) 45%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid var(--glass-rim);
+  border-radius: 14px;
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4) inset,
+    0 0 44px rgba(0, 255, 204, 0.12),
+    0 18px 60px rgba(0, 0, 0, 0.55);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ecken-Ticks */
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.hero::before {
+  top: -1px; left: -1px;
+  border-top: 2px solid var(--color-primary);
+  border-left: 2px solid var(--color-primary);
+  border-top-left-radius: 14px;
+}
+
+.hero::after {
+  bottom: -1px; right: -1px;
+  border-bottom: 2px solid var(--color-accent2);
+  border-right: 2px solid var(--color-accent2);
+  border-bottom-right-radius: 14px;
+}
+
+.hero-heading {
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #e6fffa;
+  text-shadow:
+    0 0 5px  #ffffff,
+    0 0 16px var(--color-primary),
+    0 0 40px rgba(0, 255, 204, 0.5);
+}
+
+.hero-subtitle { color: #bfe8de; }
+
+.hero-subtitle .highlight {
+  color: #fff;
+  text-shadow: 0 0 12px var(--color-accent2-glow);
+}
+
+.hero-meta {
+  gap: var(--space-10);
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(0, 255, 204, 0.14);
+}
+
+.hero-stat-value {
+  font-size: clamp(1.4rem, 1rem + 1.4vw, 2.1rem);
+  color: #d8fff5;
+  text-shadow: 0 0 10px var(--color-primary), 0 0 28px rgba(0, 255, 204, 0.45);
+}
+
+.hero-stat-label { color: #86c4b7; }
+
+/* ----------------------------------------------------------------------------
+   5. TERMINAL — echte Kommandozeile im Hero
+   ---------------------------------------------------------------------------- */
+.nexus-terminal {
+  margin-top: var(--space-8);
+  padding: var(--space-4) var(--space-5);
+  background: rgba(1, 4, 10, 0.72);
+  border: 1px solid rgba(0, 255, 204, 0.22);
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  box-shadow: inset 0 0 30px rgba(0, 255, 204, 0.05);
+}
+
+.nexus-terminal-out {
+  margin: 0 0 var(--space-2);
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: #a9ded4;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 204, 0.35) transparent;
+}
+
+.nexus-terminal-out .t-cmd    { color: var(--color-primary); }
+.nexus-terminal-out .t-accent { color: var(--color-accent2-text); }
+.nexus-terminal-out .t-dim    { color: #6ba69a; }
+.nexus-terminal-out .t-err    { color: #ff7a94; }
+
+.nexus-terminal-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nexus-terminal-prompt {
+  color: var(--color-primary);
+  text-shadow: 0 0 8px var(--color-primary-glow);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.nexus-terminal-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e6fffa;
+  font-family: inherit;
+  font-size: inherit;
+  caret-color: var(--color-primary);
+}
+
+.nexus-terminal-input::placeholder { color: #4d8a7d; }
+
+.nexus-terminal:focus-within {
+  border-color: rgba(0, 255, 204, 0.55);
+  box-shadow: 0 0 22px rgba(0, 255, 204, 0.16), inset 0 0 30px rgba(0, 255, 204, 0.06);
+}
+
+/* ----------------------------------------------------------------------------
+   6. MATHE-ORNAMENTE — Struktur, nicht Deko: markieren Ebenen und Zustaende
+   ---------------------------------------------------------------------------- */
+.nexus-ornament {
+  position: absolute;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--color-accent2-text);
+  opacity: 0.22;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.hero .nexus-ornament { top: var(--space-4); right: var(--space-5); }
+
+/* Primzahl-Index auf den Track-Karten */
+.track-card[data-prime]::before {
+  content: attr(data-prime);
+  position: absolute;
+  /* main.css setzt an dieser Stelle inset: 0 fuer die alte Glasschicht.
+     left/bottom muessen daher ausdruecklich zurueckgesetzt werden, sonst
+     spannt der Kasten ueber die ganze Karte und die Zahl rutscht nach links. */
+  inset: auto;
+  top: var(--space-3);
+  right: var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-primary);
+  opacity: 0.5;
+  display: block;
+  pointer-events: none;
+}
+
+.track-card[data-prime]:has(.track-price.soon)::before,
+.track-card[data-prime]:has(.track-price:not(.free))::before {
+  color: var(--color-accent2-text);
+}
+
+/* ----------------------------------------------------------------------------
+   7. SEKTIONS-KOEPFE
+   ---------------------------------------------------------------------------- */
+.section-header {
+  border-left: none;
+  padding-left: 0;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent2) 45%, transparent 100%) 1;
+  border-bottom-style: solid;
+}
+
+.section-title {
+  font-weight: 900;
+  color: #dcfff7;
+  text-shadow: 0 0 6px var(--color-primary), 0 0 22px rgba(0, 255, 204, 0.45);
+}
+
+.section-title::before {
+  content: '// ';
+  color: var(--color-accent2-text);
+  text-shadow: 0 0 12px var(--color-accent2-glow);
+}
+
+.section-subtitle { color: #7fb9ac; }
+
+/* ----------------------------------------------------------------------------
+   8. TRACK-KARTEN — Milchglas, das beim Hover aufklart
+   ---------------------------------------------------------------------------- */
+.track-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-6);
+}
+
+.track-card {
+  background: linear-gradient(160deg, rgba(0, 255, 204, 0.10) 0%, var(--glass-strong) 55%, rgba(3, 8, 18, 0.90) 100%);
+  border: 1px solid rgba(0, 255, 204, 0.34);
+  border-radius: 14px;
+  padding: var(--space-6);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  box-shadow:
+    0 0 26px rgba(0, 255, 204, 0.12),
+    0 14px 38px rgba(0, 0, 0, 0.5);
+  min-height: 268px;
+  transition:
+    background var(--ease-glass),
+    backdrop-filter var(--ease-glass),
+    -webkit-backdrop-filter var(--ease-glass),
+    border-color var(--ease-glass),
+    box-shadow var(--ease-glass),
+    transform var(--ease-glass);
+}
+
+/* Neon-Leuchtstreifen an der Oberkante */
+.track-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 12%; right: 12%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  box-shadow: 0 0 14px var(--color-primary);
+  pointer-events: none;
+}
+
+/* Premium: Violet. Greift ueber den Preis-Zustand, ohne Aenderung im JS. */
+.track-card:has(.track-price.soon),
+.track-card:has(.track-price:not(.free)) {
+  background: linear-gradient(160deg, rgba(139, 92, 246, 0.16) 0%, var(--glass-strong) 55%, rgba(8, 6, 20, 0.90) 100%);
+  border-color: rgba(139, 92, 246, 0.40);
+  box-shadow:
+    0 0 26px rgba(139, 92, 246, 0.16),
+    0 14px 38px rgba(0, 0, 0, 0.5);
+}
+
+.track-card:has(.track-price.soon)::after,
+.track-card:has(.track-price:not(.free))::after {
+  background: linear-gradient(90deg, transparent, var(--color-accent2), transparent);
+  box-shadow: 0 0 14px var(--color-accent2);
+}
+
+/* HOVER: Glas klart auf — Blur geht auf 0, Flaeche wird transparent,
+   die Stadt dahinter wird scharf. Text bleibt lesbar durch Schlagschatten
+   und einen schmalen Scrim hinter den Textzeilen. */
+.track-card:hover,
+.track-card:focus-within {
+  background: linear-gradient(160deg, rgba(0, 255, 204, 0.05) 0%, var(--glass-clear) 60%, rgba(2, 6, 14, 0.42) 100%);
+  backdrop-filter: var(--blur-none);
+  -webkit-backdrop-filter: var(--blur-none);
+  border-color: var(--color-primary);
+  transform: translateY(-4px);
+  box-shadow:
+    0 0 38px rgba(0, 255, 204, 0.34),
+    0 22px 48px rgba(0, 0, 0, 0.62);
+}
+
+.track-card:has(.track-price.soon):hover,
+.track-card:has(.track-price:not(.free)):hover,
+.track-card:has(.track-price.soon):focus-within,
+.track-card:has(.track-price:not(.free)):focus-within {
+  background: linear-gradient(160deg, rgba(139, 92, 246, 0.07) 0%, var(--glass-clear) 60%, rgba(6, 4, 16, 0.42) 100%);
+  border-color: var(--color-accent2);
+  box-shadow:
+    0 0 38px rgba(139, 92, 246, 0.36),
+    0 22px 48px rgba(0, 0, 0, 0.62);
+}
+
+/* Text im aufgeklarten Zustand absichern */
+.track-card:hover .track-title,
+.track-card:hover .track-meta,
+.track-card:hover .track-artist,
+.track-card:focus-within .track-title,
+.track-card:focus-within .track-meta,
+.track-card:focus-within .track-artist {
+  text-shadow:
+    0 0 4px  rgba(0, 0, 0, 0.95),
+    0 2px 8px rgba(0, 0, 0, 0.9),
+    0 0 18px var(--color-primary-glow);
+}
+
+.track-card:hover .track-meta,
+.track-card:focus-within .track-meta { color: #cdf3ea; }
+
+.track-card::before { display: none; }  /* alte Hover-Glasschicht entfaellt */
+
+.track-title {
+  font-size: var(--text-lg);
+  font-weight: 900;
+  color: #e8fffa;
+  text-shadow: 0 0 6px var(--color-primary), 0 0 20px rgba(0, 255, 204, 0.4);
+  margin-bottom: var(--space-2);
+  padding-right: var(--space-6);   /* Platz fuer den Primzahl-Index */
+}
+
+.track-card:has(.track-price.soon) .track-title,
+.track-card:has(.track-price:not(.free)) .track-title {
+  text-shadow: 0 0 6px var(--color-accent2), 0 0 20px var(--color-accent2-glow);
+}
+
+.track-meta {
+  gap: var(--space-1);
+  color: #9ed4c8;
+  letter-spacing: 0.04em;
+  transition: color var(--ease-glass);
+}
+
+.track-genre,
+.track-duration { text-transform: uppercase; }
+
+/* Preis als Badge */
+.track-price {
+  display: inline-block;
+  padding: 0.2rem var(--space-3);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.10em;
+  border: 1px solid currentColor;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.track-price.free {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 14px rgba(0, 255, 204, 0.22);
+}
+
+.track-price.soon,
+.track-price:not(.free) {
+  color: var(--color-accent2-text);
+  background: var(--color-accent2-soft);
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.22);
+}
+
+/* Metall-Play-Button
+   Die Grafik ist freigestellt, deshalb darf die Schaltflaeche keinen eigenen
+   Rahmen und keinen rechteckigen Schatten haben — sonst sieht man einen Kasten,
+   der groesser ist als die Metallplatte. Glow und Schatten laufen ueber
+   drop-shadow und folgen damit der Silhouette des Knopfes.
+   --wear-filter und --wear-rotate setzt js/tracks-loader.js pro Track. */
+.button-metal-play {
+  --wear-filter: none;
+  --wear-rotate: 0deg;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  filter: var(--wear-filter) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+  transform: rotate(var(--wear-rotate));
+  transition: transform var(--transition), filter var(--transition);
+}
+
+.button-metal-play:hover,
+.button-metal-play:focus-visible {
+  transform: rotate(var(--wear-rotate)) scale(1.06);
+  filter:
+    var(--wear-filter)
+    brightness(1.12)
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 10px var(--color-primary))
+    drop-shadow(0 0 22px rgba(0, 255, 204, 0.45));
+}
+
+.button-metal-play:active {
+  transform: rotate(var(--wear-rotate)) scale(0.97);
+}
+
+.track-card:has(.track-price.soon) .button-metal-play:hover,
+.track-card:has(.track-price:not(.free)) .button-metal-play:hover,
+.track-card:has(.track-price.soon) .button-metal-play:focus-visible,
+.track-card:has(.track-price:not(.free)) .button-metal-play:focus-visible {
+  filter:
+    var(--wear-filter)
+    brightness(1.12)
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 10px var(--color-accent2))
+    drop-shadow(0 0 22px var(--color-accent2-glow));
+}
+
+/* Tastaturfokus bleibt sichtbar (Issue #53) — nur bei Tastaturnutzung,
+   der Maus-Hover kommt ohne Rahmen aus. */
+.button-metal-play:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+/* ----------------------------------------------------------------------------
+   9. STICKY PLAYER
+   Lag bisher oben rechts und verdeckte dort den Login-Button.
+   Gehoert nach unten rechts, wie im Markup-Kommentar vorgesehen.
+   ---------------------------------------------------------------------------- */
+.sticky-player {
+  top: auto !important;
+  bottom: var(--space-5) !important;
+  right: var(--space-5) !important;
+}
+
+.sticky-player {
+  background: linear-gradient(165deg, rgba(0, 255, 204, 0.07) 0%, var(--glass-strong) 60%, rgba(4, 8, 18, 0.92) 100%) !important;
+  border: 1px solid var(--glass-rim) !important;
+  border-radius: 14px !important;
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  box-shadow:
+    0 0 34px rgba(0, 255, 204, 0.18),
+    0 22px 60px rgba(0, 0, 0, 0.6) !important;
+}
+
+.player-header .track-name {
+  color: #dcfff7;
+  text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+}
+
+.btn-control {
+  border-color: rgba(0, 255, 204, 0.35) !important;
+  transition: box-shadow var(--transition), color var(--transition);
+}
+
+.btn-control:hover {
+  color: var(--color-primary);
+  box-shadow: 0 0 16px rgba(0, 255, 204, 0.4);
+}
+
+/* ----------------------------------------------------------------------------
+   10. BUTTONS & FOOTER
+   ---------------------------------------------------------------------------- */
+.button { box-shadow: 0 0 14px rgba(0, 255, 204, 0.28); }
+
+.button:hover {
+  box-shadow: 0 0 20px var(--color-primary), 0 0 44px rgba(0, 255, 204, 0.35);
+}
+
+.button-secondary {
+  border-color: rgba(0, 255, 204, 0.45);
+  background: rgba(6, 10, 22, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+footer {
+  background: linear-gradient(180deg, rgba(2, 5, 12, 0.55) 0%, rgba(2, 5, 12, 0.94) 100%);
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--color-primary), var(--color-accent2), transparent) 1;
+  border-top-style: solid;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ----------------------------------------------------------------------------
+   11. EASTEREGGS
+   Overdrive wird per Konami-Code oder Terminal-Befehl gesetzt.
+   ---------------------------------------------------------------------------- */
+[data-overdrive='on'] #codeRain { opacity: 0.55; }
+
+[data-overdrive='on'] .track-card {
+  border-color: var(--color-accent2);
+  box-shadow: 0 0 34px rgba(139, 92, 246, 0.32), 0 14px 38px rgba(0, 0, 0, 0.55);
+}
+
+[data-overdrive='on'] #neonSign {
+  animation: neon-flicker 2.4s ease-in-out infinite;
+}
+
+.nexus-egg-banner {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-8);
+  transform: translateX(-50%);
+  z-index: 300;
+  padding: var(--space-3) var(--space-6);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0.10em;
+  color: #f2ecff;
+  background: rgba(8, 6, 20, 0.9);
+  border: 1px solid var(--color-accent2);
+  border-radius: 999px;
+  box-shadow: 0 0 30px var(--color-accent2-glow);
+  animation: fade-up 300ms ease both;
+}
+
+/* ----------------------------------------------------------------------------
+   12. MOBIL
+   ---------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .hero {
+    padding: var(--space-6) var(--space-5);
+    margin-top: var(--space-6);
+  }
+
+  .hero-meta { gap: var(--space-6); }
+  .track-card { min-height: 0; }
+  .hero .nexus-ornament { display: none; }
+  .nexus-terminal-out { max-height: 160px; }
+}
+
+/* ----------------------------------------------------------------------------
+   13. BEWEGUNG & KONTRAST
+   ---------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  #neonSign,
+  .hero { animation: none; }
+  /* Der Regen bleibt sichtbar, laeuft aber nicht: nexus-fx.js zeichnet in
+     diesem Fall ein einzelnes Standbild statt der Animation. */
+  #codeRain { opacity: 0.22; }
+  .track-card { transition: none; }
+}
+
+@media (prefers-contrast: more) {
+  body::before { background: rgba(2, 5, 12, 0.92); }
+  body::after,
+  #codeRain,
+  .nexus-ornament { display: none; }
+
+  .track-card,
+  .hero,
+  .sticky-player,
+  .nexus-terminal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(2, 5, 12, 0.96);
+  }
+
+  .track-card:hover,
+  .track-card:focus-within {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(2, 5, 12, 0.96);   /* kein Aufklaren bei hohem Kontrastbedarf */
+  }
+}
+
+/* ============================================================================
+   14. MASCHINENKONSOLE — Hebel, Raeder, Kippschalter (js/nexus-controls.js)
+   Alle Grafiken sind freigestellte WebP-Dateien in assets/images/controls/.
+   ============================================================================ */
+.nexus-replaced { display: none !important; }
+
+.nexus-console {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(0, 255, 204, 0.14);
+}
+
+.nexus-console-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.nexus-ctrl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.nexus-ctrl-cap,
+.nexus-ctrl-read {
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  line-height: 1.2;
+}
+
+.nexus-ctrl-read {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px var(--color-primary-glow);
+}
+
+/* ---- Schiene mit Hebelkugel ---- */
+.nexus-ctrl-rail { width: 100%; }
+
+.nexus-rail {
+  position: relative;
+  width: 100%;
+  height: 26px;
+  background: url('../assets/images/controls/schiene.webp') center/100% 100% no-repeat;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.nexus-rail-knob {
+  --p: 0;
+  position: absolute;
+  top: 50%;
+  /* Laufstrecke ist die Schienenbreite minus Kugelbreite, damit die Kugel
+     an beiden Enden innerhalb der Schiene bleibt. */
+  left: calc(15px + (100% - 30px) * var(--p));
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  background: url('../assets/images/controls/hebelkugel.webp') center/contain no-repeat;
+  filter: drop-shadow(0 0 6px rgba(0, 255, 204, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+  pointer-events: none;
+}
+
+.nexus-rail:hover .nexus-rail-knob,
+.nexus-rail:focus-visible .nexus-rail-knob {
+  filter: drop-shadow(0 0 12px var(--color-primary)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+}
+
+.nexus-rail:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* ---- Drehraeder ---- */
+.nexus-wheel-knob {
+  --angle: 0deg;
+  width: 52px;
+  height: 52px;
+  background: url('../assets/images/controls/drehrad.webp') center/contain no-repeat;
+  border-radius: 50%;
+  transform: rotate(var(--angle));
+  transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), filter var(--transition);
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+  cursor: grab;
+  touch-action: none;
+}
+
+.nexus-wheel-knob:hover,
+.nexus-wheel-knob:focus-visible {
+  filter: drop-shadow(0 0 10px var(--color-primary)) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+}
+
+.nexus-wheel-knob.is-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.nexus-wheel-knob:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* ---- Kippschalter ---- */
+.nexus-toggle {
+  width: 46px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: url('../assets/images/controls/kippschalter-aus.webp') center bottom/contain no-repeat;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+  transition: filter var(--transition);
+  cursor: pointer;
+}
+
+.nexus-toggle.is-on {
+  background-image: url('../assets/images/controls/kippschalter-ein.webp');
+  filter:
+    drop-shadow(0 0 10px var(--color-primary))
+    drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+}
+
+.nexus-toggle:hover {
+  filter: brightness(1.12) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+}
+
+.nexus-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexus-wheel-knob { transition: none; }
+}
+
+/* ============================================================================
+   15. DREHTUER — Karten wenden (js/nexus-fx.js, Modul Flip)
+   Vorderseite: der Track selbst. Rueckseite: der naechste Track.
+   ============================================================================ */
+.track-flip {
+  perspective: 1400px;
+  height: 100%;
+  min-height: 268px;
+}
+
+.track-flip-inner {
+  position: relative;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.track-flip.is-flipped .track-flip-inner {
+  transform: rotateY(180deg);
+}
+
+/* Beide Seiten liegen deckungsgleich uebereinander */
+.track-flip-inner > .track-card {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.track-flip-inner > .track-back {
+  transform: rotateY(180deg);
+}
+
+/* Die Rueckseite ist eine gespiegelte Kammer: dunkler, mit Violet-Kante */
+.track-back {
+  background: linear-gradient(200deg, rgba(139, 92, 246, 0.14) 0%, rgba(4, 8, 18, 0.92) 60%, rgba(2, 5, 12, 0.96) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.45) !important;
+}
+
+.track-back-label {
+  display: block;
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent2-text);
+  margin-bottom: var(--space-3);
+  opacity: 0.8;
+}
+
+/* Wende-Taste in der unteren linken Ecke */
+.track-flip-btn {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-primary);
+  background: rgba(2, 5, 12, 0.6);
+  border: 1px solid rgba(0, 255, 204, 0.35);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition), color var(--transition);
+}
+
+.track-flip-btn:hover {
+  color: #eafff9;
+  transform: rotate(90deg);
+  box-shadow: 0 0 14px var(--color-primary-glow);
+}
+
+.track-back .track-flip-btn {
+  color: var(--color-accent2-text);
+  border-color: rgba(139, 92, 246, 0.45);
+}
+
+.track-back .track-flip-btn:hover {
+  box-shadow: 0 0 14px var(--color-accent2-glow);
+}
+
+.track-flip-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Beim Wenden stoert die Milchglas-Ebene die 3D-Darstellung in manchen
+   Browsern — waehrend der Drehung wird sie deshalb ausgesetzt. */
+.track-flip.is-flipped .track-card {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-flip-inner { transition: none; }
+  .track-flip-btn:hover { transform: none; }
+}
+
+/* --- Feinschliff Maschinenkonsole ------------------------------------------ */
+.nexus-console-row {
+  justify-content: space-around;
+  padding-inline: var(--space-2);
+}
+
+/* Feste Markierung ueber jedem Rad, damit die Stellung ablesbar ist */
+.nexus-ctrl-wheel {
+  position: relative;
+  padding-top: 10px;
+}
+
+.nexus-ctrl-wheel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid var(--color-primary);
+  filter: drop-shadow(0 0 6px var(--color-primary-glow));
+}
+
+.nexus-wheel-knob {
+  width: 58px;
+  height: 58px;
+}
+
+/* Ohne Schiene in der Mitte wuerden die beiden Zeiten aneinander kleben */
+.time-display {
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* ============================================================================
+   16. PLAYER ZURUECKHOLEN
+   Das Kreuz im Player schliesst ihn jetzt wirklich. Diese Schaltflaeche
+   holt ihn zurueck (js/player-draggable.js, closePlayer).
+   ============================================================================ */
+.player-restore {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 200;
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: rgba(4, 10, 20, 0.82);
+  border: 1px solid var(--glass-rim);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+  cursor: pointer;
+}
+
+.player-restore:hover {
+  color: #eafff9;
+  box-shadow: 0 0 26px var(--color-primary);
+}
+
+.player-restore:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
