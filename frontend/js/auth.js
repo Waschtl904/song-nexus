@@ -341,8 +341,20 @@ export const Auth = {
                 return response;
             }
 
+            // Antwort ohne Token: vorher endete die Funktion hier stillschweigend,
+            // die Anzeige blieb auf "Anmeldung laeuft..." stehen und es sah aus,
+            // als wuerde nichts passieren.
+            console.warn('⚠️ Anmeldung ohne Token in der Antwort:', response);
+            this.showStatus(
+                statusEl,
+                response && response.error
+                    ? response.error
+                    : 'Der Server hat kein Anmeldetoken geliefert. Bitte erneut versuchen.',
+                'error'
+            );
+
         } catch (err) {
-            console.error('❌ Login error:', err.message);
+            console.error('❌ Login error:', err.message, err.status ? `(HTTP ${err.status})` : '');
             const statusEl = document.getElementById('passwordStatus');
             this.showStatus(statusEl, err.message, 'error');
         }

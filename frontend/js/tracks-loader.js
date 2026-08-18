@@ -231,9 +231,16 @@ export class TracksLoader {
                     let imageUrl = '/assets/images/metal-play-button.webp';
                     if (designConfig?.components?.buttons?.track_play?.image_url) {
                         imageUrl = designConfig.components.buttons.track_play.image_url;
-                        // Ensure absolute path
-                        if (!imageUrl.startsWith('/') && !imageUrl.startsWith('http')) {
-                            imageUrl = '/' + imageUrl.replace(/^\.\//g, '');
+                        // Pfad auf die Wurzel normieren.
+                        //
+                        // In design.config.json steht der Pfad relativ zum
+                        // Ordner config/, also "../assets/...". Die alte Zeile
+                        // entfernte nur "./" und setzte ein "/" davor - heraus
+                        // kam "/../assets/...". Das stand so auch in der
+                        // Konsole. Browser buegeln das meist noch aus, aber
+                        // verlassen sollte man sich darauf nicht.
+                        if (!imageUrl.startsWith('http')) {
+                            imageUrl = '/' + imageUrl.replace(/^(\.\.\/|\.\/|\/)+/, '');
                         }
                     }
 
