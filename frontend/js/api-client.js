@@ -44,10 +44,26 @@ export class APIClient {
                 let error;
                 try {
                     const errorData = await response.json();
-                    error = new Error(errorData.error || `HTTP ${response.status}`);
+                    let meldung = errorData.error || `HTTP ${response.status}`;
+
+                    // 429 ohne Hinweis auf die Wartezeit sah aus, als wuerde
+                    // die Anmeldung einfach nichts tun. Die Wartezeit steht
+                    // in der Antwort und gehoert in die Meldung.
+                    if (response.status === 429) {
+                        const warte = errorData.retryAfter || response.headers.get('Retry-After');
+                        meldung = warte
+                            ? `Zu viele Anfragen. Bitte ${warte} Sekunden warten, dann erneut versuchen.`
+                            : 'Zu viele Anfragen. Bitte kurz warten.';
+                    }
+
+                    error = new Error(meldung);
                     error.data = errorData;
                 } catch {
-                    error = new Error(`HTTP ${response.status}`);
+                    error = new Error(
+                        response.status === 429
+                            ? 'Zu viele Anfragen. Bitte kurz warten.'
+                            : `HTTP ${response.status}`
+                    );
                 }
 
                 error.status = response.status;

@@ -373,28 +373,52 @@ setInterval(() => {
     }
 }, 15 * 60 * 1000);
 
-const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
+// Der Zaehler lag bisher allein unter der IP-Adresse — und zwar fuer ALLE
+// fuenf Begrenzer gemeinsam. Damit zaehlte jeder Aufruf irgendeiner
+// /api/-Route auch auf das Budget der Anmeldung.
+//
+// Am laufenden System nachgestellt: ein Seitenaufruf loest mehrere
+// Abfragen aus (Tracks, Zahlungskonfiguration, Design-System, Blog). Nach
+// gut zwanzig Anfragen in einem Zeitfenster meldete die Anmeldung 429,
+// obwohl sie selbst zum ersten Mal aufgerufen wurde. Beim Entwickeln mit
+// mehreren Neuladungen tritt das binnen einer Minute ein.
+//
+// Zusaetzlich stand `lastReset` allen Begrenzern gemeinsam zur Verfuegung:
+// das 60-Sekunden-Fenster des allgemeinen Begrenzers hat das
+// 15-Minuten-Fenster der WebAuthn-Routen dauernd zurueckgesetzt. Die
+// Begrenzung war also gleichzeitig zu streng und zu locker.
+//
+// Jetzt hat jeder Begrenzer seinen eigenen Namensraum im Schluessel.
+const istEntwicklung = process.env.NODE_ENV !== 'production';
+
+const rateLimit = (maxRequests = 30, windowMs = 60 * 1000, name = 'allgemein') => {
+    // Beim Entwickeln sind viele Neuladungen normal. Die Grenze bleibt
+    // vorhanden, ist aber grosszuegiger, damit sie nicht die eigene Arbeit
+    // blockiert. In Produktion gilt der strenge Wert.
+    const grenze = istEntwicklung ? maxRequests * 10 : maxRequests;
+
     return (req, res, next) => {
         const ip = req.ip || req.connection.remoteAddress;
+        const schluessel = `${name}:${ip}`;
         const now = Date.now();
 
-        if (!rateLimitStore.has(ip)) {
-            rateLimitStore.set(ip, { count: 1, lastReset: now });
+        const eintrag = rateLimitStore.get(schluessel);
+
+        if (!eintrag || now - eintrag.lastReset > windowMs) {
+            rateLimitStore.set(schluessel, { count: 1, lastReset: now });
             return next();
         }
 
-        const clientData = rateLimitStore.get(ip);
-        if (now - clientData.lastReset > windowMs) {
-            clientData.count = 1;
-            clientData.lastReset = now;
-            return next();
-        }
-
-        clientData.count++;
-        if (clientData.count > maxRequests) {
+        eintrag.count++;
+        if (eintrag.count > grenze) {
+            const retryAfter = Math.ceil((eintrag.lastReset + windowMs - now) / 1000);
+            console.warn(`🚦 Ratenbegrenzung "${name}" greift fuer ${ip}: ${eintrag.count}/${grenze}, wieder frei in ${retryAfter}s`);
+            res.setHeader('Retry-After', String(retryAfter));
             return res.status(429).json({
-                error: 'Too many requests. Try again later.',
-                retryAfter: Math.ceil((clientData.lastReset + windowMs - now) / 1000)
+                error: `Zu viele Anfragen (${name}). Bitte ${retryAfter} Sekunden warten.`,
+                code: 'RATE_LIMIT',
+                limit: grenze,
+                retryAfter
             });
         }
 
@@ -402,13 +426,17 @@ const rateLimit = (maxRequests = 30, windowMs = 60 * 1000) => {
     };
 };
 
-app.use('/api/', rateLimit(30, 60 * 1000));
-app.use('/api/auth/login', rateLimit(5, 60 * 1000));
-app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000));
-app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000));
-app.use('/public/audio/', rateLimit(20, 60 * 1000));
+app.use('/api/', rateLimit(30, 60 * 1000, 'api-allgemein'));
+app.use('/api/auth/login', rateLimit(5, 60 * 1000, 'login'));
+app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000, 'webauthn'));
+app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000, 'auth'));
+app.use('/public/audio/', rateLimit(20, 60 * 1000, 'audio'));
 
-console.log('✅ Rate limiting enabled (login: 5/min, other auth: 30/min)');
+console.log(
+    istEntwicklung
+        ? '✅ Ratenbegrenzung aktiv, Entwicklungsmodus: Grenzen zehnfach (api 300/min, login 50/min, webauthn 200/15min)'
+        : '✅ Ratenbegrenzung aktiv (api 30/min, login 5/min, webauthn 20/15min)'
+);
 
 // ============================================================================
 // 🔐 AUTH MIDDLEWARE
