@@ -73,8 +73,28 @@
       }
     }
 
+    /* Bei reduzierter Bewegung laeuft keine Animation, aber der Regen soll
+       nicht ganz verschwinden: ein einzelnes Standbild bleibt stehen. */
+    function drawStill() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.font = fontSize + 'px "JetBrains Mono", monospace';
+      ctx.textBaseline = 'top';
+      for (let i = 0; i < columns; i++) {
+        const laenge = 4 + Math.floor(Math.random() * 10);
+        const startRow = Math.random() * (window.innerHeight / fontSize);
+        for (let j = 0; j < laenge; j++) {
+          const ch = glyphs.charAt(Math.floor(Math.random() * glyphs.length));
+          ctx.fillStyle = i % 7 === 0
+            ? 'rgba(139, 92, 246, ' + (0.5 - j * 0.03).toFixed(2) + ')'
+            : 'rgba(0, 255, 204, ' + (0.45 - j * 0.03).toFixed(2) + ')';
+          ctx.fillText(ch, i * fontSize, (startRow + j) * fontSize);
+        }
+      }
+    }
+
     function start() {
-      if (running || reduceMotion.matches) return;
+      if (reduceMotion.matches) { drawStill(); return; }
+      if (running) return;
       running = true;
       last = 0;
       raf = window.requestAnimationFrame(frame);
@@ -108,12 +128,24 @@
       });
 
       reduceMotion.addEventListener('change', function () {
-        if (reduceMotion.matches) stop(); else start();
+        if (reduceMotion.matches) { stop(); drawStill(); } else start();
       });
     }
 
     return {
       init: init,
+      /* Diagnose fuer die Konsole: nexus.rainStatus() */
+      status: function () {
+        return {
+          canvasImDokument: !!canvas && document.body.contains(canvas),
+          laeuft: running,
+          reduzierteBewegung: reduceMotion.matches,
+          spalten: columns || 0,
+          groesse: canvas ? canvas.style.width + ' x ' + canvas.style.height : null,
+          deckkraft: canvas ? window.getComputedStyle(canvas).opacity : null,
+          zIndex: canvas ? window.getComputedStyle(canvas).zIndex : null
+        };
+      },
       setPrimeMode: function (on) {
         glyphs = on ? GLYPHS_PRIME : GLYPHS_BASE;
       },
@@ -128,6 +160,15 @@
   /* --------------------------------------------------------------------------
      2. MATHE-ORNAMENTE + PRIMZAHL-INDEX AUF DEN KARTEN
      -------------------------------------------------------------------------- */
+  /* Nur echte Karten, keine geklonten Rueckseiten der Drehtuer */
+  function echteKarten() {
+    return Array.prototype.slice
+      .call(document.querySelectorAll('#tracksList .track-card'))
+      .filter(function (c) {
+        return !c.classList.contains('track-back') && !c.closest('.track-back');
+      });
+  }
+
   const Ornaments = (function () {
     const PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47,
                     53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107];
@@ -143,7 +184,8 @@
     }
 
     function numberCards() {
-      const cards = document.querySelectorAll('#tracksList .track-card');
+      // Rueckseiten der Drehtuer sind Klone und duerfen keinen eigenen Index bekommen.
+      const cards = echteKarten();
       cards.forEach(function (card, i) {
         const p = PRIMES[i % PRIMES.length];
         if (card.getAttribute('data-prime') !== String(p)) {
@@ -165,6 +207,103 @@
   }());
 
   /* --------------------------------------------------------------------------
+     2b. DREHTUER — Karte laesst sich wenden, hinten steht der naechste Track
+     Die Rueckseite ist ein Klon der naechsten Karte. Der geklonte Play-Knopf
+     hat keine Ereignisbindung mehr, deshalb loest er den echten Knopf der
+     Originalkarte aus.
+     -------------------------------------------------------------------------- */
+  const Flip = (function () {
+
+    function flipTaste(beschriftung) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'track-flip-btn';
+      b.setAttribute('aria-label', beschriftung);
+      b.textContent = '⟳';
+      return b;
+    }
+
+    function baueEine(card, naechste) {
+      if (!card.parentElement || card.parentElement.classList.contains('track-flip-inner')) return;
+
+      const list = card.parentElement;
+      const huelle = document.createElement('div');
+      huelle.className = 'track-flip';
+      const inner = document.createElement('div');
+      inner.className = 'track-flip-inner';
+
+      list.insertBefore(huelle, card);
+      huelle.appendChild(inner);
+      inner.appendChild(card);
+
+      const rueck = document.createElement('div');
+      rueck.className = 'track-card track-back';
+      rueck.setAttribute('aria-hidden', 'true');
+
+      if (naechste) {
+        const klon = naechste.cloneNode(true);
+        klon.removeAttribute('data-prime');
+        klon.querySelectorAll('[id]').forEach(function (el) { el.removeAttribute('id'); });
+        const hinweis = document.createElement('span');
+        hinweis.className = 'track-back-label';
+        hinweis.textContent = 'naechster Track';
+        rueck.appendChild(hinweis);
+        rueck.appendChild(klon.firstElementChild || klon);
+
+        const klonKnopf = rueck.querySelector('.button-metal-play');
+        const echterKnopf = naechste.querySelector('.button-metal-play');
+        if (klonKnopf && echterKnopf) {
+          klonKnopf.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            echterKnopf.click();
+          });
+        }
+      } else {
+        const ende = document.createElement('span');
+        ende.className = 'track-back-label';
+        ende.textContent = 'Ende der Liste — ∎';
+        rueck.appendChild(ende);
+      }
+
+      inner.appendChild(rueck);
+
+      function wenden() {
+        const gewendet = huelle.classList.toggle('is-flipped');
+        card.setAttribute('aria-hidden', gewendet ? 'true' : 'false');
+        rueck.setAttribute('aria-hidden', gewendet ? 'false' : 'true');
+      }
+
+      const vorne = flipTaste('Karte wenden, naechsten Track zeigen');
+      vorne.addEventListener('click', wenden);
+      card.appendChild(vorne);
+
+      const hinten = flipTaste('Karte zurueckwenden');
+      hinten.addEventListener('click', wenden);
+      rueck.appendChild(hinten);
+    }
+
+    function bauen() {
+      const cards = Array.prototype.slice.call(
+        document.querySelectorAll('#tracksList > .track-card')
+      );
+      cards.forEach(function (card, i) {
+        baueEine(card, cards[i + 1] || null);
+      });
+    }
+
+    function init() {
+      bauen();
+      const list = document.getElementById('tracksList');
+      if (!list) return;
+      // Karten kommen asynchron nach; nach jedem Nachladen neu verdrahten.
+      new MutationObserver(function () { window.setTimeout(bauen, 0); })
+        .observe(list, { childList: true });
+    }
+
+    return { init: init, bauen: bauen };
+  }());
+
+  /* --------------------------------------------------------------------------
      3. HERO-TERMINAL
      -------------------------------------------------------------------------- */
   const Terminal = (function () {
@@ -182,7 +321,7 @@
     }
 
     function trackCards() {
-      return Array.prototype.slice.call(document.querySelectorAll('#tracksList .track-card'));
+      return echteKarten();
     }
 
     function trackTitle(card) {
@@ -487,6 +626,7 @@
   function boot() {
     try { CodeRain.init(); } catch (e) { /* Regen ist optional */ }
     try { Ornaments.init(); } catch (e) { /* Ornamente sind optional */ }
+    try { Flip.init(); } catch (e) { /* Drehtuer ist optional */ }
     try { Terminal.init(); } catch (e) { /* Terminal ist optional */ }
     try { Eggs.init(); } catch (e) { /* Eier sind optional */ }
 
@@ -500,6 +640,7 @@
         /* eslint-enable no-console */
       },
       matrix: function () { return CodeRain.toggle(); },
+      rainStatus: function () { return CodeRain.status(); },
       overdrive: function () { return Eggs.overdrive(); },
       primes: function () { CodeRain.setPrimeMode(true); return 'Primzahl-Modus an'; },
       run: function (cmd) { Terminal.run(String(cmd)); }

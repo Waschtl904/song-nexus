@@ -29,6 +29,12 @@ export const AudioPlayer = {
         this.setupEventListeners();
         this.setupVisualization();
 
+        // Fuer die Maschinenkonsole (js/nexus-controls.js) erreichbar machen:
+        // die Abspielgeschwindigkeit laesst sich nur direkt am Audio-Objekt setzen.
+        if (typeof window !== 'undefined') {
+            window.AudioPlayer = this;
+        }
+
         console.log('✅ AudioPlayer initialized');
     },
 
