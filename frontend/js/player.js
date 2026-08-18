@@ -12,6 +12,16 @@ export const Player = {
     isPreview: false,
 
     init() {
+        // Mehrfachinitialisierung verhindern: Player.init() wurde aus main.js,
+        // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+        // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+        // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+        if (this._initialisiert) {
+            console.warn('⚠️ Player.init() erneut aufgerufen — uebersprungen');
+            return;
+        }
+        this._initialisiert = true;
+
         console.log('🎮 Player module initializing...');
         this.setupControls();
         console.log('✅ Player initialized');

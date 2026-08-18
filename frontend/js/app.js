@@ -17,6 +17,16 @@ export const App = {
   user: null,
 
   async init() {
+      // Mehrfachinitialisierung verhindern: App.init() wurde aus main.js,
+      // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+      // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+      // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+      if (this._initialisiert) {
+          console.warn('⚠️ App.init() erneut aufgerufen — uebersprungen');
+          return;
+      }
+      this._initialisiert = true;
+
     console.log('🚀 SONG-NEXUS Initializing (ES6 Modules)...');
 
     try {
@@ -75,9 +85,12 @@ export const App = {
   },
 
   initDarkMode() {
-    document.documentElement.setAttribute('data-color-scheme', 'dark');
-    document.documentElement.setAttribute('data-theme', 'dark');
-    console.log('🌙 Dark mode initialized');
+    // Vorher wurde hier bedingungslos auf dunkel gestellt und damit die
+    // gespeicherte Wahl aus ui.js wieder ueberschrieben.
+    const gespeichert = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-color-scheme', gespeichert);
+    document.documentElement.setAttribute('data-theme', gespeichert);
+    console.log(`🌙 Theme aus Speicher uebernommen: ${gespeichert}`);
   },
 
   setupEventListeners() {

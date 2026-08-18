@@ -29,6 +29,16 @@ export const Auth = {
     // ========================================================================
 
     init() {
+        // Mehrfachinitialisierung verhindern: Auth.init() wurde aus main.js,
+        // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+        // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+        // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+        if (this._initialisiert) {
+            console.warn('⚠️ Auth.init() erneut aufgerufen — uebersprungen');
+            return;
+        }
+        this._initialisiert = true;
+
         console.log('🔐 Auth module initializing...');
         this.token = getAuthToken();
         this.loadUserFromStorage();

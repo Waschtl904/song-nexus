@@ -36,6 +36,16 @@ export const Tracks = {
   currentlyPlayingId: null,
 
   async init() {
+      // Mehrfachinitialisierung verhindern: Tracks.init() wurde aus main.js,
+      // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+      // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+      // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+      if (this._initialisiert) {
+          console.warn('⚠️ Tracks.init() erneut aufgerufen — uebersprungen');
+          return true;
+      }
+      this._initialisiert = true;
+
     console.log('🎵 Tracks module initializing...');
     await loadDesignConfig();
 

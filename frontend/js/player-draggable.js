@@ -14,6 +14,16 @@ export const PlayerDraggable = {
     // ======================================================================
 
     init() {
+        // Mehrfachinitialisierung verhindern: PlayerDraggable.init() wurde aus main.js,
+        // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+        // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+        // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+        if (this._initialisiert) {
+            console.warn('⚠️ PlayerDraggable.init() erneut aufgerufen — uebersprungen');
+            return;
+        }
+        this._initialisiert = true;
+
         const player = document.getElementById('stickyPlayer');
         const header = document.getElementById('playerHeader');
         const resizeHandle = document.getElementById('playerResizeHandle');
@@ -51,12 +61,30 @@ export const PlayerDraggable = {
         // Keyboard navigation
         this.setupKeyboardNavigation(player);
 
-        // Close button
+        // Minimieren-Knopf — hatte bisher gar keine Bindung, deshalb tat ein
+        // einfacher Klick darauf nichts.
+        const minimizeBtn = document.getElementById('playerMinimize');
+        if (minimizeBtn) {
+            minimizeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.minimizePlayer(player);
+            });
+            minimizeBtn.setAttribute('title', 'Player einklappen');
+        }
+
+        // Schliessen-Knopf — klappte den Player vorher nur ein, obwohl ein
+        // Kreuz Schliessen verspricht. Jetzt verschwindet der Player und
+        // laesst sich ueber eine kleine Schaltflaeche zurueckholen.
         const closeBtn = document.getElementById('playerClose');
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.minimizePlayer(player));
-            closeBtn.setAttribute('aria-label', 'Minimize player');
-            closeBtn.setAttribute('title', 'Minimize player (Escape)');
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.closePlayer(player);
+            });
+            closeBtn.setAttribute('aria-label', 'Player schliessen');
+            closeBtn.setAttribute('title', 'Player schliessen (Escape klappt ein)');
         }
 
         // Context menu
@@ -236,16 +264,24 @@ export const PlayerDraggable = {
             document.body.appendChild(menu);
         }
 
-        menu.innerHTML = `
-      <div style="padding: 8px 16px; cursor: pointer;" 
-           onclick="PlayerDraggable.resetPosition(document.getElementById('stickyPlayer')); this.parentElement.style.display='none';">
-        ↺ Reset Position
-      </div>
-      <div style="padding: 8px 16px; cursor: pointer;" 
-           onclick="PlayerDraggable.minimizePlayer(document.getElementById('stickyPlayer')); this.parentElement.style.display='none';">
-        − Minimize
-      </div>
-    `;
+        // Inline-onclick war hier wirkungslos: die Sicherheitsrichtlinie des
+        // Servers erlaubt nur Skripte aus eigenen Dateien. Deshalb echte
+        // Ereignisbindungen statt Attribute.
+        menu.textContent = '';
+        const eintraege = [
+            ['↺ Position zuruecksetzen', () => this.resetPosition(player)],
+            ['− Player einklappen',      () => this.minimizePlayer(player)]
+        ];
+        eintraege.forEach(([text, aktion]) => {
+            const zeile = document.createElement('div');
+            zeile.style.cssText = 'padding: 8px 16px; cursor: pointer;';
+            zeile.textContent = text;
+            zeile.addEventListener('click', () => {
+                aktion();
+                menu.style.display = 'none';
+            });
+            menu.appendChild(zeile);
+        });
 
         menu.style.display = 'block';
         menu.style.left = e.clientX + 'px';
@@ -274,6 +310,27 @@ export const PlayerDraggable = {
         sessionStorage.removeItem('playerSize');
 
         console.log('↺ Player position reset');
+    },
+
+    closePlayer(player) {
+        player.style.display = 'none';
+
+        let zurueck = document.getElementById('playerRestore');
+        if (!zurueck) {
+            zurueck = document.createElement('button');
+            zurueck.id = 'playerRestore';
+            zurueck.type = 'button';
+            zurueck.className = 'player-restore';
+            zurueck.textContent = '♪ Player';
+            zurueck.setAttribute('aria-label', 'Player wieder anzeigen');
+            zurueck.addEventListener('click', () => {
+                player.style.display = '';
+                zurueck.remove();
+            });
+            document.body.appendChild(zurueck);
+        }
+
+        console.log('✕ Player geschlossen');
     },
 
     minimizePlayer(player) {

@@ -7,6 +7,16 @@ import { Auth } from './auth.js';
 
 export const UI = {
     init() {
+        // Mehrfachinitialisierung verhindern: UI.init() wurde aus main.js,
+        // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+        // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+        // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+        if (this._initialisiert) {
+            console.warn('⚠️ UI.init() erneut aufgerufen — uebersprungen');
+            return;
+        }
+        this._initialisiert = true;
+
         console.log('🎨 UI module initializing...');
         this.setupTheme();
         this.setupAccessibility();

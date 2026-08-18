@@ -950,3 +950,39 @@ footer {
   justify-content: space-between;
   width: 100%;
 }
+
+/* ============================================================================
+   16. PLAYER ZURUECKHOLEN
+   Das Kreuz im Player schliesst ihn jetzt wirklich. Diese Schaltflaeche
+   holt ihn zurueck (js/player-draggable.js, closePlayer).
+   ============================================================================ */
+.player-restore {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 200;
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: rgba(4, 10, 20, 0.82);
+  border: 1px solid var(--glass-rim);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+  cursor: pointer;
+}
+
+.player-restore:hover {
+  color: #eafff9;
+  box-shadow: 0 0 26px var(--color-primary);
+}
+
+.player-restore:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}

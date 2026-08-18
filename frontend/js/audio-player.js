@@ -21,6 +21,16 @@ export const AudioPlayer = {
     animationId: null,
 
     init() {
+        // Mehrfachinitialisierung verhindern: AudioPlayer.init() wurde aus main.js,
+        // app.js und js/init.js aufgerufen. Jeder Durchlauf hat die
+        // Ereignisbindungen erneut angelegt — ein Klick loeste sie danach
+        // zwei- bis viermal aus (Anmeldung, Umschalter, WebAuthn-Anfragen).
+        if (this._initialisiert) {
+            console.warn('⚠️ AudioPlayer.init() erneut aufgerufen — uebersprungen');
+            return;
+        }
+        this._initialisiert = true;
+
         console.log('🎵 AudioPlayer initializing...');
 
         this.audio = new Audio();

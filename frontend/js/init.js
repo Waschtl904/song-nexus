@@ -45,75 +45,34 @@ async function loadDesignSystemFromAPI() {
   }
 }
 
-// ── 2. AUTH INIT ────────────────────────────────────────────────────────────
-function ensureAuthInitialized() {
-  if (typeof Auth === 'undefined') {
-    setTimeout(ensureAuthInitialized, 50);
-    return;
-  }
-  if (typeof Auth.init === 'function') Auth.init();
+/* Frueher standen hier noch eine zweite Auth-Initialisierung, ein zweiter
+   Magic-Link-Aufruf und ein zweiter Theme-Umschalter. Alle drei gibt es im
+   Bundle bereits (main.js und app.js rufen Auth.init, ui.js haengt den
+   Theme-Umschalter an). Dadurch war jeder Klick doppelt bis vierfach
+   verdrahtet: die Anmeldung schickte drei WebAuthn-Anfragen mit drei
+   verschiedenen Challenges, und der Theme-Umschalter schaltete zweimal,
+   also sichtbar gar nicht. Dieser Teil bleibt deshalb leer. */
 
+// ── SCHLIESSEN-KNOPF DES ANMELDEFENSTERS ────────────────────────────────────
+// Das ist die einzige Bindung dafuer im Projekt, Auth.init uebernimmt sie nicht.
+function initAuthModalClose() {
   const closeBtn  = document.getElementById('closeAuthModalBtn');
   const authModal = document.getElementById('authModal');
-  if (closeBtn && authModal) {
-    closeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      authModal.style.display = 'none';
-    });
-  }
-}
-
-// ── 3. MAGIC LINK HANDLER ───────────────────────────────────────────────────
-function handleMagicLink() {
-  if (window.location.pathname === '/auth/magic-link' ||
-      window.location.pathname.includes('auth/magic-link')) {
-    const verify = async () => {
-      if (typeof Auth !== 'undefined' && Auth.verifyMagicLinkFromUrl) {
-        try { await Auth.verifyMagicLinkFromUrl(); }
-        catch (err) { console.error('Magic link verification failed:', err); }
-      }
-    };
-    setTimeout(verify, 500);
-  }
-}
-
-// ── 4. THEME TOGGLE ─────────────────────────────────────────────────────────
-function initThemeToggle() {
-  const html = document.documentElement;
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  let currentTheme = prefersDark ? 'dark' : 'light';
-  html.setAttribute('data-theme', currentTheme);
-
-  const toggle = document.getElementById('themeToggle');
-  if (!toggle) return;
-
-  function setIcon(theme) {
-    toggle.innerHTML = theme === 'dark'
-      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
-      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
-    toggle.setAttribute('aria-label', 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode');
-    toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
-  }
-
-  setIcon(currentTheme);
-  toggle.addEventListener('click', () => {
-    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', currentTheme);
-    setIcon(currentTheme);
+  if (!closeBtn || !authModal) return;
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    authModal.style.display = 'none';
   });
 }
 
 // ── BOOTSTRAP ───────────────────────────────────────────────────────────────
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    loadDesignSystemFromAPI();
-    initThemeToggle();
-    handleMagicLink();
-    setTimeout(ensureAuthInitialized, 1000);
-  });
-} else {
+function bootstrap() {
   loadDesignSystemFromAPI();
-  initThemeToggle();
-  handleMagicLink();
-  setTimeout(ensureAuthInitialized, 1000);
+  initAuthModalClose();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  bootstrap();
 }

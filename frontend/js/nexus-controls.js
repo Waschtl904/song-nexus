@@ -230,10 +230,29 @@
     const console_ = document.createElement('div');
     console_.className = 'nexus-console';
 
-    /* Position */
+    /* Position — zusaetzlich direkt am Audio-Objekt, weil #playerSeekBar in
+       der Vorlage nur ein div ohne eigene Zeigerbedienung ist. Springen im
+       Track war deshalb bisher ueberhaupt nicht moeglich. */
     const rail = makeRail({
       label: 'Position im Track',
-      onChange: function (percent) { pushValue(seekBar, percent); }
+      onChange: function (percent) {
+        pushValue(seekBar, percent);
+
+        const ap = window.AudioPlayer;
+        const audio = ap && ap.audio;
+        if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
+
+        let ziel = (percent / 100) * audio.duration;
+
+        // In der Vorschau liefert der Server nur die ersten Sekunden aus;
+        // dahinter zu springen wuerde die Wiedergabe abwuergen.
+        if (ap.state && ap.state.isPreview && ap.state.previewDuration) {
+          ziel = Math.min(ziel, ap.state.previewDuration - 0.5);
+        }
+
+        try { audio.currentTime = ziel; }
+        catch (e) { console.warn('⚠️ Springen nicht moeglich:', e.message); }
+      }
     });
 
     /* Lautstaerke */
