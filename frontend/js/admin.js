@@ -12,7 +12,7 @@ const Admin = {
         Auth.init();
 
         // ✅ WICHTIG: Warte kurz, damit Auth.init() durchläuft
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await Auth.ready;
 
         if (!Auth.isAuthenticated()) {
             console.warn('❌ User not authenticated! Redirecting...');
@@ -180,21 +180,19 @@ const Admin = {
             formData.set('is_published', 'true');
             formData.set('is_free', isFree ? 'true' : 'false');
 
-            const token = Auth.getToken();
-            if (!token) {
-                throw new Error('Kein Auth-Token! Bitte erneut anmelden.');
+            if (!await globalThis.CookieSession.renew()) {
+                throw new Error('Keine gültige Sitzung! Bitte erneut anmelden.');
             }
 
-            console.log('🔑 Token present:', token.substring(0, 20) + '...');
+
 
             // ✅ POST /api/admin/tracks/upload
             const apiUrl = `${APIClient.getApiBase()}/admin/tracks/upload`;
             console.log('🌐 Uploading to:', apiUrl);
 
-            const response = await fetch(apiUrl, {
+            const response = await globalThis.CookieSession.request(apiUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`
                     // ❌ WICHTIG: Nicht 'Content-Type' setzen bei FormData!
                     // Browser setzt das automatisch mit Boundary
                 },
@@ -253,8 +251,7 @@ const Admin = {
         listContainer.innerHTML = '<p>📋 Lade Tracks...</p>';
 
         try {
-            const token = Auth.getToken();
-            if (!token) {
+            if (!await globalThis.CookieSession.renew()) {
                 throw new Error('Nicht authentifiziert');
             }
 
@@ -264,9 +261,9 @@ const Admin = {
             // ✅ Versuche Admin-List Route
             try {
                 console.log('🔐 Versuche /api/admin/tracks/list...');
-                const res = await fetch(`${APIClient.getApiBase()}/admin/tracks/list`, {
+                const res = await globalThis.CookieSession.request(`${APIClient.getApiBase()}/admin/tracks/list`, {
                     method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { }
                 });
 
                 console.log('📊 Admin list response status:', res.status);
@@ -287,9 +284,9 @@ const Admin = {
             // ✅ Fallback auf Public List
             if (!useAdminList) {
                 console.log('📡 Versuche /api/tracks/...');
-                const res = await fetch(`${APIClient.getApiBase()}/tracks/`, {
+                const res = await globalThis.CookieSession.request(`${APIClient.getApiBase()}/tracks/`, {
                     method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { }
                 });
 
                 if (res.ok) {
@@ -346,13 +343,12 @@ const Admin = {
         }
 
         try {
-            const token = Auth.getToken();
 
             console.log(`🗑️ Deleting track ${id}...`);
 
-            const response = await fetch(`${APIClient.getApiBase()}/admin/tracks/${id}`, {
+            const response = await globalThis.CookieSession.request(`${APIClient.getApiBase()}/admin/tracks/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { }
             });
 
             console.log('📊 Delete response status:', response.status);

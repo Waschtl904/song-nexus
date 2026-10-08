@@ -10,7 +10,7 @@ let designConfig = null;
 
 async function loadDesignConfig() {
   try {
-    const response = await fetch('./config/design.config.json');
+    const response = await globalThis.CookieSession.request('./config/design.config.json');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     designConfig = await response.json();
     console.log(`✅ Design config loaded in Tracks module`);
@@ -74,7 +74,7 @@ export const Tracks = {
       this.allTracks = await APIClient.getTracks();
       console.log('📊 Tracks loaded:', this.allTracks.length);
 
-      if (token) {
+      if (globalThis.CookieSession.user) {
         await this.loadUserPurchases(token);
       }
 
@@ -88,8 +88,8 @@ export const Tracks = {
   async loadUserPurchases(token) {
     try {
       const apiBase = this.getApiBase();
-      const response = await fetch(`${apiBase}/users/purchases`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const response = await globalThis.CookieSession.request(`${apiBase}/users/purchases`, {
+        headers: { },
         credentials: 'include',
       });
 

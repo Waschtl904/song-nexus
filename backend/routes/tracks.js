@@ -4,14 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const { bytesProSekunde } = require('../utils/audio-rate');
 const { pool } = require('../db');
-const { verifyToken, verifyTokenSync } = require('../middleware/auth-middleware');
+const { verifyToken, verifyAccessToken } = require('../middleware/auth-middleware');
 const router = express.Router();
+const { cacheMiddleware } = require('../middleware/cache-middleware');
 
 // ============================================================================
 // 🎵 GET /api/tracks - Public track list with PAGINATION
 // ============================================================================
 
-router.get('/', async (req, res) => {
+router.get('/', cacheMiddleware(300), async (req, res) => {
   try {
     // ✅ Parse query parameters with defaults
     const page = parseInt(req.query.page) || 1;
@@ -192,10 +193,10 @@ router.get('/audio/:filename', async (req, res) => {
       console.log(`🔑 Token vorhanden: ${!!token} (${authHeader ? 'Kopfzeile' : cookieToken ? 'Cookie' : 'keines'})`);
 
       if (token) {
-        console.log(`🔑 Token present: ${token.substring(0, 20)}...`);
+
 
         try {
-          const decoded = verifyTokenSync(token);
+          const decoded = await verifyAccessToken(token);
           const userId = decoded.id || decoded.userId;
           console.log(`👤 User ID from token: ${userId}`);
 
@@ -220,6 +221,8 @@ router.get('/audio/:filename', async (req, res) => {
       }
     }
 
+    res.vary('Cookie'); res.vary('Authorization');
+    res.set('Cache-Control', 'private, no-store');
     // Set CORS & Streaming Headers
     const frontendUrl = process.env.FRONTEND_URL || 'https://localhost:5500';
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -244,7 +247,7 @@ router.get('/audio/:filename', async (req, res) => {
     return servePreview(filepath, filename, track, req, res);
   } catch (err) {
     console.error('❌ Audio streaming error:', err);
-    res.status(500).json({ error: 'Failed to stream audio', details: err.message });
+    res.status(500).json({ error: 'Failed to stream audio' });
   }
 });
 
@@ -272,7 +275,7 @@ router.get('/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('❌ Track detail error:', err);
-    res.status(500).json({ error: 'Failed to fetch track', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch track', code: 'TRACK_UNAVAILABLE' });
   }
 });
 
@@ -299,12 +302,12 @@ function serveFullFile(filepath, filename, filesize, range, res) {
       res.status(206);
       res.setHeader('Content-Range', `bytes ${start}-${end}/${filesize}`);
       res.setHeader('Content-Length', end - start + 1);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'private, no-store');
       console.log(`💤 206 Partial Content: bytes ${start}-${end}/${filesize}`);
       fs.createReadStream(filepath, { start, end }).pipe(res);
     } else {
       res.setHeader('Content-Length', filesize);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'private, no-store');
       console.log(`💤 200 OK: Full file (${(filesize / 1024 / 1024).toFixed(2)} MB)`);
       fs.createReadStream(filepath).pipe(res);
     }

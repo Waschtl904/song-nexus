@@ -12,10 +12,12 @@ function createServer(options = {}) {
         const certDir = path.join(__dirname, 'certs');
         // Bei angefordertem TLS nie still auf HTTP zurueckfallen.
         // Hinter nginx (USE_HTTPS=false) braucht Node keine mkcert-Dateien.
-        tls = {
+        try { tls = {
             key: fs.readFileSync(path.join(certDir, 'localhost-key.pem')),
             cert: fs.readFileSync(path.join(certDir, 'localhost.pem')),
-        };
+        }; } catch (error) {
+            throw new Error('Local TLS certificate unavailable. Run mkcert for localhost in backend/certs, or use USE_HTTPS=false behind the HTTPS proxy. ' + error.message);
+        }
     }
     const app = createApp(options);
     const server = tls ? https.createServer(tls, app) : http.createServer(app);

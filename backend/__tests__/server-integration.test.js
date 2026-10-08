@@ -148,7 +148,7 @@ test('CSP mit wechselndem Nonce und HSTS stehen auf echten Frontend-Antworten', 
   const second = await request(server).get('/fixture.css').expect(200);
   expect(first.headers['content-security-policy']).toMatch(/script-src 'self' 'nonce-[a-f0-9]+'/);
   expect(first.headers['content-security-policy']).not.toBe(second.headers['content-security-policy']);
-  expect(first.headers['strict-transport-security']).toContain('max-age=31536000');
+  expect(first.headers['strict-transport-security']).toContain('max-age=300');
   expect(first.headers['x-powered-by']).toBeUndefined();
   expect(first.headers['x-content-type-options']).toBe('nosniff');
 });

@@ -23,6 +23,16 @@ const jwt = require('jsonwebtoken');
 // Mocks  (ALLE vor dem ersten require('../app')!)
 // ---------------------------------------------------------------------------
 
+// Route-specific fixtures: the real JWT/session validator sees a synthetic active
+// database identity. Revocation and SQL behavior have their own PostgreSQL suite.
+jest.mock('../utils/auth-session', () => {
+  const actual = jest.requireActual('../utils/auth-session');
+  return { ...actual, verifyAccessToken: token => actual.verifyAccessToken(token, {
+    query: async (_sql, [id]) => ({ rows: [1,99].includes(id)
+      ? [{ id, is_active: true, token_version: 1, role: id === 99 ? 'admin' : 'user' }] : [] }),
+  }) };
+});
+
 jest.mock('../db', () => ({
   pool: { query: jest.fn(), end: jest.fn().mockResolvedValue(undefined) },
 }));
@@ -151,7 +161,7 @@ const { pool } = require('../db');
 function makeToken(
   user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }
 ) {
-  return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ ...user, token_version: 1, sid: '11111111-1111-4111-8111-111111111111' }, process.env.JWT_SECRET, { expiresIn: '1h', issuer: 'song-nexus', audience: 'song-nexus' });
 }
 const userToken = makeToken();
 

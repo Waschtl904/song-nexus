@@ -78,6 +78,7 @@
         }
     </style>
   <link rel="icon" href="./favicon.ico" sizes="any">
+    <script src="/js/cookie-session.js"></script>
 </head>
 
 <body>
@@ -147,21 +148,19 @@
         // FIX #3: Properly clear payment state
         async function cancelPayment() {
             try {
-                const jwt = localStorage.getItem('token');
                 const orderId = localStorage.getItem('pendingPaymentOrderId');
                 const paypalParams = getPayPalParams();
 
-                if (orderId && jwt) {
+                if (orderId) {
                     console.log(`🛑 Payment cancelled for order: ${orderId}`);
                     console.log('PayPal Params:', paypalParams);
 
                     // Optional: Notify backend about cancelled order
                     try {
-                        const response = await fetch('/api/payments/cancel', {
+                        const response = await CookieSession.request('/api/payments/cancel', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${jwt}`
                             },
                             body: JSON.stringify({
                                 orderId: orderId,

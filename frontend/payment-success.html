@@ -152,6 +152,7 @@
         }
     </style>
   <link rel="icon" href="./favicon.ico" sizes="any">
+    <script src="/js/cookie-session.js"></script>
 </head>
 
 <body>
@@ -245,9 +246,8 @@
                 const params = new URLSearchParams(window.location.search);
                 const paypalToken = params.get('token');
                 const paypalPayerId = params.get('PayerID');
-                const jwt = localStorage.getItem('token');
 
-                if (!jwt) {
+                if (!await CookieSession.renew()) {
                     showError('Authentication failed. Please log in again.', 'NO_AUTH');
                     return;
                 }
@@ -274,10 +274,9 @@
 
                 console.log(`📡 Calling: ${captureUrl}`);
 
-                const response = await fetch(captureUrl, {
+                const response = await CookieSession.request(captureUrl, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${jwt}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -316,7 +315,7 @@
                     console.log('✅ Payment captured successfully:', result);
 
                     // Fetch track details
-                    await fetchTrackDetails(trackId, jwt);
+                    await fetchTrackDetails(trackId);
 
                     // Clear localStorage
                     localStorage.removeItem('pendingPaymentOrderId');
@@ -344,15 +343,15 @@
             }
         }
 
-        async function fetchTrackDetails(trackId, jwt) {
+        async function fetchTrackDetails(trackId) {
             try {
                 const apiBaseUrl = getApiBaseUrl();
                 const trackUrl = `${apiBaseUrl}/api/tracks/${trackId}`;
 
                 console.log(`📡 Fetching track details: ${trackUrl}`);
 
-                const response = await fetch(trackUrl, {
-                    headers: { 'Authorization': `Bearer ${jwt}` }
+                const response = await CookieSession.request(trackUrl, {
+                    headers: { }
                 });
 
                 if (response.ok) {
@@ -443,11 +442,10 @@
 
             try {
                 const apiBaseUrl = getApiBaseUrl();
-                const jwt = localStorage.getItem('token');
 
                 // Use authenticated download endpoint
                 const downloadLink = purchasedTrackData.audio_url ||
-                    `${apiBaseUrl}/api/tracks/audio/${purchasedTrackData.audio_filename}?token=${jwt}`;
+                    `${apiBaseUrl}/api/tracks/audio/${purchasedTrackData.audio_filename}`;
 
                 console.log('📥 Downloading track...');
 

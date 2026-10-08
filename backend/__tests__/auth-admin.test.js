@@ -40,15 +40,15 @@ function baueApp() {
 
 /** Ein echtes, gültig signiertes Token. Die Signatur ist nie das Problem. */
 function token({ id = 5, role = 'admin' } = {}) {
-  return jwt.sign({ id, role, username: 'test' }, process.env.JWT_SECRET, {
-    expiresIn: '7d',
+  return jwt.sign({ id, role, username: 'test', token_version: 1, sid: '11111111-1111-4111-8111-111111111111' }, process.env.JWT_SECRET, {
+    expiresIn: '1h', issuer: 'song-nexus', audience: 'song-nexus',
   });
 }
 
 /** Was die Datenbank antworten soll. */
 function dbSagt(zeile) {
   pool.query.mockResolvedValue(
-    zeile === null ? { rowCount: 0, rows: [] } : { rowCount: 1, rows: [zeile] }
+    zeile === null ? { rowCount: 0, rows: [] } : { rowCount: 1, rows: [{ id: 5, token_version: 1, ...zeile }] }
   );
 }
 
@@ -73,8 +73,8 @@ describe('Adminprüfung gegen die Datenbank', () => {
       dbSagt({ role: 'user', is_active: false });
       await hole(token({ id: 5 }));
       expect(pool.query).toHaveBeenCalledTimes(1);
-      expect(pool.query.mock.calls[0][0]).toMatch(/SELECT role, is_active FROM users WHERE id = \$1/);
-      expect(pool.query.mock.calls[0][1]).toEqual([5]);
+      expect(pool.query.mock.calls[0][0]).toMatch(/FROM users u JOIN auth_sessions/);
+      expect(pool.query.mock.calls[0][1]).toEqual([5, '11111111-1111-4111-8111-111111111111']);
     });
   });
 
@@ -103,21 +103,21 @@ describe('Adminprüfung gegen die Datenbank', () => {
       dbSagt({ role: 'admin', is_active: false });
       const r = await hole(token());
       expect(r.status).toBe(403);
-      expect(r.body.code).toBe('ACCOUNT_DISABLED');
+      expect(r.body.code).toBe('SESSION_INVALID');
     });
 
     test('is_active ist NULL → gilt als nicht aktiv', async () => {
       dbSagt({ role: 'admin', is_active: null });
       const r = await hole(token());
       expect(r.status).toBe(403);
-      expect(r.body.code).toBe('ACCOUNT_DISABLED');
+      expect(r.body.code).toBe('SESSION_INVALID');
     });
 
     test('Benutzerzeile existiert nicht mehr → 403 mit ACCOUNT_UNKNOWN', async () => {
       dbSagt(null);
       const r = await hole(token());
       expect(r.status).toBe(403);
-      expect(r.body.code).toBe('ACCOUNT_UNKNOWN');
+      expect(r.body.code).toBe('SESSION_INVALID');
     });
   });
 
@@ -165,8 +165,8 @@ describe('Adminprüfung gegen die Datenbank', () => {
     test('Token ohne Benutzerkennung → 401, ohne Datenbankabfrage', async () => {
       const ohneId = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET);
       const r = await hole(ohneId);
-      expect(r.status).toBe(401);
-      expect(r.body.code).toBe('NO_USER_ID');
+      expect(r.status).toBe(403);
+      expect(r.body.code).toBe('SESSION_INVALID');
       expect(pool.query).not.toHaveBeenCalled();
     });
 
@@ -174,7 +174,7 @@ describe('Adminprüfung gegen die Datenbank', () => {
       // Sonst landet '5' als Parameter in der Abfrage und PostgreSQL muss es
       // richten. Eine Rechtepruefung soll nicht auf Typumwandlung hoffen.
       const r = await hole(token({ id: '5' }));
-      expect(r.status).toBe(401);
+      expect(r.status).toBe(403);
       expect(pool.query).not.toHaveBeenCalled();
     });
   });
