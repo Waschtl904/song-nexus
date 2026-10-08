@@ -178,6 +178,42 @@ test('download token survives app recreation and is consumed once with account/p
     } finally { fs.unlinkSync(file); }
 });
 
+for (const [label, mutation, rejection] of [
+    ['expired', "UPDATE download_tokens SET expires_at=now()-interval '1 second'", 403],
+    ['purchase removed', 'DELETE FROM purchases', 403],
+    ['unpublished', 'UPDATE tracks SET is_published=false', 403],
+    ['soft deleted', 'UPDATE tracks SET is_deleted=true', 403],
+    ['account revoked', 'UPDATE users SET is_active=false', 403],
+]) test(`download refuses ${label} after issuance`, async()=>{
+    const saved=await login();
+    const track=(await pool.query(`INSERT INTO tracks(name,artist,audio_filename,is_free,is_published,is_deleted)
+        VALUES('guard','synthetic',$1,false,true,false) RETURNING id`,['guard-'+crypto.randomUUID()+'.mp3'])).rows[0];
+    await pool.query('INSERT INTO purchases(user_id,track_id) VALUES($1,$2)',[user.id,track.id]);
+    const grant=await request(app).get('/api/payments/download/'+track.id).set('Cookie',saved);
+    assert.equal(grant.status,200);
+    await pool.query(mutation);
+    assert.equal((await request(app).get(grant.body.download_url).set('Cookie',saved)).status,rejection);
+    if (['unpublished','soft deleted'].includes(label))
+        assert.equal((await request(app).get('/api/payments/download/'+track.id).set('Cookie',saved)).status,403);
+});
+test('copied download link cannot be redeemed anonymously or by another account',async()=>{
+    const saved=await login();
+    const track=(await pool.query(`INSERT INTO tracks(name,artist,audio_filename,is_free,is_published,is_deleted)
+        VALUES('guard','synthetic',$1,false,true,false) RETURNING id`,['guard-'+crypto.randomUUID()+'.mp3'])).rows[0];
+    await pool.query('INSERT INTO purchases(user_id,track_id) VALUES($1,$2)',[user.id,track.id]);
+    const grant=await request(app).get('/api/payments/download/'+track.id).set('Cookie',saved);
+    assert.equal(grant.status,200);
+    assert.equal((await request(app).get(grant.body.download_url)).status,401);
+    const hash=await require('bcryptjs').hash('second-correct-password',4);
+    await pool.query(`INSERT INTO users(username,email,password_hash,role,is_active)
+        VALUES('second','second@example.test',$1,'user',true)`,[hash]);
+    const other=await post('/api/auth/login',{username:'second',password:'second-correct-password'});
+    assert.equal(other.status,200);
+    assert.equal((await request(app).get(grant.body.download_url).set('Cookie',cookies(other))).status,403);
+    assert.equal(Number((await pool.query('SELECT count(*) FROM download_tokens')).rows[0].count),1,
+        'unauthorized use must not consume the rightful buyer grant');
+});
+
 test('real WebAuthn registration verifies attestation and stores raw COSE bytes atomically',async()=>{
     const options=await post('/api/auth/webauthn/register-options',{username:'new-passkey',email:'new-passkey@example.test'}).set('X-Forwarded-Proto','https');
     assert.equal(options.status,200);

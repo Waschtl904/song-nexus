@@ -465,6 +465,7 @@ router.get('/download/:trackId', verifyToken, async (req, res) => {
        FROM purchases p
        JOIN tracks t ON t.id = p.track_id
        WHERE p.user_id = $1 AND p.track_id = $2
+         AND t.is_published=true AND t.is_deleted=false
        LIMIT 1`,
       [userId, trackId]
     );
@@ -475,7 +476,7 @@ router.get('/download/:trackId', verifyToken, async (req, res) => {
 
     const { audio_filename, name, artist } = purchaseResult.rows[0];
 
-    // 2️⃣ Signierten Einmal-Token generieren (gültig 10 Minuten)
+    // Zufälligen Einmal-Token erzeugen; nur sein Hash wird gespeichert.
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query(`INSERT INTO download_tokens(token_hash,user_id,track_id,token_version,expires_at)
       VALUES($1,$2,$3,$4,now()+interval '10 minutes')`,
@@ -497,7 +498,7 @@ router.get('/download/:trackId', verifyToken, async (req, res) => {
 // ============================================================================
 // ⬇️  GET /api/payments/download-file/:token - Dateiauslieferung via Token
 // ============================================================================
-// Kein Auth-Header nötig — Token ist der Beweis. Einmalig verwendbar.
+// Link plus aktuelle Anmeldung des ursprünglichen Käufers; einmalig verwendbar.
 
 const path_mod = require('path');
 const fs_mod   = require('fs');
@@ -511,7 +512,7 @@ router.get('/download-file/:token', verifyToken, async (req, res) => {
     const result = await pool.query(`DELETE FROM download_tokens d USING users u,tracks t,purchases p
       WHERE d.token_hash=$1 AND d.user_id=$2 AND d.user_id=u.id AND u.is_active=true
       AND d.token_version=u.token_version AND d.expires_at>now() AND d.track_id=t.id
-      AND t.is_deleted=false AND p.user_id=d.user_id AND p.track_id=d.track_id
+      AND t.is_published=true AND t.is_deleted=false AND p.user_id=d.user_id AND p.track_id=d.track_id
       RETURNING t.audio_filename,t.name,t.artist`, [digest(req.params.token), req.user.id]);
     if (!result.rows.length) return res.status(403).send('Download-Link ungültig oder abgelaufen.');
     const track = result.rows[0];

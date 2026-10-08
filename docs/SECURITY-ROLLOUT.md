@@ -83,6 +83,11 @@ separat zu entwickeln, bevor diese Adresse als bestätigte Identität dient.
    innerhalb ihrer Ablaufzeit noch bestehen. Downloadlinks verlangen jetzt
    zusätzlich die Anmeldung des ursprünglichen Käufers.
 
+Downloadfreigaben verlangen beim Erzeugen und Einlösen einen aktuell
+veröffentlichten, nicht gelöschten Titel und den weiterhin bestehenden Kauf.
+Die technische Vorgabe verweigert Downloads zurückgezogener Titel; eine andere
+Regel für bereits gekaufte Titel braucht eine ausdrückliche Produktentscheidung.
+
 Session-, Challenge-, Account-Link- und Downloadzustand liegt in PostgreSQL.
 Ablaufprüfungen erfolgen bei jedem Zugriff; regelmäßige Löschläufe dienen nur der
 Speicherbereinigung. Die Ratenbegrenzung ist weiterhin pro Prozess. Daher bleibt
