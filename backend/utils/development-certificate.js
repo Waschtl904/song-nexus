@@ -1,6 +1,7 @@
 // Development/tests only. Never installs a CA or disables certificate validation.
 const { webcrypto, KeyObject, randomBytes } = require('node:crypto');
 async function developmentCertificate() {
+    require('reflect-metadata');
     const x509 = require('@peculiar/x509');
     const algorithm = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256',
         publicExponent: new Uint8Array([1, 0, 1]), modulusLength: 2048 };

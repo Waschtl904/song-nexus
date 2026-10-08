@@ -63,10 +63,11 @@
     "rotating-file-stream": "^3.2.7"
   },
   "devDependencies": {
+    "@peculiar/x509": "^2.0.0",
     "cross-env": "^7.0.3",
     "jest": "^30.5.2",
-    "supertest": "^7.0.0",
-    "@peculiar/x509": "^2.0.0"
+    "reflect-metadata": "^0.2.2",
+    "supertest": "^7.0.0"
   },
   "engines": {
     "node": ">=22.0.0",
