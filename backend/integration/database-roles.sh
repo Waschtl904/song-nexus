@@ -4,14 +4,16 @@ set -euo pipefail
 [[ "$TEST_DATABASE_URL" == *127.0.0.1* && "$TEST_DATABASE_URL" == */song_nexus_test ]] || exit 1
 psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE ROLE "fixture-migration-owner" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
-CREATE ROLE "fixture-web-app" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE ROLE "fixture-web-app" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'integration-only';
 SQL
 for pass in 1 2; do
   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -v app_role=fixture-web-app \
     -v migration_role=fixture-migration-owner -f scripts/deploy/database-grants.sql
 done
-psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-SET ROLE "fixture-web-app";
+APP_TEST_DATABASE_URL=$(node -e 'const u=new URL(process.env.TEST_DATABASE_URL);u.username="fixture-web-app";console.log(u.href)')
+# Connect as the actual runtime login: SET ROLE from a superuser session would
+# still permit switching to any role and is not an adequate membership test.
+psql "$APP_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL' 
 BEGIN;
 INSERT INTO users(username,email,password_hash,is_active) VALUES('permission-test','permission@example.test','synthetic',true);
 UPDATE users SET username='permission-updated' WHERE email='permission@example.test';
@@ -41,7 +43,8 @@ BEGIN
     RAISE EXCEPTION 'Web role can grant privileges';
   END IF;
 END $$;
-RESET ROLE;
+SQL
+psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 -- A new migration table receives no implicit public/application access.
 SET ROLE "fixture-migration-owner";
 CREATE TABLE migration_private_fixture(id integer);

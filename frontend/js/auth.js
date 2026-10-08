@@ -93,7 +93,7 @@ export const Auth = {
     },
 
     getUser() {
-        return this.user;
+        return globalThis.CookieSession.user;
     },
 
     isAuthenticated() {

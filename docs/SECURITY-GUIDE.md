@@ -1271,8 +1271,8 @@ Damit wirken **sofort und ohne erneuten Login**:
 - Konto deaktivieren (`is_active = false`)
 - Benutzerzeile loeschen
 
-Und die Gegenprobe wirkt genauso: wer zum Admin gemacht wird, muss sich nicht
-neu anmelden.
+Historisch galt die neue Rolle sofort. Seit dem Versionswiderruf in #83
+verlangt auch eine Beförderung eine neue Anmeldung.
 
 **Fail closed:** ist die Datenbank nicht erreichbar, antwortet die Adminroute
 mit `503 AUTHORIZATION_UNAVAILABLE`. Eine Rechtepruefung, die bei einer Stoerung
@@ -1282,74 +1282,49 @@ durchlaesst, ist keine Rechtepruefung.
 Problem zurueckbringen, das hier behoben wurde: eine Entscheidung anhand
 veralteter Daten.
 
-### 10.3 Was weiterhin NICHT widerrufen wird
+### 10.3 Vollständiger Kontowiderruf (#83)
 
-Ein deaktiviertes Konto kann mit einem noch gueltigen Token **gewoehnliche**
-angemeldete Routen weiter benutzen — eigene Kaeufe ansehen, eigene Historie
-lesen — bis das Token ablaeuft. `verifyToken` prueft nur die Unterschrift.
+Seit PR #99 gelten Kontostatus und `token_version` für alle geschützten Zugriffe,
+auch Käufe, Historie und Premium-Audio. Die Identitätsprüfung liest die aktuelle
+Zeile und die bestehende Sitzung aus PostgreSQL. Es gibt keinen prozesslokalen
+Zwischenspeicher. Eine Störung gibt keine geschützten Daten frei.
 
-Das ist eine bewusste Abwaegung und keine Nachlaessigkeit: eine Datenbankabfrage
-bei **jeder** angemeldeten Anfrage ist eine andere Groessenordnung als eine bei
-den seltenen Adminzugriffen. Die saubere Loesung ist eine Spalte `token_version`
-in `users`, die in den Token wandert und bei jeder Aenderung erhoeht wird.
-Verfolgt in **#83**.
+Passwortänderung, Rollenwechsel und Aktivitätsänderung erhöhen die Version durch
+einen Trigger. Auch Beförderungen machen alte Sitzungen ungültig: erneut anmelden.
+`POST /api/auth/logout-all` erhöht die Version ausdrücklich. Normales Logout
+widerruft nur die Sitzung des betreffenden Browsers.
 
-### 10.4 Notfall: einen einzelnen Benutzer entmachten
+### 10.4 Ein Konto sofort überall abmelden
 
-Reihenfolge nach steigender Wirkung. Die ersten beiden wirken sofort auf alle
-Adminrouten.
-
-`<ID>` ist jeweils durch die Zahl aus `users.id` zu ersetzen.
-
-Rolle entziehen:
+Mit der autorisierten Verwaltungsverbindung, nach Prüfung der Benutzerkennung:
 
 ```sql
-UPDATE users SET role = 'user' WHERE id = <ID>;
+UPDATE users SET token_version = token_version + 1 WHERE id = <ID>;
 ```
 
-Konto sperren:
+Bei Kontoübernahme zusätzlich sperren (`is_active=false`) und anschließend den
+Zugang wiederherstellen. Die Passwortänderung widerruft ebenfalls alle alten
+Sitzungen und noch offenen E-Mail-Links. Der Benutzer kann sich erst wieder
+anmelden, wenn das Konto aktiviert wurde und ein gültiger Zugang vorliegt.
+
+### 10.5 Alle Konten abmelden und Geheimnisse rotieren
+
+Für eine vollständige Abmeldung aller bestehenden Sitzungen:
 
 ```sql
-UPDATE users SET is_active = false WHERE id = <ID>;
+UPDATE users SET token_version = token_version + 1;
 ```
 
-Nachsehen, wen es betrifft:
+Das ist eine bewusst weitreichende Betriebsmaßnahme. Bei tatsächlich offengelegtem
+Signaturschlüssel ist zusätzlich `JWT_SECRET` zu rotieren und der Dienst neu zu
+starten. Refresh-Werte sind jetzt zufällige, gehashte Datenbankwerte; das ältere
+`JWT_REFRESH_SECRET` signiert sie nicht. Eine reine JWT-Schlüsselrotation ersetzt
+daher den Sitzungswiderruf nicht. `SESSION_SECRET` schützt die gesonderte
+WebAuthn-Sitzung und ist unabhängig zu verwalten.
 
-```sql
-SELECT id, email, username, role, is_active FROM users ORDER BY id;
-```
-
-### 10.5 Notfall: alle Sitzungen auf einmal beenden
-
-Das ist der einzige vollstaendige Widerruf, den es derzeit gibt, und er trifft
-**alle** Benutzer gleichzeitig. Bewusste Entscheidung, kein Nebeneffekt.
-
-1. Neue Geheimnisse erzeugen — unter Windows mit dem vorhandenen Skript:
-
-   ```powershell
-   .\scripts\generate-secrets.ps1
-   ```
-
-2. `JWT_SECRET` **und** `JWT_REFRESH_SECRET` in `.env` ersetzen. Beide, sonst
-   kann ueber `/api/auth/refresh-token` ein neues Zugangstoken geholt werden.
-
-3. Die Anwendung neu starten. Auf dem Server:
-
-   ```bash
-   pm2 restart song-nexus
-   ```
-
-4. Kontrollieren, dass die Geheimnisse wirklich neu sind:
-
-   ```powershell
-   .\scripts\secrets-pruefen.ps1
-   ```
-
-   Der Fingerabdruck von `JWT_SECRET` muss sich geaendert haben. Das Skript
-   zeigt Laenge und Fingerabdruck, niemals den Wert.
-
-Danach sind alle Zugangs- und Erneuerungstoken ungueltig. Jeder muss sich neu
-anmelden.
+Einführungsreihenfolge und verbleibende Grenzen stehen in
+[SECURITY-ROLLOUT.md](SECURITY-ROLLOUT.md). Historische Fundstellen (#70/#2) bleiben
+abzugleichen; keine dieser Codeänderungen bestätigt eine erfolgte Rotation.
 
 ### 10.6 Was in dieser Reihenfolge zu tun ist
 
