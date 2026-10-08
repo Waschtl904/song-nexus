@@ -59,7 +59,7 @@ function cookieValue(list, name) { return list.find(c => c.startsWith(name+'='))
 async function login() {
     const res = await post('/api/auth/login', { username: 'fixture', password: 'correct-horse-battery-staple' });
     assert.equal(res.status, 200); assert.equal(res.body.token, undefined);
-    assert.ok(res.headers['set-cookie'].every(c => /HttpOnly/.test(c)));
+    assert.ok(res.headers['set-cookie'].every(c => /HttpOnly/.test(c) && /Secure/.test(c))); 
     return cookies(res);
 }
 test('password login and legacy alias use cookies and current account data', async () => {
@@ -93,6 +93,9 @@ test('database outage is fail-closed 503', async () => {
     finally { pool.query=original; }
 });
 test('logout revokes one session; logout-all revokes every device', async () => {
+    const headerOnly=await login();
+    assert.equal((await post('/api/auth/logout').set('Authorization','Bearer '+cookieValue(headerOnly,'auth_token'))).status,200);
+    assert.equal((await request(app).get('/api/auth/me').set('Cookie',headerOnly)).status,403);
     const first=await login(), second=await login();
     assert.equal((await post('/api/auth/logout').set('Cookie',first)).status,200);
     assert.equal((await request(app).get('/api/auth/me').set('Cookie',first)).status,403);
@@ -165,6 +168,7 @@ test('download token survives app recreation and is consumed once with account/p
     const track=(await pool.query(`INSERT INTO tracks(name,artist,audio_filename,is_free,is_published,is_deleted) VALUES('fixture','synthetic','integration.mp3',false,true,false) RETURNING id`)).rows[0];
     await pool.query('INSERT INTO purchases(user_id,track_id) VALUES($1,$2)',[user.id,track.id]);
     const granted=await request(app).get('/api/payments/download/'+track.id).set('Cookie',saved);assert.equal(granted.status,200);
+    assert.equal((await request(app).head(granted.body.download_url).set('Cookie',saved)).status,405);
     const file=path.join(__dirname,'../public/audio/integration.mp3');fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,'SYNTHETIC AUDIO');
     try {
         app.locals.dispose();app=require('../app').createApp({consoleLogging:false});

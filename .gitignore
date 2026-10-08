@@ -171,3 +171,5 @@ coverage/
 .env.production.local
 # Private keys and local certificates must never be published.
 **/certs/
+
+.local/

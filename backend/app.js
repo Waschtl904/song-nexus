@@ -807,7 +807,7 @@ function createApp(options = {}) {
     // ============================================================================
 
     const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
-    app.use(express.static(frontendPath));
+    app.use(require('./middleware/public-files').publicFilesOnly, express.static(frontendPath));
     log('✅ Static frontend files enabled');
 
     // ============================================================================

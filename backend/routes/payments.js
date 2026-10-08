@@ -502,6 +502,7 @@ router.get('/download/:trackId', verifyToken, async (req, res) => {
 const path_mod = require('path');
 const fs_mod   = require('fs');
 
+router.head('/download-file/:token', (req, res) => res.set('Allow', 'GET').sendStatus(405));
 router.get('/download-file/:token', verifyToken, async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   try {

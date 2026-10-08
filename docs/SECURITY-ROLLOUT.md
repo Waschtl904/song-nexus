@@ -33,7 +33,8 @@ RP-ID, Benutzerverifikation und Zähler. Challenges laufen nach fünf Minuten ab
 und werden vor der Prüfung genau einmal aus der Datenbank entnommen. Die frühere
 pauschale Ausgabe aller Gerätekennungen entfällt. Neue Passkeys müssen auffindbar
 sein (`residentKey: required`); ältere nicht auffindbare Passkeys benötigen eine
-Neuregistrierung oder Anmeldung über Passwort/E-Mail. Alte Base64url-Schlüssel
+Anmeldung über Passwort/E-Mail. Das Ergänzen weiterer Passkeys in einem
+bestehenden Konto hat noch keinen eigenen Bedienablauf. Alte Base64url-Schlüssel
 in der BYTEA-Spalte werden weiterhin gelesen; neue Schlüssel sind echte COSE-Bytes.
 
 E-Mail-Anmeldungen und Passwortzurücksetzungen nutzen neue, gehashte,

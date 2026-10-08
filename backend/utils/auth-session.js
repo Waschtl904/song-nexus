@@ -4,7 +4,7 @@ const { pool } = require('../db');
 const ACCESS_SECONDS = 900;
 const SESSION_SECONDS = 7 * 86400;
 const digest = value => createHash('sha256').update(value).digest('hex');
-const cookieOptions = path => ({ path, httpOnly: true, secure: process.env.NODE_ENV !== 'test', sameSite: 'lax' });
+const cookieOptions = path => ({ path, httpOnly: true, secure: true, sameSite: 'lax' });
 function deny(code = 'SESSION_INVALID') { return Object.assign(new Error('Authentication required'), { status: 403, code }); }
 function generateJWT(user, sid) {
     if (!Number.isInteger(user.token_version) || !sid) throw deny();
@@ -63,7 +63,15 @@ async function refreshLogin(req, res) {
 async function logout(req, res, all = false) {
     if (all) await pool.query('UPDATE users SET token_version=token_version+1 WHERE id=$1', [req.user.id]);
     else if (req.cookies?.refresh_token) await pool.query('DELETE FROM auth_sessions WHERE refresh_hash=$1', [digest(req.cookies.refresh_token)]);
-    else if (req.user?.sid) await pool.query('DELETE FROM auth_sessions WHERE id=$1', [req.user.sid]);
+    else {
+        let user = req.user;
+        const token = req.cookies?.auth_token || /^Bearer (\S+)$/.exec(req.headers.authorization || '')?.[1];
+        if (!user && token) {
+            try { user = await verifyAccessToken(token); }
+            catch (error) { if (!error.status) throw error; }
+        }
+        if (user?.sid) await pool.query('DELETE FROM auth_sessions WHERE id=$1', [user.sid]);
+    }
     clearAuthCookie(res);
 }
 module.exports = { createLogin, verifyAccessToken, generateJWT, refreshLogin, logout, clearAuthCookie, digest };

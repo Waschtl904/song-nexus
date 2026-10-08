@@ -352,6 +352,7 @@ describe('POST /api/auth/logout', () => {
 
   test('200 - Logout mit gültigem Token bestätigt', async () => {
     const token = makeToken();
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 1, token_version: 1, is_active: true }] }).mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .post('/api/auth/logout')
