@@ -122,6 +122,8 @@ jest.mock('fs', () => {
 
   return {
     existsSync: jest.fn().mockReturnValue(true),
+    // This audio-only fixture has no static HTML; CSP hashing is tested separately.
+    readdirSync: jest.fn().mockReturnValue([]),
     statSync: () => ({ size: MOCK_SIZE }),
     createReadStream: jest.fn().mockImplementation((_path, opts) => {
       // Wenn start/end angegeben: genau (end - start + 1) Bytes senden

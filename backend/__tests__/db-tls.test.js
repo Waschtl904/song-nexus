@@ -39,3 +39,15 @@ test('real node-postgres TLS handshake accepts trusted CA and rejects wrong CA/h
         await expect(connect(good.cert,'wrong.example')).rejects.toThrow(/Hostname|IP|altnames/i);
     } finally {for(const socket of sockets)socket.destroy();await new Promise(r=>server.close(r));}
 },10000);
+
+test('static page CSP hashes exact script contents without permitting arbitrary inline code',()=>{
+    const fs=require('fs'),os=require('os'),path=require('path'),crypto=require('crypto');
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),'csp-fixture-'));
+    try {
+        fs.writeFileSync(path.join(dir,'page.html'),'<script>window.fixture = 1;\r\n</script>');
+        const policy=require('../utils/static-csp').staticCSP(dir);
+        const hash=crypto.createHash('sha256').update('window.fixture = 1;\n').digest('base64');
+        expect(policy).toContain(`script-src 'self' 'sha256-${hash}'`);
+        expect(policy.split('; ').find(s=>s.startsWith('script-src '))).not.toContain('unsafe-inline');
+    } finally {fs.rmSync(dir,{recursive:true,force:true});}
+});

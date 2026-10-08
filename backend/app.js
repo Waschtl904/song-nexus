@@ -18,6 +18,8 @@ const { cssAusDatenbanksatz } = require('./utils/design-tokens-css');
 
 function createApp(options = {}) {
     const app = express();
+    const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
+    const scriptHashes = require('./utils/static-csp').staticScriptHashes(frontendPath);
     const NODE_ENV = process.env.NODE_ENV || 'development';
     const { pool } = require('./db');
     app.db = pool;
@@ -150,7 +152,7 @@ function createApp(options = {}) {
             defaultSrc: ["'self'"],
             // Scripts: Nonce für inline <script>-Blöcke + 'self' für gebündelte Dateien
             // 'unsafe-inline' wird von Browsern ignoriert wenn nonce present → sicher
-            scriptSrc: ["'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
+            scriptSrc: [...scriptHashes, "'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
             // scriptSrcAttr (onclick= etc.) komplett verbieten — kein inline Event-Handler nötig
             scriptSrcAttr: ["'none'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -806,7 +808,6 @@ function createApp(options = {}) {
     // 📄 SERVE STATIC FRONTEND FILES
     // ============================================================================
 
-    const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
     app.use(require('./middleware/public-files').publicFilesOnly, express.static(frontendPath));
     log('✅ Static frontend files enabled');
 

@@ -98,6 +98,13 @@ Statuscodes bleiben erhalten. Audio, einschließlich kostenloser Vollfassungen,
 wird konservativ nicht gemeinsam zwischengespeichert. Das kostet Bandbreite,
 verhindert aber eine spätere Freigabe personalisierter Bytes durch Proxy/CDN.
 nginx-API-Präfixe verwenden `^~`; MP3 ist keine statische Asset-Ausnahme mehr.
+Range und If-Range werden ausdrücklich weitergegeben, auch bei aktiviertem
+Proxycache. Statische HTML-Seiten bekommen eine CSP mit SHA-256-Freigaben für
+ihre konkreten eingebauten Skripte. Derselbe Hash-Erzeuger versorgt Express und
+nginx; beliebige Inline-Skripte bleiben verboten. Nach jeder HTML-Änderung die
+nginx-Konfiguration neu erzeugen und gemeinsam mit dem Frontend veröffentlichen.
+Die vorhandene PayPal-Einbettung ist dadurch nicht freigeschaltet; Zahlungen
+bleiben bis zur gesonderten Zahlungsfreigabe deaktiviert.
 
 HSTS wird für App und nginx aus derselben Hilfsfunktion konfiguriert. Standard:
 300 Sekunden, keine Subdomains, kein Preload. Das Headerwort `preload` trägt eine

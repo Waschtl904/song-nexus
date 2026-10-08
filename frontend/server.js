@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
+const staticHashes = require('../backend/utils/static-csp').staticScriptHashes(__dirname);
 
 // ===== HTTPS CERTIFICATE SETUP =====
 let httpsOptions = null;
@@ -143,9 +144,9 @@ const getCSPDirectives = () => {
     }
 
     return {
-        defaultSrc: ["'self'", "https:", "http:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", ...staticHashes, ...(NODE_ENV === 'production' ? [] : ["'unsafe-eval'"])],
+        scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         mediaSrc: [
@@ -180,7 +181,7 @@ app.use(helmet({
         directives: getCSPDirectives(),
         reportUri: ['/api/csp-report'],
     },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    hsts: require('../backend/utils/hsts').hstsOptions(),
     noSniff: true,
     xssFilter: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },

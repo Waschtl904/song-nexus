@@ -15,6 +15,8 @@ function call(route,headers={},method='GET') {return new Promise((resolve,reject
 before(async()=>{
     directory=fs.mkdtempSync(path.join(os.tmpdir(),'song-nginx-'));
     const pair=await require('../utils/development-certificate').developmentCertificate();cert=pair.cert;
+    fs.writeFileSync(path.join(directory,'page.html'), '<h1>synthetic</h1>');
+    fs.writeFileSync(path.join(directory,'style.css'), 'body{color:black}');
     fs.writeFileSync(path.join(directory,'cert.pem'),cert);fs.writeFileSync(path.join(directory,'key.pem'),pair.key,{mode:0o600});
     const db={query:async(sql,args)=>{
         if(/JOIN auth_sessions/.test(sql))return{rows:[{id:1,token_version:1,is_active:true,role:'user'}]};
@@ -75,4 +77,15 @@ for(const ext of ['mp3','ogg','m4a','opus'])test(`${ext} reaches backend for GET
     const guest=await call(route,{Range:headers.Range});assert.equal(guest.status,416);assert.notEqual(guest.headers['x-proxy-cache'],'HIT');
     assert.notDeepEqual(guest.body,buyer.body);
     const repeated=await call(route,headers);assert.notEqual(repeated.headers['x-proxy-cache'],'HIT');
+});
+
+
+test('nginx serves security headers on static HTML, assets and errors',async()=>{
+    for(const route of ['/page.html','/style.css','/missing']){
+        const reply=await call(route);
+        assert.equal(reply.headers['strict-transport-security'],'max-age=300');
+        assert.match(reply.headers['content-security-policy'],/script-src 'self' 'sha256-/);
+        assert.match(reply.headers['content-security-policy'],/script-src-attr 'none'/);
+        assert.equal(reply.headers['x-content-type-options'],'nosniff');
+    }
 });

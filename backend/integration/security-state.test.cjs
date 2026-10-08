@@ -177,3 +177,22 @@ test('download token survives app recreation and is consumed once with account/p
         const winner=results.find(r=>r.status===200);assert.equal(winner.headers['cache-control'],'private, no-store');
     } finally { fs.unlinkSync(file); }
 });
+
+test('real WebAuthn registration verifies attestation and stores raw COSE bytes atomically',async()=>{
+    const options=await post('/api/auth/webauthn/register-options',{username:'new-passkey',email:'new-passkey@example.test'}).set('X-Forwarded-Proto','https');
+    assert.equal(options.status,200);
+    const {publicKey}=crypto.generateKeyPairSync('ec',{namedCurve:'prime256v1'});
+    const jwk=publicKey.export({format:'jwk'}),id=crypto.randomBytes(16);
+    const cbor=require('cbor');
+    const cose=cbor.encode(new Map([[1,2],[3,-7],[-1,1],[-2,Buffer.from(jwk.x,'base64url')],[-3,Buffer.from(jwk.y,'base64url')]]));
+    const authData=Buffer.concat([crypto.createHash('sha256').update('localhost').digest(),Buffer.from([0x45]),Buffer.alloc(4),Buffer.alloc(16),Buffer.from([0,id.length]),id,cose]);
+    const response={id:id.toString('base64url'),rawId:id.toString('base64url'),type:'public-key',response:{
+        attestationObject:cbor.encode({fmt:'none',attStmt:{},authData}).toString('base64url'),
+        clientDataJSON:Buffer.from(JSON.stringify({type:'webauthn.create',challenge:options.body.challenge,origin:'https://localhost:5500',crossOrigin:false})).toString('base64url'),transports:['internal']}};
+    app.locals.dispose();app=require('../app').createApp({consoleLogging:false});
+    const reply=await post('/api/auth/webauthn/register-verify',response).set('Cookie',cookies(options)).set('X-Forwarded-Proto','https');
+    assert.equal(reply.status,200,JSON.stringify(reply.body));assert.equal(reply.body.token,undefined);
+    const credential=(await pool.query('SELECT public_key FROM webauthn_credentials WHERE credential_id=$1',[response.id])).rows[0];
+    assert.deepEqual(Buffer.from(credential.public_key),cose);
+    assert.equal((await post('/api/auth/webauthn/register-verify',response).set('Cookie',cookies(options))).status,400);
+});
