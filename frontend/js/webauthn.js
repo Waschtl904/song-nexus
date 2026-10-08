@@ -8,9 +8,7 @@ import { APIClient } from './api-client.js';
 // HELPER (statt import aus config.js)
 // Wir speichern den Token einfach direkt im localStorage, 
 // damit wir keine zyklischen Abhängigkeiten zu auth.js oder config.js haben.
-function setAuthToken(token) {
-    if (token) localStorage.setItem('auth_token', token);
-}
+function setAuthToken() {}
 
 export const WebAuthn = {
 
@@ -74,12 +72,12 @@ export const WebAuthn = {
                 type: credential.type
             });
 
-            if (response.token) {
+            if (response.user) {
                 console.log('✅ Registration verified!');
-                setAuthToken(response.token);
+                globalThis.CookieSession.user = response.user;
                 return response;
             } else {
-                throw new Error('Registration verification failed (no token received)');
+                throw new Error('Registration verification failed (no session confirmed)');
             }
 
         } catch (error) {
@@ -140,12 +138,12 @@ export const WebAuthn = {
                 type: assertion.type
             });
 
-            if (response.token) {
+            if (response.user) {
                 console.log('✅ Authentication verified!');
-                setAuthToken(response.token);
+                globalThis.CookieSession.user = response.user;
                 return response;
             } else {
-                throw new Error('Authentication verification failed (no token received)');
+                throw new Error('Authentication verification failed (no session confirmed)');
             }
 
         } catch (error) {
@@ -187,9 +185,9 @@ export const WebAuthn = {
                 token
             });
 
-            if (response.token) {
+            if (response.user) {
                 console.log('✅ Magic link verified!');
-                setAuthToken(response.token);
+                globalThis.CookieSession.user = response.user;
                 return response;
             } else {
                 throw new Error('Magic link verification failed');

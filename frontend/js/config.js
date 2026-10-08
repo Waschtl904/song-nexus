@@ -1,3 +1,4 @@
+import './cookie-session.js';
 // ============================================================================
 // 🔧 CONFIG.JS - FRONTEND CONFIGURATION + API ENDPOINTS
 // ============================================================================
@@ -53,63 +54,14 @@ export const API_ENDPOINTS = {
 // 🔐 TOKEN MANAGEMENT
 // ============================================================================
 
-const TOKEN_KEY = 'auth_token';
-const TOKEN_EXPIRY_KEY = 'auth_token_expiry';
-
-export function setAuthToken(token, expiryMinutes = 15) {
-    if (!token) {
-        clearAuthToken();
-        return;
-    }
-
-    try {
-        localStorage.setItem(TOKEN_KEY, token);
-        const expiryTime = new Date().getTime() + (expiryMinutes * 60 * 1000);
-        localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
-        console.log('✅ Auth token stored');
-    } catch (err) {
-        console.warn('⚠️ Could not store auth token:', err);
-    }
-}
-
-export function getAuthToken() {
-    try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-
-        if (!token || !expiry) return null;
-
-        // Check if token is expired
-        if (new Date().getTime() > parseInt(expiry)) {
-            clearAuthToken();
-            return null;
-        }
-
-        return token;
-    } catch (err) {
-        console.warn('⚠️ Could not retrieve auth token:', err);
-        return null;
-    }
-}
-
+// Compatibility exports return no credential; authentication is checked by /auth/me.
+export function setAuthToken() { clearAuthToken(); }
+export function getAuthToken() { return null; }
 export function clearAuthToken() {
-    try {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(TOKEN_EXPIRY_KEY);
-    } catch (err) {
-        console.warn('⚠️ Could not clear auth token:', err);
-    }
+    for (const storage of [localStorage, sessionStorage])
+        for (const key of ['auth_token','auth_token_expiry','token','songNexusAdminToken']) storage.removeItem(key);
 }
-
-export function isTokenExpired() {
-    try {
-        const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-        if (!expiry) return true;
-        return new Date().getTime() > parseInt(expiry);
-    } catch (err) {
-        return true;
-    }
-}
+export function isTokenExpired() { return !globalThis.CookieSession.user; }
 
 // ============================================================================
 // 🌐 API BASE URL HELPER (für Compatibility)

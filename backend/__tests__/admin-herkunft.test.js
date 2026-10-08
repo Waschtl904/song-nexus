@@ -32,7 +32,7 @@ function baueApp() {
 }
 
 function token({ id = 1, role = 'admin' } = {}) {
-  return jwt.sign({ id, role, username: 'chef' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ id, role, username: 'chef', token_version: 1, sid: '11111111-1111-4111-8111-111111111111' }, process.env.JWT_SECRET, { expiresIn: '1h', issuer: 'song-nexus', audience: 'song-nexus' });
 }
 
 const TEXT =
@@ -58,9 +58,9 @@ function gueltigerKoerper(aenderungen = {}) {
  * sonst bricht jeder Test, sobald eine Abfrage dazukommt.
  */
 function dbAntwortet({ adminRolle = 'admin', adminAktiv = true, titelDa = true, nachweisDa = false } = {}) {
-  const beantworte = (sql) => {
-    if (/FROM users WHERE id/.test(sql)) {
-      return { rowCount: 1, rows: [{ role: adminRolle, is_active: adminAktiv }] };
+  const beantworte = (sql, params = []) => {
+    if (/FROM users WHERE id|FROM users u JOIN auth_sessions/.test(sql)) {
+      return { rowCount: 1, rows: [{ id: params[0], token_version: 1, role: adminRolle, is_active: adminAktiv }] };
     }
     if (/FROM tracks WHERE id/.test(sql)) {
       return titelDa
@@ -81,8 +81,8 @@ function dbAntwortet({ adminRolle = 'admin', adminAktiv = true, titelDa = true, 
     return { rowCount: 0, rows: [] };
   };
 
-  pool.query.mockImplementation((sql) => Promise.resolve(beantworte(sql)));
-  _client.query.mockImplementation((sql) => Promise.resolve(beantworte(sql)));
+  pool.query.mockImplementation((sql, params) => Promise.resolve(beantworte(sql, params)));
+  _client.query.mockImplementation((sql, params) => Promise.resolve(beantworte(sql, params)));
 }
 
 const hole = (pfad, t) => request(baueApp()).get(pfad).set('Authorization', `Bearer ${t}`);
@@ -205,8 +205,8 @@ describe('Lesen', () => {
 
   test('Titelliste: Titel ohne Nachweis stehen oben', async () => {
     pool.query.mockImplementation((sql) => {
-      if (/FROM users WHERE id/.test(sql)) {
-        return Promise.resolve({ rowCount: 1, rows: [{ role: 'admin', is_active: true }] });
+      if (/FROM users WHERE id|FROM users u JOIN auth_sessions/.test(sql)) {
+        return Promise.resolve({ rowCount: 1, rows: [{ id: 1, token_version: 1, role: 'admin', is_active: true }] });
       }
       if (/LEFT JOIN track_provenance/.test(sql)) {
         // Die Sortierung macht die Datenbank. Hier wird geprueft, dass die

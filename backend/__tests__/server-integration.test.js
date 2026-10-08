@@ -148,7 +148,7 @@ test('CSP mit wechselndem Nonce und HSTS stehen auf echten Frontend-Antworten', 
   const second = await request(server).get('/fixture.css').expect(200);
   expect(first.headers['content-security-policy']).toMatch(/script-src 'self' 'nonce-[a-f0-9]+'/);
   expect(first.headers['content-security-policy']).not.toBe(second.headers['content-security-policy']);
-  expect(first.headers['strict-transport-security']).toContain('max-age=31536000');
+  expect(first.headers['strict-transport-security']).toContain('max-age=300');
   expect(first.headers['x-powered-by']).toBeUndefined();
   expect(first.headers['x-content-type-options']).toBe('nosniff');
 });
@@ -281,3 +281,14 @@ test('echter Startpfad: Warmup, Mailer, Listener; keine DEBUG-Abfrage in Produkt
   expect(verifyMailer).toHaveBeenCalledTimes(1);
   await request(application.server).get('/api/users/profile').expect(401);
 });
+
+
+test.each(['/certs/local.pem','/%63erts/local.pem','/local.key','/package.json','/node_modules/local.txt'])(
+  'private static path %s remains inaccessible even when a file exists', async url => {
+    const file = path.join(frontendPath, decodeURIComponent(url));
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, 'SYNTHETIC PRIVATE FILE');
+    const { server } = production();
+    const res = await request(server).get(url).expect(404);
+    expect(res.text).not.toContain('SYNTHETIC PRIVATE FILE');
+  });

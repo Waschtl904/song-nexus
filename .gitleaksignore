@@ -1,0 +1,4 @@
+
+# Synthetic, never-deployed test JWT seed in initial PR #99 commit.
+# Replaced by randomBytes in the follow-up; narrow historical fingerprint only.
+ac528130bce226f20cc068d921ada35a081d55e7:backend/integration/security-state.test.cjs:generic-api-key:11

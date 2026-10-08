@@ -14,6 +14,7 @@ APP_DIR="${APP_DIR:-/var/www/song-nexus}"
 BRANCH="${BRANCH:-dev/v1.0}"
 DB_NAME="${DB_NAME:-song_nexus_prod}"
 DB_USER="${DB_USER:-song_nexus_user}"
+MIGRATION_DB_USER="${MIGRATION_DB_USER:-song_nexus_migrator}"
 REPO="https://github.com/Waschtl904/song-nexus.git"
 
 blau()  { printf '\n\033[1;34m== %s ==\033[0m\n' "$*"; }
@@ -62,44 +63,20 @@ else
   exit 1
 fi
 
-blau "Datenbank anlegen"
-if sudo -u postgres psql -lqt | cut -d\| -f1 | grep -qw "$DB_NAME"; then
-  warn "Datenbank '$DB_NAME' existiert bereits - wird nicht angetastet."
-else
-  echo "Passwort fuer den Datenbank-Benutzer '$DB_USER' eingeben"
-  echo "(aus deiner Secrets-Datei, wird nicht angezeigt):"
-  read -rsp "  DB-Passwort: " DB_PASS; echo
-  if [[ ${#DB_PASS} -lt 16 ]]; then
-    rot "Passwort zu kurz (mindestens 16 Zeichen)."
-    exit 1
-  fi
-  sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
-CREATE DATABASE $DB_NAME;
-CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';
-GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
-SQL
-  sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" <<SQL
-GRANT ALL ON SCHEMA public TO $DB_USER;
-ALTER DATABASE $DB_NAME OWNER TO $DB_USER;
-SQL
-  unset DB_PASS
-  gruen "Datenbank und Benutzer angelegt"
-fi
-
-blau "Schema einspielen"
-# schema_clean.sql ist die fuehrende Datei, NICHT schema.sql.
-# schema.sql enthaelt Altlasten und Redundanzen.
-SCHEMA="$APP_DIR/schema_clean.sql"
-if [[ ! -f "$SCHEMA" ]]; then rot "$SCHEMA nicht gefunden."; exit 1; fi
-TABELLEN=$(sudo -u postgres psql -tAc \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" -d "$DB_NAME")
-if [[ "$TABELLEN" -gt 0 ]]; then
-  warn "Es gibt schon $TABELLEN Tabellen - Schema wird NICHT erneut eingespielt."
-  warn "Das verhindert, dass bestehende Daten ueberschrieben werden."
-else
-  sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$SCHEMA"
-  gruen "Schema eingespielt"
-fi
+blau "Datenbank und getrennte Rollen vorbereiten"
+[[ "$DB_USER" != "$MIGRATION_DB_USER" ]] || { rot "Getrennte Rollen erforderlich"; exit 1; }
+sudo -u postgres psql -v ON_ERROR_STOP=1 -v database="$DB_NAME" -v app_role="$DB_USER" \
+  -v migration_role="$MIGRATION_DB_USER" -f "$APP_DIR/scripts/deploy/database-bootstrap.sql"
+# psql quotes identifiers. No SQL interpolation of usernames or passwords.
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -v app_role="$DB_USER" \
+  -v migration_role="$MIGRATION_DB_USER" -f "$APP_DIR/scripts/deploy/database-grants.sql"
+# Explicit schema and migration paths; existing tables/data are preserved.
+{ printf 'SET ROLE :"owner";\n'; cat "$APP_DIR/schema_clean.sql"; } | \
+  sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -v owner="$MIGRATION_DB_USER"
+warn "Neue Login-Rollen brauchen ein Passwort: in psql mit \password setzen."
+warn "Vor dem Start: cd backend && MIGRATION_DB_USER=... MIGRATION_DB_PASSWORD=... node scripts/migrate.js"
+warn "Anschließend database-grants.sql als Administrator mit app_role und migration_role anwenden."
+warn "Die Runtime-Rolle darf niemals Eigentümer sein. Siehe docs/SECURITY-ROLLOUT.md."
 
 blau "Verzeichnisse fuer Uploads und Logs"
 mkdir -p "$APP_DIR/backend/public/audio" "$APP_DIR/backend/logs"

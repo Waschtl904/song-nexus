@@ -26,11 +26,6 @@ export class APIClient {
             credentials: 'include',
         };
 
-        const authToken = token || getAuthToken();
-        if (authToken) {
-            options.headers.Authorization = `Bearer ${authToken}`;
-        }
-
         if (data) {
             options.body = JSON.stringify(data);
         }
@@ -38,7 +33,7 @@ export class APIClient {
         console.log(`📡 API Request: ${method} ${url}`);
 
         try {
-            const response = await fetch(url, options);
+            const response = await globalThis.CookieSession.request(url, options);
 
             if (!response.ok) {
                 let error;
@@ -103,17 +98,13 @@ export class APIClient {
 
     static async register(email, username, password) {
         const response = await this.post('/auth/webauthn/register-password', { email, username, password });
-        if (response.token) {
-            this.setToken(response.token);
-        }
+        if (response.user) globalThis.CookieSession.user = response.user;
         return response;
     }
 
     static async login(username, password) {
         const response = await this.post('/auth/webauthn/authenticate-password', { username, password });
-        if (response.token) {
-            this.setToken(response.token);
-        }
+        if (response.user) globalThis.CookieSession.user = response.user;
         return response;
     }
 
@@ -133,14 +124,12 @@ export class APIClient {
     }
 
     static async sendMagicLink(email) {
-        return this.post('/auth/webauthn/magic-link-request', { email });
+        return this.post('/auth/webauthn/login-magic-link', { email });
     }
 
     static async verifyMagicLink(token) {
-        const response = await this.post('/auth/webauthn/magic-link-verify', { token });
-        if (response.token) {
-            this.setToken(response.token);
-        }
+        const response = await this.post('/auth/webauthn/verify-magic-link', { token });
+        if (response.user) globalThis.CookieSession.user = response.user;
         return response;
     }
 
@@ -150,9 +139,7 @@ export class APIClient {
 
     static async verifyWebAuthnRegistration(credential) {
         const response = await this.post('/auth/webauthn/register-verify', credential);
-        if (response.token) {
-            this.setToken(response.token);
-        }
+        if (response.user) globalThis.CookieSession.user = response.user;
         return response;
     }
 
@@ -162,9 +149,7 @@ export class APIClient {
 
     static async verifyWebAuthnAuthentication(assertion) {
         const response = await this.post('/auth/webauthn/authenticate-verify', assertion);
-        if (response.token) {
-            this.setToken(response.token);
-        }
+        if (response.user) globalThis.CookieSession.user = response.user;
         return response;
     }
 
@@ -249,6 +234,7 @@ export class APIClient {
     }
 
     static clearToken() {
+        globalThis.CookieSession.user = null;
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user');
@@ -259,7 +245,7 @@ export class APIClient {
     static isAuthenticated() {
         // Primär: localStorage-Check (Legacy)
         // In Zukunft: /api/auth/me als Quelle der Wahrheit
-        return !!this.getToken();
+        return !!globalThis.CookieSession.user;
     }
 }
 

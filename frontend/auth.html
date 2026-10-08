@@ -188,6 +188,7 @@
         }
     </style>
   <link rel="icon" href="./favicon.ico" sizes="any">
+    <script src="/js/cookie-session.js"></script>
 </head>
 
 <body>
@@ -298,10 +299,10 @@
             showLoading(true);
 
             try {
-                const response = await fetch('/api/auth/login', {
+                const response = await CookieSession.request('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ username: email, password })
                 });
 
                 if (!response.ok) {
@@ -311,7 +312,6 @@
                 }
 
                 const data = await response.json();
-                localStorage.setItem('auth_token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
                 showSuccess('✅ Login erfolgreich!');
@@ -351,7 +351,7 @@
             showLoading(true);
 
             try {
-                const response = await fetch('/api/auth/register', {
+                const response = await CookieSession.request('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email, password })
@@ -392,11 +392,23 @@
             }
         });
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('auth_token');
-            if (token) {
-                location.href = '/app.html';
-            }
+        window.addEventListener('DOMContentLoaded', async () => {
+            const link = new URLSearchParams(location.hash.slice(1)).get('magic_link_token');
+            if (link) {
+                history.replaceState(null, '', location.pathname);
+                // Deliberate confirmation prevents link scanners consuming login links.
+                const button = document.createElement('button');
+                button.textContent = 'Mit E-Mail-Link anmelden';
+                button.addEventListener('click', async () => {
+                    button.disabled = true;
+                    const response = await CookieSession.request('/api/auth/webauthn/verify-magic-link', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: link })
+                    });
+                    if (response.ok) location.href = '/app.html';
+                    else { showError('Link ungültig oder abgelaufen.'); button.disabled = false; }
+                });
+                document.body.prepend(button);
+            } else if (await CookieSession.renew()) location.href = '/app.html';
         });
 
         // Allow Enter key for form submission

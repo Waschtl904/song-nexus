@@ -18,7 +18,10 @@
     "test:coverage": "jest --coverage --runInBand",
     "test:handles": "jest --runInBand --detectOpenHandles",
     "test:ci": "jest --runInBand --ci",
-    "generate-cert": "node generate-cert.js"
+    "generate-cert": "node generate-cert.js",
+    "test:integration": "node --test integration/security-state.test.cjs",
+    "test:nginx": "node --test integration/nginx.test.cjs",
+    "migrate": "node scripts/migrate.js"
   },
   "jest": {
     "testEnvironment": "node",
@@ -44,6 +47,7 @@
     "bcryptjs": "^2.4.3",
     "cbor": "^10.0.11",
     "compression": "^1.8.1",
+    "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csrf-csrf": "^4.0.3",

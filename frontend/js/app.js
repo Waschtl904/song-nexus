@@ -33,9 +33,9 @@ export const App = {
       // ✅ CRITICAL: Initialize Auth FIRST
       // This ensures event listeners are attached and token is loaded
       Auth.init();
+      await Auth.ready;
 
       // Get current state
-      this.token = Auth.getToken();
       this.user = Auth.getUser();
 
       // Check Magic Link from URL

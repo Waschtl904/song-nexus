@@ -144,6 +144,7 @@
         .ohne-nachweis { color: var(--warn); }
     </style>
   <link rel="icon" href="../favicon.ico" sizes="any">
+    <script src="/js/cookie-session.js"></script>
 </head>
 
 <body>
@@ -280,7 +281,7 @@
 
         // Anmeldung über den HttpOnly-Cookie. Kein localStorage.
         async function anfrage(pfad, optionen = {}) {
-            const antwort = await fetch(BASIS + pfad, {
+            const antwort = await CookieSession.request(BASIS + pfad, {
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 ...optionen,
