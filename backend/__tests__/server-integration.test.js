@@ -124,20 +124,7 @@ test('angefordertes HTTPS faellt bei fehlendem Schluessel nicht auf HTTP zurueck
 });
 
 test('HTTPS liefert die App und setzt sichere Session-Cookies', async () => {
-  const forge = require('node-forge');
-  const keys = forge.pki.rsa.generateKeyPair(2048);
-  const certificate = forge.pki.createCertificate();
-  certificate.publicKey = keys.publicKey;
-  certificate.serialNumber = '01';
-  certificate.validity.notBefore = new Date(Date.now() - 60000);
-  certificate.validity.notAfter = new Date(Date.now() + 3600000);
-  const attrs = [{ name: 'commonName', value: 'localhost' }];
-  certificate.setSubject(attrs);
-  certificate.setIssuer(attrs);
-  certificate.setExtensions([{ name: 'subjectAltName', altNames: [{ type: 7, ip: '127.0.0.1' }] }]);
-  certificate.sign(keys.privateKey, forge.md.sha256.create());
-  const cert = forge.pki.certificateToPem(certificate);
-  const key = forge.pki.privateKeyToPem(keys.privateKey);
+  const { cert, key } = await require('../utils/development-certificate').developmentCertificate();
   const originalRead = fs.readFileSync;
   jest.spyOn(fs, 'readFileSync').mockImplementation((file, ...args) => {
     if (String(file).endsWith('localhost-key.pem')) return key;
