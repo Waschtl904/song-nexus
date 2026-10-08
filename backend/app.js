@@ -1,114 +1,817 @@
 /**
- * app.js – reiner Express-App-Export fuer Tests (kein Server-Start, keine HTTPS-Certs)
- *
- * server.js bleibt unveraendert fuer den echten Betrieb.
- * Tests importieren dieses File damit supertest ein app-Objekt bekommt.
- *
- * WICHTIG: Dieses File darf KEINEN .listen() Aufruf enthalten!
+ * Gemeinsame Express-App fuer Betrieb und Tests (Issue #47).
+ * Kein Listener, Zertifikatszugriff, DB-Warmup oder Mailer-Check beim Import.
+ * NODE_ENV und die bestehenden Umgebungsvariablen gelten fuer beide Pfade.
+ * Optionen betreffen I/O: Frontend-Verzeichnis und Zugriffsprotokoll.
  */
-
-require('dotenv').config();
-
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
+const morgan = require('morgan');
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
+const { cssAusDatenbanksatz } = require('./utils/design-tokens-css');
 
-const app = express();
+function createApp(options = {}) {
+    const app = express();
+    const NODE_ENV = process.env.NODE_ENV || 'development';
+    const { pool } = require('./db');
+    app.db = pool;
+    const log = options.consoleLogging === false ? () => {} : console.log.bind(console);
 
-// Nonce fuer CSP
-app.use((req, res, next) => {
-  res.locals.nonce = crypto.randomBytes(16).toString('hex');
-  next();
-});
+    function getOriginsList() {
+        const origins = [
+            'http://localhost:5500',
+            'https://localhost:5500',
+            'http://127.0.0.1:5500',
+            'https://127.0.0.1:5500',
+            'http://localhost:3000',
+            'https://localhost:3000',
+        ];
 
-// Helmet (vereinfacht, kein HSTS noetig fuer Tests)
-app.use(helmet({
-  contentSecurityPolicy: false,
-  hsts: false,
-}));
+        if (process.env.ALLOWED_ORIGINS) {
+            const allowedOrigins = process.env.ALLOWED_ORIGINS
+                .split(',')
+                .map(o => o.trim())
+                .filter(o => o.length > 0);
+            origins.push(...allowedOrigins);
+            log(`✅ Added ALLOWED_ORIGINS from .env:`, allowedOrigins);
+        }
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+        return origins;
+    }
 
-// cookie-parser: war bisher nur in server.js eingebunden.
-//
-// Damit war req.cookies in Tests immer undefined, und jede Pruefung, die auf
-// dem Cookie beruht, konnte nicht getestet werden - etwa der Zugriff auf
-// gekaufte Audiodateien, der ueber <audio src="..."> nur das Cookie
-// mitschicken kann.
-//
-// Allgemeiner: app.js hat 88 Zeilen, server.js ueber 900. Was nur in
-// server.js steht, laeuft im Betrieb, wird aber von keinem Test beruehrt.
-// Genau in dieser Luecke lag die offene statische Auslieferung von
-// /public/audio, die den Kaufschutz umging - bei gruenen Tests.
-app.use(cookieParser());
+    // In Produktion die konfigurierten Ursprünge verwenden, nicht einen
+    // Platzhalter. Vorher stand hier fest ['https://yourdomain.com'], wodurch
+    // ALLOWED_ORIGINS im Produktionsbetrieb wirkungslos war — dokumentiert, aber
+    // ohne Wirkung. Aufgefallen ist das erst, als der Server beim Start eine
+    // andere Liste meldete als in der .env stand.
+    function getProductionOrigins() {
+        const roh = [process.env.ALLOWED_ORIGINS, process.env.FRONTEND_URL]
+            .filter(Boolean)
+            .join(',');
 
-app.use(compression());
+        const origins = [...new Set(
+            roh.split(',').map(o => o.trim()).filter(o => o.length > 0)
+        )];
 
-// CORS (offen im Test-Modus)
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-app.options('*', cors());
+        if (origins.length === 0) {
+            console.warn('⚠️  Weder ALLOWED_ORIGINS noch FRONTEND_URL gesetzt.');
+            console.warn('   Gleichursprüngliche Aufrufe funktionieren weiterhin — das');
+            console.warn('   Frontend nutzt relative Pfade. Andere Ursprünge blockiert');
+            console.warn('   der Browser. Für den Regelbetrieb beide Werte setzen.');
+        }
 
-// Session
-app.use(session({
-  secret: process.env.JWT_SECRET || 'test-secret-minimum-32-characters-ok',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false, // kein HTTPS in Tests
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 15,
-  },
-}));
+        return origins;
+    }
 
-// Request-Source-Pruefung (ersetzt CSRF-Tokens, Issue #86)
-//
-// War: attachCSRFToken aus csrf-middleware.js wurde importiert, aber auf
-// keine einzige Route angewendet - der Kommentar nannte es "Passthrough",
-// tatsaechlich war es toter Code. Damit lief der Testkontext ohne jeden
-// CSRF-Schutz, waehrend server.js zumindest eine (unwirksame) Pruefung hatte.
-//
-// Ist: dieselbe requireTrustedSource wie in server.js, mit der lokalen
-// Test-Origin. So prueft server-paritaet.test.js echte Parität statt zwei
-// unterschiedliche Sicherheitslagen.
-const { requireTrustedSource } = require('./middleware/request-source-middleware');
-app.use('/api/', requireTrustedSource(['https://localhost:5500']));
+    const corsOrigins = NODE_ENV === 'production'
+        ? getProductionOrigins()
+        : getOriginsList();
 
-// Auth Middleware laden
-const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
+    log('🌐 CORS Origins:', corsOrigins);
 
-// Logging nur in nicht-test Umgebungen
-if (process.env.NODE_ENV !== 'test') {
-  const morgan = require('morgan');
-  app.use(morgan('dev'));
+    // ============================================================================
+    // 🛡️ REQUEST-SOURCE-PRUEFUNG (ersetzt CSRF-Tokens, Issue #86)
+    // ============================================================================
+    //
+    // War: attachCSRFToken/validateCSRFToken aus middleware/csrf-middleware.js.
+    // Der Token wurde ueber GET /api/design-system ausgeliefert, das aber 24h
+    // gecacht ist, und im Frontend gibt es an keiner Stelle Code, der ein Token
+    // beschafft oder mitsendet. Geschuetzt war damit real nur eine unkritische
+    // Route (PUT /api/design-system/:id), und selbst dort funktionierte der
+    // Mechanismus wegen der Cache-Kette nicht zuverlaessig.
+    //
+    // Ist: eine zustandslose Pruefung fuer alle unsicheren Methoden unter /api/,
+    // basierend auf Sec-Fetch-Site mit Origin/Referer-Rueckfall gegen dieselbe
+    // corsOrigins-Liste, die auch CORS verwendet. Kein Token, keine Map, kein
+    // _csrf im Querystring. SameSite=Lax auf den Cookies bleibt zusaetzlich
+    // bestehen.
+    const { requireTrustedSource } = require('./middleware/request-source-middleware');
+    app.use('/api/', requireTrustedSource(corsOrigins));
+    log('✅ Request-Source-Pruefung aktiv (ersetzt CSRF-Tokens, Issue #86)');
+
+    // ============================================================================
+    // ✅ CORS CONFIGURATION (BEFORE everything!)
+    // ============================================================================
+
+    const corsOptions = {
+        origin: corsOrigins,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+        exposedHeaders: ['Content-Type', 'X-Total-Count', 'X-CSRF-Token', 'X-Cache'],
+        optionsSuccessStatus: 200,
+        maxAge: 86400
+    };
+
+    // ============================================================================
+    // 🛡️ SECURITY MIDDLEWARE
+    // ============================================================================
+
+    app.use((req, res, next) => {
+        res.locals.nonce = crypto.randomBytes(16).toString('hex');
+        next();
+    });
+
+    const getCSPDirectives = (nonce) => {
+        const connectSrc = [
+            "'self'",
+            "https://localhost:*",
+            "http://localhost:*",
+            "https://127.0.0.1:*",
+            "http://127.0.0.1:*",
+            "wss://localhost:*",
+            "ws://localhost:*",
+            "https://api.paypal.com",
+            "https://api.sandbox.paypal.com",
+            "https://www.paypal.com",
+            "https://www.sandbox.paypal.com",
+        ];
+
+        if (process.env.ALLOWED_ORIGINS?.includes('ngrok')) {
+            const ngrokOrigin = process.env.ALLOWED_ORIGINS.split(',')[0].trim();
+            connectSrc.push(ngrokOrigin);
+            log(`✅ Added ngrok to CSP connectSrc: ${ngrokOrigin}`);
+        }
+
+        // In Produktion: echte Domain aus Umgebungsvariable
+        if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
+            connectSrc.push(process.env.FRONTEND_URL);
+        }
+
+        return {
+            // defaultSrc bewusst eng: nur 'self', kein wildes https:/http:
+            defaultSrc: ["'self'"],
+            // Scripts: Nonce für inline <script>-Blöcke + 'self' für gebündelte Dateien
+            // 'unsafe-inline' wird von Browsern ignoriert wenn nonce present → sicher
+            scriptSrc: ["'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
+            // scriptSrcAttr (onclick= etc.) komplett verbieten — kein inline Event-Handler nötig
+            scriptSrcAttr: ["'none'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+            mediaSrc: ["'self'", "https://localhost:*", "http://localhost:*", "blob:"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: connectSrc,
+            // Framing komplett verbieten — verhindert Clickjacking
+            frameSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            // Upgrade insecure requests in Produktion
+            ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: [] } : {}),
+        };
+    };
+
+    app.use((req, res, next) => {
+        // Nonce pro Request generieren (bereits oben als res.locals.nonce gesetzt)
+        helmet({
+            contentSecurityPolicy: {
+                directives: getCSPDirectives(res.locals.nonce),
+                reportOnly: false,
+            },
+            // Clickjacking-Schutz: verhindert Einbettung in fremde iframes
+            frameguard: { action: 'deny' },
+            hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+            noSniff: true,
+            // xssFilter ist deprecated in modernen Browsern, CSP reicht
+            xssFilter: false,
+            referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+            hidePoweredBy: true,
+            // Verhindert MIME-Type-Sniffing bei Audio/Downloads
+            crossOriginResourcePolicy: { policy: 'same-site' },
+            crossOriginOpenerPolicy: { policy: 'same-origin' },
+            // Permissions Policy: Kamera/Mikro/Geolocation sperren
+            permittedCrossDomainPolicies: false,
+        })(req, res, next);
+    });
+
+    // Permissions-Policy Header manuell setzen (Helmet deckt das nicht vollständig ab)
+    app.use((req, res, next) => {
+        res.setHeader(
+            'Permissions-Policy',
+            'camera=(), microphone=(), geolocation=(), payment=(self), usb=(), bluetooth=()'
+        );
+        next();
+    });
+
+    // Cookie-Parser MUSS vor Session und Routes kommen
+    app.use(cookieParser());
+
+    app.use(express.json({ limit: '50mb' }));
+    app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+    app.use(compression({
+        level: 6,
+        threshold: 1024,
+        filter: (req, res) => {
+            if (req.headers['x-no-compression']) return false;
+            return compression.filter(req, res);
+        }
+    }));
+
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
+
+    // ============================================================================
+    // 🔐 SESSION MIDDLEWARE - CRITICAL: MUST BE BEFORE ROUTES!
+    // ============================================================================
+
+    // ---------------------------------------------------------------------------
+    // Fail-fast: keine Dev-Defaults in Produktion (verwandt mit Issue #1)
+    //
+    // Der Session-Secret hatte den Fallback 'dev-secret-change-in-prod'. Fehlt die
+    // Variable in Produktion, lief der Server also mit einem im Repo bekannten
+    // Secret weiter – still und ohne Warnung. Dieselbe Klasse von Problem wie ein
+    // vergessenes NODE_ENV: die Anwendung startet, ist aber ungeschuetzt.
+    // Deshalb: in Produktion lieber gar nicht starten als unsicher starten.
+    // ---------------------------------------------------------------------------
+    if (NODE_ENV === 'production') {
+        const pflichtSecrets = ['SESSION_SECRET', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+        const fehlend = pflichtSecrets.filter((name) => {
+            const wert = process.env[name];
+            return !wert || wert.length < 32;
+        });
+
+        if (fehlend.length > 0) {
+            console.error('❌ START ABGEBROCHEN: Pflicht-Secrets fehlen oder sind zu kurz (< 32 Zeichen):');
+            fehlend.forEach((name) => console.error(`   - ${name}`));
+            console.error('   Generieren mit: openssl rand -base64 32');
+            console.error('   Wichtig: für jedes Secret einen EIGENEN Wert verwenden.');
+            throw new Error('Production secret configuration is invalid');
+        }
+
+        if (process.env.SESSION_SECRET === process.env.JWT_SECRET) {
+            console.error('❌ START ABGEBROCHEN: SESSION_SECRET und JWT_SECRET sind identisch.');
+            console.error('   Getrennte Secrets verhindern, dass eine Kompromittierung beide Systeme trifft.');
+            throw new Error('Production secret configuration is invalid');
+        }
+    }
+
+    app.use(session({
+        secret: process.env.SESSION_SECRET || process.env.JWT_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            path: '/',
+            secure: true,
+            httpOnly: true,
+            sameSite: 'lax',
+            maxAge: 1000 * 60 * 15
+        },
+        name: 'connect.sid'
+    }));
+
+    log('✅ Session middleware configured');
+
+    // ============================================================================
+    // 📊 LOGGING
+    // ============================================================================
+
+    if (options.accessLogStream) {
+        app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: options.accessLogStream }));
+    }
+    if (NODE_ENV !== 'production' && options.consoleLogging !== false) {
+        app.use(morgan('dev'));
+    }
+
+    // 🛡️ RATE LIMITING
+    // ============================================================================
+
+    const rateLimitStore = new Map();
+
+    const rateLimitCleanup = setInterval(() => {
+        const now = Date.now();
+        for (const [key, data] of rateLimitStore.entries()) {
+            if (now - data.lastReset > 15 * 60 * 1000) {
+                rateLimitStore.delete(key);
+            }
+        }
+    }, 15 * 60 * 1000);
+    rateLimitCleanup.unref();
+    app.locals.dispose = () => clearInterval(rateLimitCleanup);
+
+    // Der Zaehler lag bisher allein unter der IP-Adresse — und zwar fuer ALLE
+    // fuenf Begrenzer gemeinsam. Damit zaehlte jeder Aufruf irgendeiner
+    // /api/-Route auch auf das Budget der Anmeldung.
+    //
+    // Am laufenden System nachgestellt: ein Seitenaufruf loest mehrere
+    // Abfragen aus (Tracks, Zahlungskonfiguration, Design-System, Blog). Nach
+    // gut zwanzig Anfragen in einem Zeitfenster meldete die Anmeldung 429,
+    // obwohl sie selbst zum ersten Mal aufgerufen wurde. Beim Entwickeln mit
+    // mehreren Neuladungen tritt das binnen einer Minute ein.
+    //
+    // Zusaetzlich stand `lastReset` allen Begrenzern gemeinsam zur Verfuegung:
+    // das 60-Sekunden-Fenster des allgemeinen Begrenzers hat das
+    // 15-Minuten-Fenster der WebAuthn-Routen dauernd zurueckgesetzt. Die
+    // Begrenzung war also gleichzeitig zu streng und zu locker.
+    //
+    // Jetzt hat jeder Begrenzer seinen eigenen Namensraum im Schluessel.
+    const istEntwicklung = process.env.NODE_ENV !== 'production';
+
+    const rateLimit = (maxRequests = 30, windowMs = 60 * 1000, name = 'allgemein') => {
+        // Beim Entwickeln sind viele Neuladungen normal. Die Grenze bleibt
+        // vorhanden, ist aber grosszuegiger, damit sie nicht die eigene Arbeit
+        // blockiert. In Produktion gilt der strenge Wert.
+        const grenze = istEntwicklung ? maxRequests * 10 : maxRequests;
+
+        return (req, res, next) => {
+            const ip = req.ip || req.connection.remoteAddress;
+            const schluessel = `${name}:${ip}`;
+            const now = Date.now();
+
+            const eintrag = rateLimitStore.get(schluessel);
+
+            if (!eintrag || now - eintrag.lastReset > windowMs) {
+                rateLimitStore.set(schluessel, { count: 1, lastReset: now });
+                return next();
+            }
+
+            eintrag.count++;
+            if (eintrag.count > grenze) {
+                const retryAfter = Math.ceil((eintrag.lastReset + windowMs - now) / 1000);
+                console.warn(`🚦 Ratenbegrenzung "${name}" greift fuer ${ip}: ${eintrag.count}/${grenze}, wieder frei in ${retryAfter}s`);
+                res.setHeader('Retry-After', String(retryAfter));
+                return res.status(429).json({
+                    error: `Zu viele Anfragen (${name}). Bitte ${retryAfter} Sekunden warten.`,
+                    code: 'RATE_LIMIT',
+                    limit: grenze,
+                    retryAfter
+                });
+            }
+
+            next();
+        };
+    };
+
+    app.use('/api/', rateLimit(30, 60 * 1000, 'api-allgemein'));
+    app.use('/api/auth/login', rateLimit(5, 60 * 1000, 'login'));
+    app.use('/api/auth/webauthn/', rateLimit(20, 15 * 60 * 1000, 'webauthn'));
+    app.use('/api/auth/', rateLimit(30, 15 * 60 * 1000, 'auth'));
+    app.use('/public/audio/', rateLimit(20, 60 * 1000, 'audio'));
+
+    log(
+        istEntwicklung
+            ? '✅ Ratenbegrenzung aktiv, Entwicklungsmodus: Grenzen zehnfach (api 300/min, login 50/min, webauthn 200/15min)'
+            : '✅ Ratenbegrenzung aktiv (api 30/min, login 5/min, webauthn 20/15min)'
+    );
+
+    // ============================================================================
+    // 🔐 AUTH MIDDLEWARE
+    // ============================================================================
+
+    const { verifyToken, requireAdmin } = require('./middleware/auth-middleware');
+
+    app.use('/api/', (req, res, next) => {
+        log(`📨 ${req.method} ${req.path}`);
+        next();
+    });
+
+    log('✅ Auth middleware loaded');
+
+    const { cacheMiddleware, clearCacheKey } = require('./middleware/cache-middleware');
+
+    // ============================================================================
+    // ✅ INPUT VALIDATION UTILITIES
+    // ============================================================================
+
+    function isValidHexColor(hex) {
+        return /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(hex);
+    }
+
+    function validateDesignInput(data) {
+        const errors = [];
+
+        if (data.colors?.primary && !isValidHexColor(data.colors.primary)) {
+            errors.push('Invalid primary color format. Must be hex: #RRGGBB');
+        }
+        if (data.colors?.secondary && !isValidHexColor(data.colors.secondary)) {
+            errors.push('Invalid secondary color format');
+        }
+        if (data.colors?.text_primary && !isValidHexColor(data.colors.text_primary)) {
+            errors.push('Invalid text color format');
+        }
+        if (data.colors?.background && !isValidHexColor(data.colors.background)) {
+            errors.push('Invalid background color format');
+        }
+
+        if (data.typography?.font_sizes?.base) {
+            const size = parseInt(data.typography.font_sizes.base);
+            if (isNaN(size) || size < 10 || size > 72) {
+                errors.push('Font size must be between 10 and 72');
+            }
+        }
+
+        if (data.spacing?.['8']) {
+            const spacing = parseInt(data.spacing['8']);
+            if (isNaN(spacing) || spacing < 1 || spacing > 100) {
+                errors.push('Spacing must be between 1 and 100');
+            }
+        }
+
+        return errors;
+    }
+
+    // ============================================================================
+    // 🎨 DESIGN-SYSTEM API ENDPOINTS - REGISTERED EARLY (BEFORE OTHER ROUTES)
+    // ============================================================================
+
+    log('🔧 Registering DESIGN-SYSTEM API (with cache)...');
+
+    // GET design system settings from database - CACHED 86400s (24h)
+    app.get('/api/design-system', cacheMiddleware(86400), async (req, res) => {
+        try {
+            log('📨 GET /api/design-system');
+
+            const query = `
+                SELECT
+                    id, color_primary, color_secondary, color_accent_teal,
+                    color_accent_green, color_accent_red, color_text_primary,
+                    color_background, background_image_url, logo_url,
+                    hero_image_url, font_family_base, font_size_base,
+                    font_weight_normal, font_weight_bold, spacing_unit,
+                    border_radius, button_background_color, button_text_color,
+                    button_border_radius, button_padding, player_background_image_url,
+                    player_button_color, player_button_size, is_active, updated_at, updated_by
+                FROM public.design_system
+                WHERE is_active = true
+                LIMIT 1
+            `;
+
+            const result = await pool.query(query);
+
+            if (result.rows.length === 0) {
+                console.warn('⚠️ No active design system found, returning defaults');
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.status(200).json({
+                    version: "1.0",
+                    meta: { name: "Default", author: "System", lastUpdated: new Date().toISOString() },
+                    colors: {
+                        primary: "#00CC77",
+                        secondary: "#5E5240",
+                        accent_teal: "#32B8C6",
+                        text_primary: "#00ffff",
+                        background: "#FCF8F9"
+                    }
+                });
+                return;
+            }
+
+            const row = result.rows[0];
+            log('✅ Design system found, ID:', row.id);
+
+            const config = {
+                version: "1.0",
+                meta: {
+                    name: "SONG-NEXUS Cyberpunk Theme",
+                    author: row.updated_by || "System",
+                    lastUpdated: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
+                    description: "Design configuration from database"
+                },
+                colors: {
+                    primary: row.color_primary || "#00CC77",
+                    secondary: row.color_secondary || "#5E5240",
+                    accent_teal: row.color_accent_teal || "#32B8C6",
+                    accent_green: row.color_accent_green || "#22C55E",
+                    accent_red: row.color_accent_red || "#FF5459",
+                    text_primary: row.color_text_primary || "#00ffff",
+                    background: row.color_background || "#FCF8F9"
+                },
+                typography: {
+                    font_family_base: row.font_family_base || "Rajdhani, sans-serif",
+                    font_sizes: {
+                        base: (row.font_size_base || 14) + "px"
+                    },
+                    font_weights: {
+                        normal: row.font_weight_normal || 400,
+                        bold: row.font_weight_bold || 600
+                    }
+                },
+                spacing: {
+                    "8": (row.spacing_unit || 8) + "px"
+                },
+                radius: {
+                    base: (row.border_radius || 8) + "px"
+                },
+                components: {
+                    buttons: {
+                        primary: {
+                            background: row.button_background_color || "#00CC77",
+                            text_color: row.button_text_color || "#FFFFFF",
+                            border_radius: (row.button_border_radius || 8) + "px",
+                            padding: row.button_padding || "8px 16px"
+                        }
+                    },
+                    player: {
+                        background_image_url: row.player_background_image_url || null,
+                        button_color: row.player_button_color || "#00CC77",
+                        button_size: (row.player_button_size || 70) + "px"
+                    }
+                },
+                images: {
+                    background: row.background_image_url || null,
+                    logo: row.logo_url || null,
+                    hero: row.hero_image_url || null
+                },
+                metadata: {
+                    is_active: row.is_active,
+                    updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+                    updated_by: row.updated_by || null
+                }
+            };
+
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(200).json(config);
+            return;
+        } catch (err) {
+            console.error('❌ Error loading design system:', err.message);
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(500).json({
+                error: 'Internal server error',
+                message: err.message
+            });
+            return;
+        }
+    });
+
+    // PUT update design system (with Request-Source-Pruefung + Permission check + ADMIN ROLE) - INVALIDATES CACHE
+    app.put('/api/design-system/:id', verifyToken, requireAdmin, async (req, res) => {
+        try {
+            log('📝 PUT /api/design-system/:id received');
+            log('   ID:', req.params.id);
+            log('   User:', req.user.username, 'Role:', req.user.role);
+
+            const { id } = req.params;
+            const body = req.body;
+
+            const validationErrors = validateDesignInput(body);
+            if (validationErrors.length > 0) {
+                console.warn('⚠️ Validation errors:', validationErrors);
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    errors: validationErrors
+                });
+            }
+
+            const colors = body.colors || {};
+            const images = body.images || {};
+            const typography = body.typography || {};
+            const spacing = body.spacing || {};
+            const radius = body.radius || {};
+            const components = body.components || {};
+
+            const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== '');
+
+            const updates = {
+                color_primary: pick(colors.primary, colors.color_primary, body.color_primary),
+                color_secondary: pick(colors.secondary, colors.color_secondary, body.color_secondary),
+                color_accent_teal: body.colors?.accent_teal,
+                color_accent_green: body.colors?.accent_green,
+                color_accent_red: body.colors?.accent_red,
+                color_text_primary: body.colors?.text_primary,
+                color_background: body.colors?.background,
+                background_image_url: body.images?.background,
+                logo_url: body.images?.logo,
+                hero_image_url: body.images?.hero,
+                font_family_base: body.typography?.font_family_base,
+                font_size_base: body.typography?.font_sizes?.base ? parseInt(body.typography.font_sizes.base) : null,
+                font_weight_normal: body.typography?.font_weights?.normal,
+                font_weight_bold: body.typography?.font_weights?.bold,
+                spacing_unit: body.spacing?.['8'] ? parseInt(body.spacing['8']) : null,
+                border_radius: body.radius?.base ? parseInt(body.radius.base) : null,
+                button_background_color: body.components?.buttons?.primary?.background,
+                button_text_color: body.components?.buttons?.primary?.text_color,
+                button_border_radius: body.components?.buttons?.primary?.border_radius ? parseInt(body.components.buttons.primary.border_radius) : null,
+                button_padding: body.components?.buttons?.primary?.padding,
+                player_background_image_url: body.components?.player?.background_image_url,
+                player_button_color: body.components?.player?.button_color,
+                player_button_size: body.components?.player?.button_size ? parseInt(body.components.player.button_size) : null,
+                updated_at: new Date(),
+                updated_by: req.user.username || 'Designer'
+            };
+
+            const setClause = [];
+            const values = [];
+            let paramCount = 1;
+
+            for (const [key, value] of Object.entries(updates)) {
+                if (value !== null && value !== undefined && value !== '') {
+                    setClause.push(`${key} = $${paramCount}`);
+                    values.push(value);
+                    paramCount++;
+                }
+            }
+
+            if (setClause.length === 0) {
+                console.warn('⚠️ No valid fields to update');
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.status(400).json({ error: 'No valid fields to update' });
+                return;
+            }
+
+            values.push(id);
+
+            const query = `
+                UPDATE public.design_system
+                SET ${setClause.join(', ')}
+                WHERE id = $${paramCount}
+                RETURNING *
+            `;
+
+            log('🔧 SQL Update:', query.substring(0, 100) + '...');
+
+            const result = await pool.query(query, values);
+
+            if (result.rows.length === 0) {
+                console.warn('⚠️ Design system ID not found:', id);
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.status(404).json({ error: 'Design system not found' });
+                return;
+            }
+
+            const updatedRow = result.rows[0];
+            log('✅ Design system updated successfully, ID:', updatedRow.id);
+            log('   Updated by:', updatedRow.updated_by);
+
+            // 🎯 CLEAR CACHE
+            clearCacheKey('design-system');
+            log('🗑️  Cache cleared for design-system');
+
+            regenerateDesignTokens(updatedRow);
+
+            const response = {
+                success: true,
+                message: 'Design config updated successfully',
+                metadata: {
+                    id: updatedRow.id,
+                    updated_at: updatedRow.updated_at,
+                    updated_by: updatedRow.updated_by,
+                    is_active: updatedRow.is_active
+                }
+            };
+
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(200).json(response);
+            return;
+        } catch (err) {
+            console.error('❌ Error in PUT /api/design-system/:id');
+            console.error('   Message:', err.message);
+
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(500).json({
+                error: 'Server error',
+                message: err.message
+            });
+            return;
+        }
+    });
+
+    log('✅ Design-System API endpoints registered with CACHE (86400s)');
+
+    // ============================================================================
+    // 🎨 REGENERATE DESIGN TOKENS CSS FROM DATABASE ROW
+    // ============================================================================
+
+    function regenerateDesignTokens(dbRow) {
+        try {
+            log('🎨 Regenerating _design-tokens.css from database...');
+
+            // Der CSS-Aufbau liegt seit Issue #67 in backend/utils/design-tokens-css.js.
+            //
+            // Vorher stand er hier und verwendete '\\n' statt '\n' - in JavaScript
+            // ein Backslash gefolgt von n, kein Zeilenumbruch. Die Datei bestand
+            // damit aus einer einzigen Zeile, und weil \n in CSS die Escape-Sequenz
+            // fuer den Buchstaben n ist, wurde JEDE Deklaration verworfen.
+            //
+            // Der Fehler ueberlebte, weil er hier nicht pruefbar war: server.js
+            // laesst sich in einem Test nicht laden (#47). Als eigenes Modul ist
+            // der Aufbau eine reine Funktion und hat jetzt eine Testsuite.
+            const css = cssAusDatenbanksatz(dbRow);
+
+            const tokenPath = path.join(frontendPath, 'dist/_design-tokens.css');
+            const tokenDir = path.dirname(tokenPath);
+
+            if (!fs.existsSync(tokenDir)) {
+                fs.mkdirSync(tokenDir, { recursive: true });
+            }
+
+            fs.writeFileSync(tokenPath, css, 'utf-8');
+            log(`✅ Design tokens CSS regenerated: ${tokenPath}`);
+        } catch (error) {
+            console.error('❌ Error regenerating design tokens:', error.message);
+        }
+    }
+
+    // ============================================================================
+    // 🌐 CACHED GET ROUTES
+    // ============================================================================
+
+    log('🔧 Registering cached API routes...');
+
+    // Tracks: 300s cache (5 minutes)
+    app.use('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
+
+    // Blog posts: 600s cache (10 minutes)
+    app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
+        try {
+            const filePath = path.join(__dirname, 'public', 'blog', 'posts.json');
+            if (fs.existsSync(filePath)) {
+                res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+            } else {
+                res.status(404).json({ error: 'Posts file not found' });
+            }
+        } catch (err) {
+            console.error('❌ Error loading blog posts:', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // ============================================================================
+    // 📊 CACHE MONITORING ENDPOINT (Admin only)
+    // ============================================================================
+
+    log('🔧 Registering CACHE MONITOR endpoint (admin only)...');
+    app.use('/api/cache', require('./routes/cache-monitor'));
+    log('✅ Cache monitor registered: GET /api/cache/stats, DELETE /api/cache/clear, DELETE /api/cache/clear-key');
+
+    // ============================================================================
+    // 🌐 OTHER ROUTES (NO CACHE - Auth, Payments, Users, WebAuthn)
+    // ============================================================================
+
+    app.use('/api/auth/webauthn', require('./routes/webauthn'));
+    log('✅ WebAuthn routes registered (NO CACHE)');
+
+    app.use('/api/auth', require('./routes/auth'));
+    app.use('/api/payments', require('./routes/payments'));
+    app.use('/api/users', require('./routes/users'));
+    app.use('/api/play-history', require('./routes/play-history'));
+    app.use('/api/admin/tracks', require('./routes/admin-tracks'));
+    app.use('/api/admin/herkunft', require('./routes/admin-herkunft'));
+
+    log('✅ Auth/Payments/Users routes registered (NO CACHE)');
+
+    app.post('/api/csp-report', (req, res) => {
+        console.warn('⚠️ CSP Violation:', JSON.stringify(req.body, null, 2));
+        res.status(204).send();
+    });
+
+    log('✅ All API routes registered');
+
+    // ============================================================================
+    // 🎵 AUDIODATEIEN — bewusst KEINE statische Auslieferung mehr
+    // ============================================================================
+    //
+    // Hier stand:
+    //     app.use('/public/audio', express.static(path.join(__dirname, 'public/audio')));
+    //
+    // Das war eine offene Tür. Am laufenden Server nachgemessen:
+    //
+    //     GET /api/tracks/audio/premium.mp3   ohne Anmeldung -> 206, 640.601 Byte (Vorschau)
+    //     GET /public/audio/premium.mp3       ohne Anmeldung -> 200, 960.931 Byte, vollständig
+    //
+    // Die zweite Antwort war MD5-identisch mit der Originaldatei. Da
+    // GET /api/tracks den Dateinamen öffentlich herausgibt, genügte die
+    // Trackliste, um jeden Kauf zu umgehen — ohne Konto, ohne Token.
+    //
+    // Erschwerend: Der Player benutzte genau diesen ungeschützten Weg. Die
+    // Tests für /api/tracks/audio/:filename waren grün und prüften eine Route,
+    // die im Betrieb niemand aufrief. Grüne Tests haben hier Sicherheit
+    // vorgetäuscht, die es nicht gab.
+    //
+    // Audiodateien laufen ab jetzt ausschließlich über
+    // GET /api/tracks/audio/:filename mit Prüfung von is_free, Token und Kauf.
+    // Ein Aufruf von /public/audio/... liefert 404.
+    //
+    // Falls jemals wieder eine statische Auslieferung gebraucht wird: nur für
+    // Dateien, die tatsächlich für alle frei sind, und in einem eigenen
+    // Verzeichnis — nicht in demselben, in dem die Premium-Dateien liegen.
+
+    // ============================================================================
+    // 📄 SERVE STATIC FRONTEND FILES
+    // ============================================================================
+
+    const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
+    app.use(express.static(frontendPath));
+    log('✅ Static frontend files enabled');
+
+    // ============================================================================
+    // 🐛 ERROR HANDLING
+    // ============================================================================
+
+    app.use((err, req, res, next) => {
+        console.error('❌ Error:', err.message);
+        const errorResponse = { error: err.message };
+        if (NODE_ENV === 'development') {
+            errorResponse.stack = err.stack;
+        }
+        res.status(err.status || 500).json(errorResponse);
+    });
+
+    return app;
 }
 
-// Cache Middleware (funktioniert auch ohne DB)
-const { cacheMiddleware } = require('./middleware/cache-middleware');
-
-// Routes registrieren
-app.use('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
-app.use('/api/auth/webauthn', require('./routes/webauthn'));
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/play-history', require('./routes/play-history'));
-app.use('/api/admin/tracks', require('./routes/admin-tracks'));
-app.use('/api/admin/herkunft', require('./routes/admin-herkunft'));
-
-// Error Handler
-app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.message);
-  res.status(err.status || 500).json({ error: err.message });
-});
-
-module.exports = app;
+module.exports = { createApp };

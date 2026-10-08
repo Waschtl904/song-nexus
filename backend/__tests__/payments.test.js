@@ -67,7 +67,9 @@ jest.mock('@paypal/checkout-server-sdk', () => {
 });
 
 // --- App laden (nach env + mocks) ---
-const app = require('../app');
+const { createApp } = require('../app');
+const app = createApp({ consoleLogging: false });
+afterAll(() => app.locals.dispose());
 const { pool } = require('../db');
 const paypal = require('@paypal/checkout-server-sdk');
 

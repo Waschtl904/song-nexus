@@ -1,50 +1,19 @@
-const forge = require('node-forge');
-const fs = require('fs');
-const path = require('path');
-
-const certDir = path.join(__dirname, 'certs');
-
-// Create certs directory
-if (!fs.existsSync(certDir)) {
-    fs.mkdirSync(certDir, { recursive: true });
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { developmentCertificate } = require('./utils/development-certificate');
+async function main() {
+    const directory = path.join(__dirname, 'certs');
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    const { key, cert } = await developmentCertificate();
+    const keyFile = path.join(directory, 'localhost-key.pem');
+    const certFile = path.join(directory, 'localhost.pem');
+    await fs.writeFile(keyFile, key, { flag: 'wx', mode: 0o600 });
+    try { await fs.writeFile(certFile, cert, { flag: 'wx', mode: 0o644 }); }
+    catch (error) { await fs.unlink(keyFile); throw error; }
+    console.log('Local self-signed certificate created (valid for 7 days).');
+    console.log('For browser trust use mkcert; do not disable TLS validation.');
 }
-
-console.log('🔐 Generating self-signed certificate...');
-
-// Generate RSA key pair
-const keys = forge.pki.rsa.generateKeyPair(2048);
-
-// Create certificate
-const cert = forge.pki.createCertificate();
-cert.publicKey = keys.publicKey;
-cert.serialNumber = '01';
-cert.validity.notBefore = new Date();
-cert.validity.notAfter = new Date();
-cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
-
-const attrs = [
-    { name: 'commonName', value: 'localhost' },
-    { name: 'organizationName', value: 'Song-Nexus' },
-    { name: 'countryName', value: 'AT' }
-];
-
-cert.setSubject(attrs);
-cert.setIssuer(attrs);
-
-// Self-sign
-cert.sign(keys.privateKey, forge.md.sha256.create());
-
-// Convert to PEM
-const keyPEM = forge.pki.privateKeyToPem(keys.privateKey);
-const certPEM = forge.pki.certificateToPem(cert);
-
-// Write files
-fs.writeFileSync(path.join(certDir, 'key.pem'), keyPEM);
-fs.writeFileSync(path.join(certDir, 'cert.pem'), certPEM);
-
-console.log('✅ Certificate generated successfully!');
-console.log(`📁 Location: ${certDir}`);
-console.log('');
-console.log('Key files:');
-console.log(`  - ${path.join(certDir, 'key.pem')}`);
-console.log(`  - ${path.join(certDir, 'cert.pem')}`);
+if (require.main === module) main().catch((error) => {
+    console.error('Certificate creation failed:', error.message);
+    process.exitCode = 1;
+});
