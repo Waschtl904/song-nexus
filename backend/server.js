@@ -6,6 +6,7 @@ const https = require('https');
 
 /** Baut den echten HTTP(S)-Server, startet aber noch keinen Listener. */
 function createServer(options = {}) {
+    require('dotenv').config();
     const { createApp } = require('./app');
     let tls;
     if (process.env.USE_HTTPS === 'true') {
@@ -20,9 +21,14 @@ function createServer(options = {}) {
         }
     }
     const app = createApp(options);
-    const server = tls ? https.createServer(tls, app) : http.createServer(app);
-    server.once('close', () => app.locals.dispose());
-    return { app, server };
+    try {
+        const server = tls ? https.createServer(tls, app) : http.createServer(app);
+        server.once('close', () => app.locals.dispose());
+        return { app, server };
+    } catch (error) {
+        app.locals.dispose();
+        throw error;
+    }
 }
 
 async function startServer() {
@@ -71,15 +77,21 @@ async function startServer() {
     } catch (err) {
         application?.app.locals.dispose();
         accessLogStream.end();
-        await pool.end();
+        // The exported pool belongs to the process, not to this failed listener.
         throw err;
     }
 }
 
 if (require.main === module) {
-    startServer().catch((err) => {
+    startServer().catch(async (err) => {
         console.error('❌ Failed to start server:', err.message);
         process.exitCode = 1;
+        // Only the CLI entry point owns process shutdown; library callers may retry.
+        const database = require.cache[require.resolve('./db')];
+        if (database) {
+            try { await database.exports.pool.end(); }
+            catch (error) { console.error('Database shutdown failed:', error.message); }
+        }
     });
 }
 

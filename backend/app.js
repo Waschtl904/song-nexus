@@ -17,6 +17,8 @@ const cookieParser = require('cookie-parser');
 const { cssAusDatenbanksatz } = require('./utils/design-tokens-css');
 
 function createApp(options = {}) {
+    // Load configuration before selecting production behavior or requiring DB/routes.
+    require('dotenv').config();
     const app = express();
     const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
     const scriptHashes = require('./utils/static-csp').staticScriptHashes(frontendPath);
@@ -24,6 +26,8 @@ function createApp(options = {}) {
     const { pool } = require('./db');
     app.db = pool;
     app.set('trust proxy', 'loopback');
+    // Controls diagnostics routed through this local log function only.
+    // Route, audit, warning and error logs remain enabled; never silence console globally.
     const log = options.consoleLogging === false ? () => {} : console.log.bind(console);
 
     function getOriginsList() {
