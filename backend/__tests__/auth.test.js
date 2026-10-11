@@ -64,16 +64,12 @@ jest.mock('../middleware/cache-middleware', () => ({
 
 jest.mock('compression', () => () => (req, res, next) => next());
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn().mockReturnValue(true),
-  statSync: () => ({ size: 1000 }),
-  createReadStream: jest.fn(),
-}));
-
 // ---------------------------------------------------------------------------
 // App + DB-Pool importieren (nach allen Mocks)
 // ---------------------------------------------------------------------------
-const app = require('../app');
+const { createApp } = require('../app');
+const app = createApp({ consoleLogging: false });
+afterAll(() => app.locals.dispose());
 const { pool } = require('../db');
 
 // ---------------------------------------------------------------------------

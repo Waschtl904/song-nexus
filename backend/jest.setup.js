@@ -27,7 +27,8 @@
 
 const { pool } = require('./db');
 
-// Muss mit dem Origin in app.js (requireTrustedSource([...])) uebereinstimmen.
+// Teil der lokalen Origin-Liste der gemeinsamen createApp(). Produktionstests
+// setzen ihren eigenen Origin und durchlaufen die echte Produktionsliste.
 const TEST_ORIGIN = process.env.TEST_ORIGIN || 'https://localhost:5500';
 
 const supertest = require('supertest');

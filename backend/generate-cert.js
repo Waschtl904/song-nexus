@@ -1,50 +1,58 @@
-const forge = require('node-forge');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { randomBytes } = require('node:crypto');
+const { developmentCertificate } = require('./utils/development-certificate');
 
-const certDir = path.join(__dirname, 'certs');
-
-// Create certs directory
-if (!fs.existsSync(certDir)) {
-    fs.mkdirSync(certDir, { recursive: true });
+async function generateCertificate(directory, { renew = false } = {}) {
+    if (process.env.NODE_ENV === 'production') throw new Error('Local certificate generation is for development only');
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    const lockFile = path.join(directory, '.generate.lock');
+    const lock = await fs.open(lockFile, 'wx', 0o600);
+    const suffix = '.new-' + randomBytes(8).toString('hex');
+    const files = [path.join(directory, 'localhost-key.pem'), path.join(directory, 'localhost.pem')];
+    const staged = files.map(file => file + suffix);
+    const old = [];
+    let changed = 0;
+    try {
+        for (const file of files) {
+            let stat;
+            try { stat = await fs.lstat(file); }
+            catch (error) { if (error.code !== 'ENOENT') throw error; }
+            if (stat && !stat.isFile()) throw new Error('Certificate targets must be regular files');
+            if (stat && !renew) throw new Error('Certificate already exists. Stop the local server and run npm run generate-cert -- --renew');
+            old.push(stat ? await fs.readFile(file) : null);
+        }
+        const { key, cert } = await developmentCertificate();
+        const contents = [key, cert];
+        for (let i=0; i<files.length; i++)
+            await fs.writeFile(staged[i], contents[i], { flag: 'wx', mode: i === 0 ? 0o600 : 0o644 });
+        // The local server must be stopped: two paths are not a crash-atomic pair.
+        for (let i=0; i<files.length; i++) {
+            await fs.rename(staged[i], files[i]); changed++;
+        }
+        return { keyFile: files[0], certFile: files[1] };
+    } catch (error) {
+        for (let i=0; i<changed; i++) {
+            if (old[i] === null) await fs.unlink(files[i]);
+            else {
+                await fs.writeFile(staged[i], old[i], { flag: 'wx', mode: i === 0 ? 0o600 : 0o644 });
+                await fs.rename(staged[i], files[i]);
+            }
+        }
+        throw error;
+    } finally {
+        for (const file of staged) await fs.rm(file, { force: true });
+        await lock.close(); await fs.unlink(lockFile);
+    }
 }
-
-console.log('🔐 Generating self-signed certificate...');
-
-// Generate RSA key pair
-const keys = forge.pki.rsa.generateKeyPair(2048);
-
-// Create certificate
-const cert = forge.pki.createCertificate();
-cert.publicKey = keys.publicKey;
-cert.serialNumber = '01';
-cert.validity.notBefore = new Date();
-cert.validity.notAfter = new Date();
-cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
-
-const attrs = [
-    { name: 'commonName', value: 'localhost' },
-    { name: 'organizationName', value: 'Song-Nexus' },
-    { name: 'countryName', value: 'AT' }
-];
-
-cert.setSubject(attrs);
-cert.setIssuer(attrs);
-
-// Self-sign
-cert.sign(keys.privateKey, forge.md.sha256.create());
-
-// Convert to PEM
-const keyPEM = forge.pki.privateKeyToPem(keys.privateKey);
-const certPEM = forge.pki.certificateToPem(cert);
-
-// Write files
-fs.writeFileSync(path.join(certDir, 'key.pem'), keyPEM);
-fs.writeFileSync(path.join(certDir, 'cert.pem'), certPEM);
-
-console.log('✅ Certificate generated successfully!');
-console.log(`📁 Location: ${certDir}`);
-console.log('');
-console.log('Key files:');
-console.log(`  - ${path.join(certDir, 'key.pem')}`);
-console.log(`  - ${path.join(certDir, 'cert.pem')}`);
+async function main() {
+    const args = process.argv.slice(2);
+    if (args.some(arg => arg !== '--renew')) throw new Error('Usage: npm run generate-cert -- [--renew]');
+    await generateCertificate(path.join(__dirname, 'certs'), { renew: args.includes('--renew') });
+    console.log('Local self-signed certificate created (valid for 7 days). Restart the local server.');
+    console.log('For browser trust use mkcert; do not disable TLS validation.');
+}
+if (require.main === module) main().catch(error => {
+    console.error('Certificate creation failed:', error.message); process.exitCode = 1;
+});
+module.exports = { generateCertificate };

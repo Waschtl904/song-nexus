@@ -140,7 +140,9 @@ http.ServerResponse.prototype.setHeader = function (name, value) {
 // ---------------------------------------------------------------------------
 // App + DB-Pool importieren (nach allen Mocks)
 // ---------------------------------------------------------------------------
-const app = require('../app');
+const { createApp } = require('../app');
+const app = createApp({ consoleLogging: false });
+afterAll(() => app.locals.dispose());
 const { pool } = require('../db');
 
 // ---------------------------------------------------------------------------
