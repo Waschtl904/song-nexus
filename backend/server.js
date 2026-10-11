@@ -47,10 +47,16 @@ async function startServer() {
         application = createServer({ accessLogStream });
         const { server } = application;
         server.once('close', () => accessLogStream.end());
-        // Bestehendes Verhalten: Warmup-/SMTP-Fehler warnen, Start bleibt moeglich.
+        // Produktion: ohne erreichbare Datenbank nicht starten. Seit #99 braucht jede
+        // authentifizierte Anfrage die Datenbank (auth_sessions); ein Start ohne sie
+        // waere ein Prozess, der nur 503 liefert und dabei "gesund" aussieht.
+        // Entwicklung: warnen und weiterlaufen, damit lokale Arbeit ohne DB moeglich bleibt.
         try {
             await pool.query('SELECT NOW()');
         } catch (err) {
+            if (process.env.NODE_ENV === 'production') {
+                throw Object.assign(new Error('Database warmup failed; refusing to start in production: ' + err.message), { code: 'DB_WARMUP_FAILED' });
+            }
             console.error('❌ Database warmup failed:', err.message);
         }
         if (process.env.NODE_ENV !== 'production') {

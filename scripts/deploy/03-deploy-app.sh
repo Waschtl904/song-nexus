@@ -67,16 +67,62 @@ blau "Datenbank und getrennte Rollen vorbereiten"
 [[ "$DB_USER" != "$MIGRATION_DB_USER" ]] || { rot "Getrennte Rollen erforderlich"; exit 1; }
 sudo -u postgres psql -v ON_ERROR_STOP=1 -v database="$DB_NAME" -v app_role="$DB_USER" \
   -v migration_role="$MIGRATION_DB_USER" -f "$APP_DIR/scripts/deploy/database-bootstrap.sql"
-# psql quotes identifiers. No SQL interpolation of usernames or passwords.
-sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -v app_role="$DB_USER" \
-  -v migration_role="$MIGRATION_DB_USER" -f "$APP_DIR/scripts/deploy/database-grants.sql"
-# Explicit schema and migration paths; existing tables/data are preserved.
+
+# Reihenfolge ist Pflicht (Pruefvermerk apdg-lab docs/10, Befund 2):
+#   1. Schema als Migrationsrolle
+#   2. Migrationen als Migrationsrolle (node scripts/migrate.js)
+#   3. ERST DANACH Rechte fuer die Laufzeitrolle (database-grants.sql)
+#   4. Pruefung: keine Tabelle ohne Freigabe, keine DDL fuer die Laufzeitrolle
+# Die Default-Privilegien sind absichtlich "revoke": eine Tabelle, die nach den
+# Grants entsteht, ist fuer die App unsichtbar (503 statt Daten). Darum laufen
+# die Grants hier zuletzt und die Pruefung bricht ab, wenn etwas fehlt.
+blau "Schema (Schritt 1/4)"
 { printf 'SET ROLE :"owner";\n'; cat "$APP_DIR/schema_clean.sql"; } | \
   sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -v owner="$MIGRATION_DB_USER"
-warn "Neue Login-Rollen brauchen ein Passwort: in psql mit \password setzen."
-warn "Vor dem Start: cd backend && MIGRATION_DB_USER=... MIGRATION_DB_PASSWORD=... node scripts/migrate.js"
-warn "Anschließend database-grants.sql als Administrator mit app_role und migration_role anwenden."
-warn "Die Runtime-Rolle darf niemals Eigentümer sein. Siehe docs/SECURITY-ROLLOUT.md."
+gruen "schema_clean.sql eingespielt (idempotent)"
+
+blau "Migrationen (Schritt 2/4)"
+if [[ -z "${MIGRATION_DB_PASSWORD:-}" ]]; then
+  read -rsp "Passwort fuer $MIGRATION_DB_USER (wird gesetzt und fuer die Migration verwendet, nicht gespeichert): " MIGRATION_DB_PASSWORD; echo
+fi
+[[ -n "$MIGRATION_DB_PASSWORD" ]] || { rot "Leeres Migrationspasswort"; exit 1; }
+# Passwort geht per Umgebungsvariable und \getenv (psql >= 15) in eine psql-Variable:
+# nicht in argv (ps/proc), keine Shell-Interpolation ins SQL.
+export MIGRATION_DB_PASSWORD
+sudo --preserve-env=MIGRATION_DB_PASSWORD -u postgres psql -v ON_ERROR_STOP=1 -q -v role="$MIGRATION_DB_USER" \
+  -c '\getenv pw MIGRATION_DB_PASSWORD' -c 'ALTER ROLE :"role" PASSWORD :'"'"'pw'"'"';'
+( cd "$APP_DIR/backend" && DB_HOST=localhost DB_PORT=5432 DB_NAME="$DB_NAME" DB_USER="$DB_USER" \
+    MIGRATION_DB_USER="$MIGRATION_DB_USER" MIGRATION_DB_PASSWORD="$MIGRATION_DB_PASSWORD" node scripts/migrate.js )
+unset MIGRATION_DB_PASSWORD   # auch aus der exportierten Umgebung
+gruen "Migrationen angewendet"
+
+blau "Rechte der Laufzeitrolle (Schritt 3/4)"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -v app_role="$DB_USER" \
+  -v migration_role="$MIGRATION_DB_USER" -f "$APP_DIR/scripts/deploy/database-grants.sql"
+gruen "database-grants.sql angewendet"
+
+blau "Rechtepruefung (Schritt 4/4)"
+# Jede Basistabelle ausser schema_migrations muss fuer die App lesbar sein; sonst fehlt
+# sie in database-grants.sql. schema_migrations darf die App NICHT lesen. Keine DDL.
+OHNE_FREIGABE=$(sudo -u postgres psql -tA -d "$DB_NAME" -v app_role="$DB_USER" -c \
+  "SELECT string_agg(table_name, ', ' ORDER BY table_name) FROM information_schema.tables
+   WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name<>'schema_migrations'
+   AND NOT has_table_privilege(:'app_role', format('public.%I', table_name), 'SELECT')")
+DDL=$(sudo -u postgres psql -tA -d "$DB_NAME" -v app_role="$DB_USER" -c \
+  "SELECT has_schema_privilege(:'app_role','public','CREATE')")
+MIGTAB=$(sudo -u postgres psql -tA -d "$DB_NAME" -v app_role="$DB_USER" -c \
+  "SELECT has_table_privilege(:'app_role','public.schema_migrations','SELECT')")
+TRUNC=$(sudo -u postgres psql -tA -d "$DB_NAME" -v app_role="$DB_USER" -c \
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'
+   AND has_table_privilege(:'app_role', format('public.%I', table_name), 'TRUNCATE')")
+RECHTE_FEHLER=0
+[[ -z "$OHNE_FREIGABE" ]] && gruen "Alle Tabellen fuer $DB_USER freigegeben" || { rot "Tabellen ohne Freigabe fuer $DB_USER: $OHNE_FREIGABE  -> in database-grants.sql aufnehmen"; RECHTE_FEHLER=1; }
+[[ "$DDL" == "f" ]]    && gruen "Keine CREATE-Rechte im Schema"            || { rot "$DB_USER darf im Schema public CREATE ausfuehren"; RECHTE_FEHLER=1; }
+[[ "$MIGTAB" == "f" ]] && gruen "schema_migrations fuer App gesperrt"      || { rot "$DB_USER kann schema_migrations lesen"; RECHTE_FEHLER=1; }
+[[ "$TRUNC" == "0" ]]  && gruen "Kein TRUNCATE-Recht"                      || { rot "$DB_USER hat TRUNCATE auf $TRUNC Tabelle(n)"; RECHTE_FEHLER=1; }
+[[ $RECHTE_FEHLER -eq 0 ]] || { rot "Rechtepruefung fehlgeschlagen - Abbruch vor dem Start."; exit 1; }
+warn "Laufzeitrolle $DB_USER braucht ein eigenes Passwort: in psql mit \\password $DB_USER setzen (nicht das Migrationspasswort)."
+warn "Die Runtime-Rolle darf niemals Eigentuemer sein. Siehe docs/SECURITY-ROLLOUT.md."
 
 blau "Verzeichnisse fuer Uploads und Logs"
 mkdir -p "$APP_DIR/backend/public/audio" "$APP_DIR/backend/logs"

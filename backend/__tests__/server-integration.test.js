@@ -370,6 +370,29 @@ test('a failed second bind preserves the running server pool and permits retry',
   end.mockReset().mockResolvedValue();
 });
 
+test('Produktion: fehlgeschlagener DB-Warmup bricht den Start ab, kein Listener, Pool bleibt offen', async () => {
+  process.env.HOST = '127.0.0.1'; process.env.PORT = '0';
+  pool.query.mockRejectedValue(new Error('connection refused'));
+  const end = pool.end; end.mockClear();
+  await expect(startServer()).rejects.toMatchObject({ code: 'DB_WARMUP_FAILED' });
+  expect(verifyMailer).not.toHaveBeenCalled();
+  expect(end).not.toHaveBeenCalled();
+  // Nach Behebung startet derselbe Prozess regulaer.
+  pool.query.mockReset().mockResolvedValue({ rows: [], rowCount: 0 });
+  const retry = await startServer(); applications.push(retry);
+  expect(retry.server.listening).toBe(true);
+});
+
+test('Entwicklung: fehlgeschlagener DB-Warmup warnt nur und startet', async () => {
+  process.env.NODE_ENV = 'development';
+  process.env.HOST = '127.0.0.1'; process.env.PORT = '0';
+  pool.query.mockRejectedValue(new Error('connection refused'));
+  const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const application = await startServer(); applications.push(application);
+  expect(application.server.listening).toBe(true);
+  expect(error.mock.calls.some(([msg]) => String(msg).includes('Database warmup failed'))).toBe(true);
+});
+
 test('loopback nginx forwarding preserves Secure cookies and separates client IPs', async () => {
   const { app, server } = production();
   app.get('/proxy-probe', (req, res) => {

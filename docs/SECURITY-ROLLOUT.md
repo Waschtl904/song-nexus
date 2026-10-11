@@ -53,22 +53,25 @@ separat zu entwickeln, bevor diese Adresse als bestätigte Identität dient.
 2. `database-bootstrap.sql` mit `psql -v database=... -v app_role=... -v
    migration_role=...` als Administrator anwenden. Neue Rollen erhalten ihre
    Passwörter über `psql` und `\password`, nicht über Kommandozeilenargumente.
-3. `database-grants.sql` auf der ausschließlich dieser Anwendung gewidmeten
-   Datenbank mit denselben Rollen anwenden. Es überträgt Eigentum an die
-   Migrationsrolle, entfernt öffentliche Rechte und verweigert eine App-Rolle,
-   die Mitglied anderer Rollen ist. Eigentumswechsel vorher anhand der echten
-   Rollen und Objekte prüfen. Keine gemeinsam mit Fremdanwendungen benutzte DB!
-4. `schema_clean.sql` als Migrationsrolle einlesen. Wiederholungen ändern keine
-   Nutzdaten; vorhandene Constraints werden nicht erneut angelegt. Die bereits
-   vorhandenen Herkunftsnachweis-Migrationen im Wurzelverzeichnis behalten ihre
-   eigene bisherige Einführungsreihenfolge.
-5. Im Backend `npm run migrate` mit separatem `MIGRATION_DB_USER` und
-   `MIGRATION_DB_PASSWORD` aus dem Secret-Manager ausführen. Zugangsdaten nicht in
-   Shell-Historie schreiben. Der Läufer nutzt ein Advisory Lock, Transaktionen
-   und gespeicherte Prüfsummen. Die Runtime bekommt diese Zugangsdaten nicht.
-6. `database-grants.sql` erneut anwenden, damit neue Zustandstabellen ihre
-   ausdrücklichen DML-Rechte bekommen. App darf weder CREATE, ALTER, DROP,
-   TRUNCATE, Rechteweitergabe noch Zugriff auf `schema_migrations` haben.
+3. Reihenfolge Schema → Migrationen → Rechte → Prüfung. `scripts/deploy/03-deploy-app.sh`
+   führt sie seit Oktober 2026 **als eine Sequenz** aus: `schema_clean.sql` als
+   Migrationsrolle, `node scripts/migrate.js` mit `MIGRATION_DB_USER`/`MIGRATION_DB_PASSWORD`
+   (Passwort nur über Umgebung und `\getenv`, nicht in argv oder Shell-Historie),
+   **erst danach** `database-grants.sql`, anschließend eine Rechteprüfung, die abbricht,
+   wenn eine Basistabelle für die App nicht lesbar ist, die App `CREATE` im Schema oder
+   `SELECT` auf `schema_migrations` hat oder irgendwo `TRUNCATE` darf.
+   Grund: Die Default-Privilegien sind absichtlich „revoke“; eine Tabelle, die nach den
+   Grants entsteht, wäre für die App unsichtbar (503). Jede neue Tabelle muss in die
+   Allowlist in `database-grants.sql`; die Prüfung nennt fehlende Tabellen beim Namen.
+4. Eigentumswechsel in `database-grants.sql` vorher anhand der echten Rollen und Objekte
+   prüfen. Keine gemeinsam mit Fremdanwendungen benutzte Datenbank!
+5. Manuell statt per Skript: dieselbe Reihenfolge einhalten. `npm run migrate` nutzt ein
+   Advisory Lock, Transaktionen pro Datei und Prüfsummen; danach `database-grants.sql`
+   erneut anwenden.
+6. Die App darf weder Eigentümer sein noch DDL, TRUNCATE, Rechteweitergabe oder Zugriff
+   auf `schema_migrations` haben. Die Rechteprüfung in Schritt 3 belegt genau das.
+   In Produktion startet der Server **nicht**, wenn der Datenbank-Warmup fehlschlägt
+   (`startServer`, `DB_WARMUP_FAILED`); in Entwicklung wird nur gewarnt.
 7. Frontend und Backend gemeinsam veröffentlichen. `DB_SSL=off` ist nur für
    Socket/Loopback erlaubt. Für entfernte PostgreSQL-Server `verify-full` und
    gegebenenfalls `DB_SSL_CA` (PEM) oder `DB_SSL_CA_FILE` setzen. `true`, `false`
