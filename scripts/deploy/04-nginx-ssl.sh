@@ -125,7 +125,7 @@ fi
 blau "nginx konfigurieren"
 VORLAGE="$APP_DIR/scripts/deploy/nginx-song-nexus.conf.template"
 [[ -f "$VORLAGE" ]] || { rot "$VORLAGE fehlt."; exit 1; }
-sed "s/DEINE_DOMAIN/$DOMAIN/g" "$VORLAGE" | sudo tee /etc/nginx/sites-available/song-nexus >/dev/null
+node "$APP_DIR/scripts/deploy/render-nginx.cjs" "$DOMAIN" "$ENV_FILE" | sudo tee /etc/nginx/sites-available/song-nexus >/dev/null
 sudo ln -sf /etc/nginx/sites-available/song-nexus /etc/nginx/sites-enabled/song-nexus
 sudo rm -f /etc/nginx/sites-enabled/default
 

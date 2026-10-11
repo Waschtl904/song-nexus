@@ -223,3 +223,26 @@ versioniert ist.
 git status
 ```
 Unversionierte oder geänderte Dateien lassen den Pull abbrechen.
+
+## Neue lokale HTTPS-Zertifikate (#38)
+
+Die alten versionierten localhost-Schlüssel nicht weiterverwenden. Mit einem
+bereits installierten `mkcert` in PowerShell:
+
+```powershell
+mkcert -install
+New-Item -ItemType Directory -Force backend/certs, .local/certs
+mkcert -key-file backend/certs/localhost-key.pem -cert-file backend/certs/localhost.pem localhost 127.0.0.1 ::1
+mkcert -key-file  .local/certs/frontend-key.pem -cert-file .local/certs/frontend.pem localhost 127.0.0.1 ::1
+```
+
+Die Verzeichnisse sind ignoriert. Keine privaten Schlüssel committen. Alternativ
+kann `npm run generate-cert` im Backend ein sieben Tage gültiges selbstsigniertes
+Testzertifikat erzeugen; es installiert keine Vertrauensstellung im Browser.
+Zertifikatsprüfungen nicht abschalten. Hinter dem HTTPS-Proxy benötigt das Backend
+bei `USE_HTTPS=false` kein eigenes Zertifikat.
+
+Der lokale Frontend-Proxy prüft das Backend-Zertifikat. Falls Node die mkcert-CA
+nicht kennt, vor dem Start `NODE_EXTRA_CA_CERTS` auf `rootCA.pem` im Verzeichnis
+aus `mkcert -CAROOT` setzen. Alternativ `BACKEND_TLS_CA_FILE` verwenden. Niemals
+die private CA-Datei weitergeben oder die Zertifikatsprüfung abschalten.

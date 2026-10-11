@@ -16,8 +16,6 @@
 # Sonstige Geheimnistraeger
 *.pem
 *.key
-!backend/certs/localhost*.pem
-!frontend/certs/localhost*.pem
 secrets/
 
 # Ausgabe von scripts/generate-secrets.ps1
@@ -131,7 +129,6 @@ out/
 # ============================================================================
 # OPTIONAL: SSL CERTIFICATES (PRODUCTION ONLY)
 # ============================================================================
-# ✅ DEVELOPMENT: mkcert certs ARE included (they're safe!)
 # ✅ backend/certs/localhost.pem - INCLUDE for dev
 # ✅ backend/certs/localhost-key.pem - INCLUDE for dev
 # ❌ Production certificates - NEVER commit
@@ -172,3 +169,7 @@ coverage/
 # ============================================================================
 .env.test.local
 .env.production.local
+# Private keys and local certificates must never be published.
+**/certs/
+
+.local/

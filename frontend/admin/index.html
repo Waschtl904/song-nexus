@@ -272,6 +272,7 @@
         }
     </style>
   <link rel="icon" href="../favicon.ico" sizes="any">
+    <script src="/js/cookie-session.js"></script>
 </head>
 <body>
     <div class="container">
@@ -336,19 +337,11 @@
     </footer>
 
     <script>
-        const API_BASE = 'https://localhost:3000';
+        const API_BASE = '';
         const STORAGE_KEY = 'songNexusAdminToken';
         const STORAGE_USER = 'songNexusAdminUser';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem(STORAGE_KEY);
-            const user = localStorage.getItem(STORAGE_USER);
-            if (token && user) {
-                verifyTokenAndShowContent(token, JSON.parse(user));
-            } else {
-                showLoginPanel();
-            }
-        });
+        document.addEventListener('DOMContentLoaded', () => verifyTokenAndShowContent());
 
         function showLoginPanel() {
             document.getElementById('loginPanel').style.display = 'block';
@@ -376,7 +369,7 @@
             loginBtn.textContent = 'Logging in...';
 
             try {
-                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                const response = await CookieSession.request(`${API_BASE}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password }),
@@ -386,8 +379,6 @@
 
                 if (!response.ok) throw new Error(data.error || 'Login failed');
                 if (data.user.role !== 'admin') throw new Error('❌ Admin access required');
-
-                localStorage.setItem(STORAGE_KEY, data.token);
                 localStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
                 showAdminContent(data.user);
             } catch (error) {
@@ -410,14 +401,16 @@
         //     cd backend && npm run seed:dev-admin
         // Danach normal über dieses Formular anmelden.
 
-        async function verifyTokenAndShowContent(token, user) {
+        async function verifyTokenAndShowContent() {
             try {
-                const response = await fetch(`${API_BASE}/api/auth/verify`, {
+                const response = await CookieSession.request(`${API_BASE}/api/auth/verify`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { },
                 });
 
-                if (!response.ok) throw new Error('Token invalid');
+                if (!response.ok) throw new Error('Session invalid');
+                const { user } = await response.json();
+                if (user.role !== 'admin') throw new Error('Admin required');
                 showAdminContent(user);
             } catch (error) {
                 localStorage.removeItem(STORAGE_KEY);
@@ -427,11 +420,10 @@
         }
 
         async function handleLogout() {
-            const token = localStorage.getItem(STORAGE_KEY);
             try {
-                await fetch(`${API_BASE}/api/auth/logout`, {
+                await CookieSession.request(`${API_BASE}/api/auth/logout`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { },
                 });
             } catch (e) {}
             localStorage.removeItem(STORAGE_KEY);

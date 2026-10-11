@@ -12,41 +12,32 @@ const cache = new NodeCache({ stdTTL: 300, checkperiod: 600 });
  * Cache Middleware - nur GET Requests
  * @param {number} cacheDuration - Sekunden (default: 300)
  */
-const cacheMiddleware = (cacheDuration = 300) => {
-    return (req, res, next) => {
-        // ✅ Nur GET Requests cachen
-        if (req.method !== 'GET') {
-            return next();
-        }
-
-        // ✅ Cache-Key aus URL + Query-Parametern
-        const cacheKey = req.originalUrl;
-        const cachedData = cache.get(cacheKey);
-
-        // ✅ Cache HIT
-        if (cachedData) {
-            console.log(`🟢 Cache HIT: ${cacheKey}`);
-            res.set('X-Cache', 'HIT');
+const cacheMiddleware = (cacheDuration = 300) => (req, res, next) => {
+    res.vary('Cookie'); res.vary('Authorization');
+    if (req.method !== 'GET') return next();
+    if (req.headers.authorization || req.headers.cookie) {
+        res.set('Cache-Control', 'private, no-store');
+        return next();
+    }
+    const key = req.originalUrl;
+    const hit = cache.get(key);
+    if (hit) {
+        res.set('X-Cache', 'HIT');
+        res.set('Cache-Control', `public, max-age=${cacheDuration}`);
+        return res.status(hit.status).json(hit.body);
+    }
+    res.set('X-Cache', 'MISS');
+    const json = res.json.bind(res);
+    res.json = data => {
+        const control = String(res.getHeader('Cache-Control') || '');
+        if (res.statusCode >= 200 && res.statusCode < 300 && !res.getHeader('Set-Cookie')
+            && !/private|no-store|no-cache/i.test(control)) {
+            cache.set(key, { status: res.statusCode, body: data }, cacheDuration);
             res.set('Cache-Control', `public, max-age=${cacheDuration}`);
-            return res.json(cachedData);
-        }
-
-        // ✅ Cache MISS
-        console.log(`🔴 Cache MISS: ${cacheKey}`);
-        res.set('X-Cache', 'MISS');
-
-        // Response abfangen & speichern
-        const originalJson = res.json.bind(res);
-        res.json = function (data) {
-            // Cache ALL responses from this middleware (no conditions)
-            // If you want to exclude certain responses, don't register the middleware on those routes
-            cache.set(cacheKey, data, cacheDuration);
-            console.log(`👇 Cached: ${cacheKey} for ${cacheDuration}s`);
-            return originalJson(data);
-        };
-
-        next();
+        } else res.set('Cache-Control', 'private, no-store');
+        return json(data);
     };
+    next();
 };
 
 /**

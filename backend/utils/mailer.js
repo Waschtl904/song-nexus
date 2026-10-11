@@ -24,7 +24,7 @@ function getTransporter() {
         pass: process.env.SMTP_PASS,
       },
       tls: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        rejectUnauthorized: true,
       },
     });
   }
@@ -62,10 +62,7 @@ async function verifyMailer() {
  */
 async function sendPasswordResetEmail(toEmail, token, baseUrl) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    // Im Dev-Modus: nur loggen
-    console.log(`🔑 [DEV] Password Reset Token für ${toEmail}: ${token}`);
-    console.log(`   Reset-URL: ${baseUrl}/password-reset.html?token=${token}`);
-    return;
+    throw new Error('SMTP not configured');
   }
 
   const resetUrl = `${baseUrl}/password-reset.html?token=${token}`;
@@ -100,7 +97,7 @@ async function sendPasswordResetEmail(toEmail, token, baseUrl) {
             </h2>
             <p style="margin:0 0 24px;font-size:14px;color:#70b8aa;line-height:1.7;">
               Du hast das Zurücksetzen deines Passworts angefordert.<br>
-              Klicke auf den Button — der Link ist <strong style="color:#e0fff8;">1 Stunde</strong> gültig.
+              Klicke auf den Button — der Link ist <strong style="color:#e0fff8;">15 Minuten</strong> gültig.
             </p>
 
             <a href="${resetUrl}"
@@ -130,7 +127,7 @@ async function sendPasswordResetEmail(toEmail, token, baseUrl) {
   </table>
 </body>
 </html>`,
-    text: `SONG-NEXUS — Passwort zurücksetzen\n\nLink (gültig 1 Stunde):\n${resetUrl}\n\nFalls du das nicht angefordert hast, ignoriere diese E-Mail.`,
+    text: `SONG-NEXUS — Passwort zurücksetzen\n\nLink (gültig 15 Minuten):\n${resetUrl}\n\nFalls du das nicht angefordert hast, ignoriere diese E-Mail.`,
   });
 
   console.log(`✅ Mailer: Password-Reset E-Mail gesendet an ${toEmail}`);
@@ -144,11 +141,10 @@ async function sendPasswordResetEmail(toEmail, token, baseUrl) {
  */
 async function sendMagicLinkEmail(toEmail, token, baseUrl) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.log(`🔗 [DEV] Magic Link Token für ${toEmail}: ${token}`);
-    return;
+    throw new Error('SMTP not configured');
   }
 
-  const magicUrl = `${baseUrl}/?magic_token=${token}`;
+  const magicUrl = `${baseUrl}/auth.html#magic_link_token=${token}`;
 
   await getTransporter().sendMail({
     from:    process.env.EMAIL_FROM || `SONG-NEXUS <${process.env.SMTP_USER}>`,

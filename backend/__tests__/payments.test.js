@@ -25,6 +25,16 @@ const jwt = require('jsonwebtoken');
 
 // --- Mocks ---
 
+// Route-specific fixtures: the real JWT/session validator sees a synthetic active
+// database identity. Revocation and SQL behavior have their own PostgreSQL suite.
+jest.mock('../utils/auth-session', () => {
+  const actual = jest.requireActual('../utils/auth-session');
+  return { ...actual, verifyAccessToken: token => actual.verifyAccessToken(token, {
+    query: async (_sql, [id]) => ({ rows: [1,99].includes(id)
+      ? [{ id, is_active: true, token_version: 1, role: id === 99 ? 'admin' : 'user' }] : [] }),
+  }) };
+});
+
 jest.mock('../db', () => {
   const mockClient = {
     query: jest.fn(),
@@ -75,7 +85,7 @@ const paypal = require('@paypal/checkout-server-sdk');
 
 // Hilfsfunktion: gueltigen JWT erstellen
 function makeToken(user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }) {
-  return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ ...user, token_version: 1, sid: '11111111-1111-4111-8111-111111111111' }, process.env.JWT_SECRET, { expiresIn: '1h', issuer: 'song-nexus', audience: 'song-nexus' });
 }
 
 const userToken = makeToken();
@@ -495,10 +505,7 @@ describe('SOFT-LAUNCH: PAYMENTS_ENABLED steuert den Verkauf', () => {
   let userToken;
 
   beforeAll(() => {
-    userToken = jwt.sign(
-      { id: 1, role: 'user', username: 'kaeufer', email: 'k@example.com' },
-      process.env.JWT_SECRET
-    );
+    userToken = makeToken();
   });
 
   afterEach(() => {

@@ -22,7 +22,7 @@ SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
-SET row_security = off;
+SET row_security = on;
 SET default_tablespace = '';
 SET default_table_access_method = heap;
 
@@ -60,12 +60,10 @@ CREATE TABLE IF NOT EXISTS public.design_system (
     updated_by character varying(100)
 );
 
-ALTER TABLE public.design_system OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.design_system_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.design_system_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.design_system_id_seq OWNED BY public.design_system.id;
 
 -- ============================================================================
@@ -80,12 +78,10 @@ CREATE TABLE IF NOT EXISTS public.magic_link_tokens (
     created_at timestamp without time zone DEFAULT now()
 );
 
-ALTER TABLE public.magic_link_tokens OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.magic_link_tokens_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.magic_link_tokens_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.magic_link_tokens_id_seq OWNED BY public.magic_link_tokens.id;
 
 -- ============================================================================
@@ -108,12 +104,10 @@ CREATE TABLE IF NOT EXISTS public.orders (
     CONSTRAINT orders_status_check CHECK (((status)::text = ANY ((ARRAY['CREATED'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying, 'PENDING'::character varying])::text[])))
 );
 
-ALTER TABLE public.orders OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.orders_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.orders_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.orders_id_seq OWNED BY public.orders.id;
 
 -- ============================================================================
@@ -128,12 +122,10 @@ CREATE TABLE IF NOT EXISTS public.play_history (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE public.play_history OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.play_history_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.play_history_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.play_history_id_seq OWNED BY public.play_history.id;
 
 -- ============================================================================
@@ -150,12 +142,10 @@ CREATE TABLE IF NOT EXISTS public.play_stats (
     played_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE public.play_stats OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.play_stats_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.play_stats_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.play_stats_id_seq OWNED BY public.play_stats.id;
 
 -- ============================================================================
@@ -172,12 +162,10 @@ CREATE TABLE IF NOT EXISTS public.purchases (
     CONSTRAINT purchases_license_type_check CHECK (((license_type)::text = ANY ((ARRAY['personal'::character varying, 'commercial'::character varying, 'streaming'::character varying])::text[])))
 );
 
-ALTER TABLE public.purchases OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.purchases_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.purchases_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.purchases_id_seq OWNED BY public.purchases.id;
 
 -- ============================================================================
@@ -203,12 +191,10 @@ CREATE TABLE IF NOT EXISTS public.tracks (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE public.tracks OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.tracks_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.tracks_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.tracks_id_seq OWNED BY public.tracks.id;
 
 -- ============================================================================
@@ -227,12 +213,10 @@ CREATE TABLE IF NOT EXISTS public.users (
     CONSTRAINT users_role_check CHECK (((role)::text = ANY ((ARRAY['user'::character varying, 'admin'::character varying])::text[])))
 );
 
-ALTER TABLE public.users OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.users_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 -- ============================================================================
@@ -249,12 +233,10 @@ CREATE TABLE IF NOT EXISTS public.webauthn_credentials (
     last_used timestamp without time zone
 );
 
-ALTER TABLE public.webauthn_credentials OWNER TO postgres;
 
 CREATE SEQUENCE IF NOT EXISTS public.webauthn_credentials_id_seq
     AS integer START WITH 1 INCREMENT BY 1
     NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.webauthn_credentials_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.webauthn_credentials_id_seq OWNED BY public.webauthn_credentials.id;
 
 -- ============================================================================
@@ -273,27 +255,95 @@ ALTER TABLE ONLY public.webauthn_credentials ALTER COLUMN id SET DEFAULT nextval
 -- ============================================================================
 -- PRIMARY KEYS
 -- ============================================================================
-ALTER TABLE ONLY public.design_system ADD CONSTRAINT design_system_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.magic_link_tokens ADD CONSTRAINT magic_link_tokens_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.tracks ADD CONSTRAINT tracks_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.webauthn_credentials ADD CONSTRAINT webauthn_credentials_pkey PRIMARY KEY (id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='design_system_pkey' AND conrelid='public.design_system'::regclass) THEN
+    ALTER TABLE ONLY public.design_system ADD CONSTRAINT design_system_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='magic_link_tokens_pkey' AND conrelid='public.magic_link_tokens'::regclass) THEN
+    ALTER TABLE ONLY public.magic_link_tokens ADD CONSTRAINT magic_link_tokens_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='orders_pkey' AND conrelid='public.orders'::regclass) THEN
+    ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_history_pkey' AND conrelid='public.play_history'::regclass) THEN
+    ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_stats_pkey' AND conrelid='public.play_stats'::regclass) THEN
+    ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='purchases_pkey' AND conrelid='public.purchases'::regclass) THEN
+    ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tracks_pkey' AND conrelid='public.tracks'::regclass) THEN
+    ALTER TABLE ONLY public.tracks ADD CONSTRAINT tracks_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='users_pkey' AND conrelid='public.users'::regclass) THEN
+    ALTER TABLE ONLY public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='webauthn_credentials_pkey' AND conrelid='public.webauthn_credentials'::regclass) THEN
+    ALTER TABLE ONLY public.webauthn_credentials ADD CONSTRAINT webauthn_credentials_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- UNIQUE CONSTRAINTS
 -- ============================================================================
-ALTER TABLE ONLY public.magic_link_tokens ADD CONSTRAINT magic_link_tokens_token_key UNIQUE (token);
-ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_paypal_order_id_key UNIQUE (paypal_order_id);
-ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_user_id_track_id_played_at_key UNIQUE (user_id, track_id, played_at);
-ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_user_id_track_id_key UNIQUE (user_id, track_id);
-ALTER TABLE ONLY public.tracks ADD CONSTRAINT tracks_audio_filename_key UNIQUE (audio_filename);
-ALTER TABLE ONLY public.users ADD CONSTRAINT users_email_key UNIQUE (email);
-ALTER TABLE ONLY public.users ADD CONSTRAINT users_username_key UNIQUE (username);
-ALTER TABLE ONLY public.webauthn_credentials ADD CONSTRAINT webauthn_credentials_credential_id_key UNIQUE (credential_id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='magic_link_tokens_token_key' AND conrelid='public.magic_link_tokens'::regclass) THEN
+    ALTER TABLE ONLY public.magic_link_tokens ADD CONSTRAINT magic_link_tokens_token_key UNIQUE (token);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='orders_paypal_order_id_key' AND conrelid='public.orders'::regclass) THEN
+    ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_paypal_order_id_key UNIQUE (paypal_order_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_history_user_id_track_id_played_at_key' AND conrelid='public.play_history'::regclass) THEN
+    ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_user_id_track_id_played_at_key UNIQUE (user_id, track_id, played_at);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='purchases_user_id_track_id_key' AND conrelid='public.purchases'::regclass) THEN
+    ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_user_id_track_id_key UNIQUE (user_id, track_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tracks_audio_filename_key' AND conrelid='public.tracks'::regclass) THEN
+    ALTER TABLE ONLY public.tracks ADD CONSTRAINT tracks_audio_filename_key UNIQUE (audio_filename);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='users_email_key' AND conrelid='public.users'::regclass) THEN
+    ALTER TABLE ONLY public.users ADD CONSTRAINT users_email_key UNIQUE (email);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='users_username_key' AND conrelid='public.users'::regclass) THEN
+    ALTER TABLE ONLY public.users ADD CONSTRAINT users_username_key UNIQUE (username);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='webauthn_credentials_credential_id_key' AND conrelid='public.webauthn_credentials'::regclass) THEN
+    ALTER TABLE ONLY public.webauthn_credentials ADD CONSTRAINT webauthn_credentials_credential_id_key UNIQUE (credential_id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- INDEXES
@@ -323,49 +373,74 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_design_system_single_active
 -- ============================================================================
 -- FOREIGN KEYS
 -- ============================================================================
-ALTER TABLE ONLY public.magic_link_tokens ADD CONSTRAINT magic_link_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE SET NULL;
-ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
-ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.webauthn_credentials ADD CONSTRAINT webauthn_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='magic_link_tokens_user_id_fkey' AND conrelid='public.magic_link_tokens'::regclass) THEN
+    ALTER TABLE ONLY public.magic_link_tokens ADD CONSTRAINT magic_link_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='orders_user_id_fkey' AND conrelid='public.orders'::regclass) THEN
+    ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_history_track_id_fkey' AND conrelid='public.play_history'::regclass) THEN
+    ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_history_user_id_fkey' AND conrelid='public.play_history'::regclass) THEN
+    ALTER TABLE ONLY public.play_history ADD CONSTRAINT play_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_stats_track_id_fkey' AND conrelid='public.play_stats'::regclass) THEN
+    ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='play_stats_user_id_fkey' AND conrelid='public.play_stats'::regclass) THEN
+    ALTER TABLE ONLY public.play_stats ADD CONSTRAINT play_stats_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='orders_track_id_fkey' AND conrelid='public.orders'::regclass) THEN
+    ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='purchases_order_id_fkey' AND conrelid='public.purchases'::regclass) THEN
+    ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='purchases_track_id_fkey' AND conrelid='public.purchases'::regclass) THEN
+    ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_track_id_fkey FOREIGN KEY (track_id) REFERENCES public.tracks(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='purchases_user_id_fkey' AND conrelid='public.purchases'::regclass) THEN
+    ALTER TABLE ONLY public.purchases ADD CONSTRAINT purchases_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='webauthn_credentials_user_id_fkey' AND conrelid='public.webauthn_credentials'::regclass) THEN
+    ALTER TABLE ONLY public.webauthn_credentials ADD CONSTRAINT webauthn_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PERMISSIONS
 -- ============================================================================
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
-GRANT ALL ON SCHEMA public TO PUBLIC;
-GRANT ALL ON SCHEMA public TO song_nexus_user;
 
-GRANT ALL ON TABLE public.design_system TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.design_system_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.magic_link_tokens TO song_nexus_user;
-GRANT SELECT,USAGE ON SEQUENCE public.magic_link_tokens_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.orders TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.orders_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.play_history TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.play_history_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.play_stats TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.play_stats_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.purchases TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.purchases_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.tracks TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.tracks_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.users TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.users_id_seq TO song_nexus_user;
-GRANT ALL ON TABLE public.webauthn_credentials TO song_nexus_user;
-GRANT ALL ON SEQUENCE public.webauthn_credentials_id_seq TO song_nexus_user;
 
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO song_nexus_user;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO song_nexus_user;
 
 -- ============================================================================
 -- Schema v1.1 complete – 9 Tabellen, keine Redundanzen
 -- Nächster Schritt: migration_cleanup.sql auf Live-DB anwenden
 -- (ROLLBACK durch COMMIT ersetzen nach Prüfung)
 -- ============================================================================
+
+-- Grants are applied separately by scripts/deploy/database-grants.sql.
+RESET search_path;

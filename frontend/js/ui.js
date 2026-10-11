@@ -120,13 +120,12 @@ export const UI = {
     },
 
     updateAuthUI() {
-        const token = Auth.getToken();
         const user = Auth.getUser();
 
         const authToggle = document.getElementById('authToggle');
         const userInfo = document.getElementById('userInfo');
 
-        if (token && user) {
+        if (Auth.isAuthenticated() && user) {
             if (authToggle) authToggle.style.display = 'none';
             if (userInfo) {
                 userInfo.style.display = 'flex';

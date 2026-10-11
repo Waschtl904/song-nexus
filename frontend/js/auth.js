@@ -23,13 +23,9 @@ function holePasswortRegel() {
 }
 
 // HELPER FUNCTIONS
-function getAuthToken() {
-    return localStorage.getItem('auth_token');
-}
+function getAuthToken() { return null; }
 
-function setAuthToken(token) {
-    if (token) localStorage.setItem('auth_token', token);
-}
+function setAuthToken() {}
 
 function clearAuthToken() {
     localStorage.removeItem('auth_token');
@@ -55,12 +51,10 @@ export const Auth = {
         this._initialisiert = true;
 
         console.log('🔐 Auth module initializing...');
-        this.token = getAuthToken();
-        this.loadUserFromStorage();
-        if (this.token) {
-            console.log('✅ Token found, user may be logged in');
+        this.ready = globalThis.CookieSession.renew().then(() => {
+            this.user = globalThis.CookieSession.user;
             this.updateUI();
-        }
+        }).catch(() => { this.user = null; this.updateUI(); });
 
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.setupAuthModal());
@@ -99,11 +93,11 @@ export const Auth = {
     },
 
     getUser() {
-        return this.user;
+        return globalThis.CookieSession.user;
     },
 
     isAuthenticated() {
-        return !!(this.token || getAuthToken());
+        return !!globalThis.CookieSession.user;
     },
 
     // ============================================================================
@@ -325,9 +319,8 @@ export const Auth = {
                 { email, password }
             );
 
-            if (response.token) {
-                this.token = response.token;
-                setAuthToken(response.token);
+            if (response.user) {
+                globalThis.CookieSession.user = response.user;
                 this.user = response.user;
                 this.saveUserToStorage(response.user);
 
@@ -349,7 +342,7 @@ export const Auth = {
                 statusEl,
                 response && response.error
                     ? response.error
-                    : 'Der Server hat kein Anmeldetoken geliefert. Bitte erneut versuchen.',
+                    : 'Die Anmeldung wurde nicht bestätigt. Bitte erneut versuchen.',
                 'error'
             );
 
@@ -407,9 +400,8 @@ export const Auth = {
                 { email, username, password, passwordConfirm }
             );
 
-            if (response.token) {
-                this.token = response.token;
-                setAuthToken(response.token);
+            if (response.user) {
+                globalThis.CookieSession.user = response.user;
                 this.user = response.user;
                 this.saveUserToStorage(response.user);
 
@@ -452,9 +444,8 @@ export const Auth = {
 
             const result = await WebAuthn.registerWithBiometric(username, email);
 
-            if (result.token) {
-                this.token = result.token;
-                setAuthToken(result.token);
+            if (result.user) {
+                globalThis.CookieSession.user = result.user;
                 this.user = result.user;
                 this.saveUserToStorage(result.user);
 
@@ -480,9 +471,8 @@ export const Auth = {
             this.showStatus(statusEl, 'Fingerabdruck scannen...', 'loading');
             const result = await WebAuthn.authenticateWithBiometric();
 
-            if (result.token) {
-                this.token = result.token;
-                setAuthToken(result.token);
+            if (result.user) {
+                globalThis.CookieSession.user = result.user;
                 this.user = result.user;
                 this.saveUserToStorage(result.user);
 
@@ -537,9 +527,8 @@ export const Auth = {
             console.log('🔐 Verifying magic link token from URL...');
             const result = await WebAuthn.verifyMagicLink(token);
 
-            if (result.token) {
-                this.token = result.token;
-                setAuthToken(result.token);
+            if (result.user) {
+                globalThis.CookieSession.user = result.user;
                 this.user = result.user;
                 this.saveUserToStorage(result.user);
 
@@ -558,9 +547,8 @@ export const Auth = {
         try {
             const result = await WebAuthn.verifyMagicLink(token);
 
-            if (result.token) {
-                this.token = result.token;
-                setAuthToken(result.token);
+            if (result.user) {
+                globalThis.CookieSession.user = result.user;
                 this.user = result.user;
                 this.saveUserToStorage(result.user);
                 this.updateUI();

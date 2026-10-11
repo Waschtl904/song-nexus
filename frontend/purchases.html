@@ -113,6 +113,7 @@
     .btn-action.btn-dl { color: var(--color-secondary, #cc00ff); border-color: rgba(204,0,255,.25); }
     .btn-action.btn-dl:hover { background: rgba(204,0,255,.08); border-color: var(--color-secondary, #cc00ff); }
   </style>
+    <script src="/js/cookie-session.js"></script>
 </head>
 <body>
   <div id="heroBackground" class="hero-background-container" aria-hidden="true">
@@ -272,11 +273,10 @@
       btn.textContent = '⏳ ...';
 
       try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const res = await fetch(`/api/payments/download/${trackId}`, {
+
+        const res = await CookieSession.request(`/api/payments/download/${trackId}`, {
           method: 'GET',
           credentials: 'include',
           headers,
@@ -328,7 +328,7 @@
 
     async function loadPurchases() {
       try {
-        const res = await fetch('/api/payments/history', { credentials: 'include' });
+        const res = await CookieSession.request('/api/payments/history', { credentials: 'include' });
         if (res.status === 401) { renderLoginPrompt(); return; }
         if (!res.ok) throw new Error('API error');
         const data = await res.json();

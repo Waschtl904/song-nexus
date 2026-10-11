@@ -20,10 +20,11 @@ function createApp(options = {}) {
     // Load configuration before selecting production behavior or requiring DB/routes.
     require('dotenv').config();
     const app = express();
+    const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
+    const scriptHashes = require('./utils/static-csp').staticScriptHashes(frontendPath);
     const NODE_ENV = process.env.NODE_ENV || 'development';
     const { pool } = require('./db');
     app.db = pool;
-    // Only the local nginx hop may supply protocol/client forwarding headers.
     app.set('trust proxy', 'loopback');
     // Controls diagnostics routed through this local log function only.
     // Route, audit, warning and error logs remain enabled; never silence console globally.
@@ -155,7 +156,7 @@ function createApp(options = {}) {
             defaultSrc: ["'self'"],
             // Scripts: Nonce für inline <script>-Blöcke + 'self' für gebündelte Dateien
             // 'unsafe-inline' wird von Browsern ignoriert wenn nonce present → sicher
-            scriptSrc: ["'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
+            scriptSrc: [...scriptHashes, "'self'", `'nonce-${nonce}'`, "'unsafe-inline'"],
             // scriptSrcAttr (onclick= etc.) komplett verbieten — kein inline Event-Handler nötig
             scriptSrcAttr: ["'none'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -182,7 +183,7 @@ function createApp(options = {}) {
             },
             // Clickjacking-Schutz: verhindert Einbettung in fremde iframes
             frameguard: { action: 'deny' },
-            hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+            hsts: require('./utils/hsts').hstsOptions(),
             noSniff: true,
             // xssFilter ist deprecated in modernen Browsern, CSP reicht
             xssFilter: false,
@@ -258,7 +259,11 @@ function createApp(options = {}) {
         }
     }
 
+    const PgStore = require('connect-pg-simple')(session);
+    const sessionStore = new PgStore({ pool, tableName: 'web_sessions', createTableIfMissing: false,
+        pruneSessionInterval: 300 });
     app.use(session({
+        store: sessionStore,
         secret: process.env.SESSION_SECRET || process.env.JWT_SECRET,
         resave: false,
         saveUninitialized: false,
@@ -278,11 +283,12 @@ function createApp(options = {}) {
     // 📊 LOGGING
     // ============================================================================
 
+    morgan.token('safe-path', req => req.path.replace(/(download-file\/)[^/]+/, '$1[redacted]'));
     if (options.accessLogStream) {
-        app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: options.accessLogStream }));
+        app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :safe-path HTTP/:http-version" :status :res[content-length] - :response-time ms', { stream: options.accessLogStream }));
     }
     if (NODE_ENV !== 'production' && options.consoleLogging !== false) {
-        app.use(morgan('dev'));
+        app.use(morgan(':method :safe-path :status :response-time ms'));
     }
 
     // 🛡️ RATE LIMITING
@@ -299,7 +305,13 @@ function createApp(options = {}) {
         }
     }, 15 * 60 * 1000);
     rateLimitCleanup.unref();
-    app.locals.dispose = () => clearInterval(rateLimitCleanup);
+    const { pruneSecurityState } = require('./utils/security-state');
+    const stateCleanup = setInterval(() => pruneSecurityState().catch(() =>
+        console.error('Security state cleanup failed')), 300000);
+    stateCleanup.unref();
+    app.locals.dispose = () => {
+        clearInterval(rateLimitCleanup); clearInterval(stateCleanup); sessionStore.close();
+    };
 
     // Der Zaehler lag bisher allein unter der IP-Adresse — und zwar fuer ALLE
     // fuenf Begrenzer gemeinsam. Damit zaehlte jeder Aufruf irgendeiner
@@ -719,7 +731,7 @@ function createApp(options = {}) {
     log('🔧 Registering cached API routes...');
 
     // Tracks: 300s cache (5 minutes)
-    app.use('/api/tracks', cacheMiddleware(300), require('./routes/tracks'));
+    app.use('/api/tracks', require('./routes/tracks'));
 
     // Blog posts: 600s cache (10 minutes)
     app.get('/api/blog/posts.json', cacheMiddleware(600), async (req, res) => {
@@ -800,8 +812,7 @@ function createApp(options = {}) {
     // 📄 SERVE STATIC FRONTEND FILES
     // ============================================================================
 
-    const frontendPath = options.frontendPath || path.join(__dirname, '../frontend');
-    app.use(express.static(frontendPath));
+    app.use(require('./middleware/public-files').publicFilesOnly, express.static(frontendPath));
     log('✅ Static frontend files enabled');
 
     // ============================================================================

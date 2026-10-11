@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
+const staticHashes = require('../backend/utils/static-csp').staticScriptHashes(__dirname);
 
 // ===== HTTPS CERTIFICATE SETUP =====
 let httpsOptions = null;
@@ -33,8 +34,8 @@ const HOST = process.env.HOST || 'localhost';
 const BACKEND_URL = process.env.BACKEND_URL || 'https://localhost:3000';
 
 // Try mkcert certificates FIRST (preferred)
-const mkcertKeyPath = path.join(__dirname, 'certs/localhost-key.pem');
-const mkcertCertPath = path.join(__dirname, 'certs/localhost.pem');
+const mkcertKeyPath = path.join(__dirname, '../.local/certs/frontend-key.pem');
+const mkcertCertPath = path.join(__dirname, '../.local/certs/frontend.pem');
 
 // Fallback to self-signed from backend
 const selfSignedKeyPath = path.join(__dirname, '../backend/certs/localhost-key.pem');
@@ -52,7 +53,7 @@ if (fs.existsSync(mkcertKeyPath) && fs.existsSync(mkcertCertPath)) {
             key: fs.readFileSync(mkcertKeyPath),
             cert: fs.readFileSync(mkcertCertPath)
         };
-        console.log('✅ Using mkcert certificates (frontend/certs/)');
+        console.log('✅ Using local mkcert certificates outside the document root');
     } catch (err) {
         console.error('❌ Error reading mkcert certs:', err.message);
     }
@@ -143,9 +144,9 @@ const getCSPDirectives = () => {
     }
 
     return {
-        defaultSrc: ["'self'", "https:", "http:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", ...staticHashes, ...(NODE_ENV === 'production' ? [] : ["'unsafe-eval'"])],
+        scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         mediaSrc: [
@@ -180,7 +181,7 @@ app.use(helmet({
         directives: getCSPDirectives(),
         reportUri: ['/api/csp-report'],
     },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    hsts: require('../backend/utils/hsts').hstsOptions(),
     noSniff: true,
     xssFilter: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
@@ -212,18 +213,19 @@ app.options('*', cors(corsOptions));
 // ===== 🔥 API PROXY TO BACKEND (HTTPS, for design-system + all /api routes) =====
 console.log('\n🔗 Setting up API Proxy to Backend...');
 
-// Create HTTPS agent that ignores self-signed certificates
-const https_agent = require('https').Agent({ rejectUnauthorized: false });
+// Verify backend TLS; supply the development CA explicitly when needed.
+const https_agent = new https.Agent({ rejectUnauthorized: true,
+    ...(process.env.BACKEND_TLS_CA_FILE ? { ca: fs.readFileSync(process.env.BACKEND_TLS_CA_FILE) } : {}) });
 
 app.use('/api', createProxyMiddleware({
     target: BACKEND_URL,
     changeOrigin: true,
-    agent: https_agent,
+    agent: BACKEND_URL.startsWith('https:') ? https_agent : undefined,
     logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
         console.log(`📨 [PROXY] ${req.method} ${req.path} → ${BACKEND_URL}${req.path}`);
         // Forward credentials in proxy
-        proxyReq.setHeader('Origin', `https://${HOST}:${PORT}`);
+        // Preserve the real browser Origin for backend request-source validation.
     },
     onProxyRes: (proxyRes, req, res) => {
         console.log(`📬 [PROXY] Response ${proxyRes.statusCode} from ${BACKEND_URL}${req.path}`);
@@ -292,6 +294,7 @@ app.get('/_design-tokens-DEFAULT.css', (req, res) => {
 });
 
 // ===== STATIC FILES =====
+app.use(require('../backend/middleware/public-files').publicFilesOnly);
 app.use(express.static(path.join(__dirname), {
     maxAge: '1d',
     etag: true,

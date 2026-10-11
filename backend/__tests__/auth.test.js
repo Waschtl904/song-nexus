@@ -80,7 +80,7 @@ const { pool } = require('../db');
  * Erzeugt ein gültiges JWT für einen Test-User.
  */
 function makeToken(user = { id: 1, role: 'user', email: 'test@example.com', username: 'testuser' }) {
-  return jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ ...user, token_version: 1, sid: '11111111-1111-4111-8111-111111111111' }, process.env.JWT_SECRET, { expiresIn: '1h', issuer: 'song-nexus', audience: 'song-nexus' });
 }
 
 /**
@@ -108,15 +108,17 @@ describe('POST /api/auth/register', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [] })  // existingUser-Check
       .mockResolvedValueOnce({
-        rows: [{ id: 1, email: 'neu@example.com', username: 'neuer', role: 'user' }],
-      });  // INSERT RETURNING
+        rows: [{ id: 1, email: 'neu@example.com', username: 'neuer', role: 'user', token_version: 1 }],
+      })  // INSERT RETURNING
+      .mockResolvedValueOnce({ rows: [{ id: 1, token_version: 1 }] }); // session creation
 
     const res = await request(app)
       .post('/api/auth/register')
       .send({ email: 'neu@example.com', password: 'korrekt-pferd-batterie-klammer', username: 'neuer' });
 
     expect(res.statusCode).toBe(201);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie'].some(c => /auth_token=.*HttpOnly/.test(c))).toBe(true);
     expect(res.body.user).toMatchObject({ email: 'neu@example.com', username: 'neuer', role: 'user' });
     expect(res.body.user).not.toHaveProperty('password_hash');
   });
@@ -180,8 +182,9 @@ describe('POST /api/auth/login', () => {
 
     pool.query
       .mockResolvedValueOnce({
-        rows: [{ id: 1, email: 'user@example.com', username: 'testuser', password_hash: hash, role: 'user', is_active: true }],
+        rows: [{ id: 1, email: 'user@example.com', username: 'testuser', password_hash: hash, role: 'user', token_version: 1, is_active: true }],
       })  // SELECT user
+      .mockResolvedValueOnce({ rows: [{ id: 1, token_version: 1 }] }) // session creation
       .mockResolvedValueOnce({ rows: [] });  // UPDATE last_login
 
     const res = await request(app)
@@ -189,7 +192,8 @@ describe('POST /api/auth/login', () => {
       .send({ username: 'testuser', password: 'richtigesPasswort' });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie'].some(c => /auth_token=.*HttpOnly/.test(c))).toBe(true);
     expect(res.body.user).toMatchObject({ username: 'testuser', role: 'user' });
     expect(res.body.user).not.toHaveProperty('password_hash');
   });
@@ -198,7 +202,7 @@ describe('POST /api/auth/login', () => {
     const hash = await makeHash('richtigesPasswort');
 
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 1, email: 'user@example.com', username: 'testuser', password_hash: hash, role: 'user', is_active: true }],
+      rows: [{ id: 1, email: 'user@example.com', username: 'testuser', password_hash: hash, role: 'user', token_version: 1, is_active: true }],
     });
 
     const res = await request(app)
@@ -234,8 +238,9 @@ describe('POST /api/auth/login', () => {
 
     pool.query
       .mockResolvedValueOnce({
-        rows: [{ id: 2, email: 'user@example.com', username: 'emailuser', password_hash: hash, role: 'user', is_active: true }],
+        rows: [{ id: 2, email: 'user@example.com', username: 'emailuser', password_hash: hash, role: 'user', token_version: 1, is_active: true }],
       })
+      .mockResolvedValueOnce({ rows: [{ id: 2, token_version: 1 }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
@@ -243,7 +248,8 @@ describe('POST /api/auth/login', () => {
       .send({ username: 'user@example.com', password: 'korrekt-pferd-batterie-klammer' });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie'].some(c => /auth_token=.*HttpOnly/.test(c))).toBe(true);
   });
 });
 
@@ -255,6 +261,7 @@ describe('POST /api/auth/verify', () => {
 
   test('200 - gültiger Token wird als valid bestätigt', async () => {
     const token = makeToken();
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 1, is_active: true, token_version: 1 }] });
 
     const res = await request(app)
       .post('/api/auth/verify')
@@ -269,7 +276,7 @@ describe('POST /api/auth/verify', () => {
     const res = await request(app).post('/api/auth/verify');
 
     expect(res.statusCode).toBe(401);
-    expect(res.body.error).toMatch(/No token/i);
+    expect(res.body.error).toMatch(/Authentication required/i);
   });
 
   test('403 - ungültiger Token', async () => {
@@ -278,7 +285,7 @@ describe('POST /api/auth/verify', () => {
       .set('Authorization', 'Bearer ungueltig.token.wert');
 
     expect(res.statusCode).toBe(403);
-    expect(res.body.error).toMatch(/Invalid or expired/i);
+    expect(res.body.error).toMatch(/Authentication required/i);
   });
 
   test('403 - abgelaufener Token', async () => {
@@ -306,7 +313,7 @@ describe('GET /api/auth/me', () => {
     const token = makeToken({ id: 5, role: 'user', email: 'ich@example.com', username: 'ichselbst' });
 
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 5, email: 'ich@example.com', username: 'ichselbst', role: 'user', is_active: true, created_at: new Date().toISOString() }],
+      rows: [{ id: 5, email: 'ich@example.com', username: 'ichselbst', role: 'user', token_version: 1, is_active: true, created_at: new Date().toISOString() }],
     });
 
     const res = await request(app)
@@ -332,8 +339,8 @@ describe('GET /api/auth/me', () => {
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`);
 
-    expect(res.statusCode).toBe(404);
-    expect(res.body.error).toMatch(/User not found/i);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.error).toMatch(/Authentication required/i);
   });
 });
 
@@ -345,6 +352,7 @@ describe('POST /api/auth/logout', () => {
 
   test('200 - Logout mit gültigem Token bestätigt', async () => {
     const token = makeToken();
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 1, token_version: 1, is_active: true }] }).mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .post('/api/auth/logout')
@@ -352,12 +360,12 @@ describe('POST /api/auth/logout', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.message).toMatch(/Logged out/i);
+    expect(res.headers['set-cookie'].some(c => c.startsWith('auth_token=;'))).toBe(true);
   });
 
-  test('401 - Logout ohne Token schlägt fehl', async () => {
+  test('200 - Logout ohne Token ist idempotent', async () => {
     const res = await request(app).post('/api/auth/logout');
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(200);
   });
 });
 
@@ -365,42 +373,23 @@ describe('POST /api/auth/logout', () => {
 // POST /api/auth/refresh-token
 // ===========================================================================
 describe('POST /api/auth/refresh-token', () => {
-  beforeEach(() => { jest.clearAllMocks(); pool.query.mockReset(); });
-
-  test('200 - liefert neues Token für eingeloggten User', async () => {
-    const token = makeToken({ id: 3, role: 'user', email: 'fresh@example.com', username: 'freshuser' });
-
-    pool.query.mockResolvedValueOnce({
-      rows: [{ id: 3, email: 'fresh@example.com', username: 'freshuser', role: 'user' }],
-    });
-
-    const res = await request(app)
-      .post('/api/auth/refresh-token')
-      .set('Authorization', `Bearer ${token}`);
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toHaveProperty('token');
-    // Neues Token muss ein gültiges JWT sein
-    const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
-    expect(decoded).toHaveProperty('id', 3);
+  beforeEach(() => pool.query.mockReset());
+  test('rotates opaque refresh cookie and returns no token in JSON', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 3, token_version: 1, sid: '11111111-1111-4111-8111-111111111111', username: 'fresh' }] });
+    const res = await request(app).post('/api/auth/refresh-token').set('Cookie', 'refresh_token=' + 'a'.repeat(64));
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('token');
+    const cookie = res.headers['set-cookie'].find(c => c.startsWith('auth_token='));
+    expect(jwt.verify(cookie.split(';')[0].slice(11), process.env.JWT_SECRET).id).toBe(3);
+    expect(pool.query.mock.calls[0][0]).toMatch(/s.token_version=u.token_version/);
   });
-
-  test('401 - kein Token beim Refresh', async () => {
-    const res = await request(app).post('/api/auth/refresh-token');
-    expect(res.statusCode).toBe(401);
+  test('missing refresh cookie rejects', async () => {
+    expect((await request(app).post('/api/auth/refresh-token')).status).toBe(403);
+    expect(pool.query).not.toHaveBeenCalled();
   });
-
-  test('401 - User in DB nicht mehr vorhanden', async () => {
-    const token = makeToken({ id: 999, role: 'user', email: 'ghost@example.com', username: 'ghost' });
-
+  test('revoked, expired or previously rotated refresh rejects', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
-
-    const res = await request(app)
-      .post('/api/auth/refresh-token')
-      .set('Authorization', `Bearer ${token}`);
-
-    expect(res.statusCode).toBe(401);
-    expect(res.body.error).toMatch(/User not found/i);
+    expect((await request(app).post('/api/auth/refresh-token').set('Cookie', 'refresh_token=' + 'a'.repeat(64))).status).toBe(403);
   });
 });
 
