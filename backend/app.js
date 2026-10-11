@@ -17,10 +17,16 @@ const cookieParser = require('cookie-parser');
 const { cssAusDatenbanksatz } = require('./utils/design-tokens-css');
 
 function createApp(options = {}) {
+    // Load configuration before selecting production behavior or requiring DB/routes.
+    require('dotenv').config();
     const app = express();
     const NODE_ENV = process.env.NODE_ENV || 'development';
     const { pool } = require('./db');
     app.db = pool;
+    // Only the local nginx hop may supply protocol/client forwarding headers.
+    app.set('trust proxy', 'loopback');
+    // Controls diagnostics routed through this local log function only.
+    // Route, audit, warning and error logs remain enabled; never silence console globally.
     const log = options.consoleLogging === false ? () => {} : console.log.bind(console);
 
     function getOriginsList() {

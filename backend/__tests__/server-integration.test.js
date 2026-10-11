@@ -281,3 +281,96 @@ test('echter Startpfad: Warmup, Mailer, Listener; keine DEBUG-Abfrage in Produkt
   expect(verifyMailer).toHaveBeenCalledTimes(1);
   await request(application.server).get('/api/users/profile').expect(401);
 });
+
+
+test.each(['app', 'server'])('factory %s loads .env before selecting production/TLS behavior', mode => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-env-review-'));
+  fs.writeFileSync(path.join(directory, '.env'), 'NODE_ENV=production\nUSE_HTTPS=true\n');
+  const environment = { ...process.env };
+  for (const key of ['NODE_ENV', 'USE_HTTPS', 'SESSION_SECRET', 'JWT_SECRET', 'JWT_REFRESH_SECRET']) delete environment[key];
+  const backend = path.join(__dirname, '..');
+  const program = `
+    const assert = require('node:assert/strict');
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const root = ${JSON.stringify(backend)};
+    const id = require.resolve(path.join(root, 'db'));
+    require.cache[id] = { id, filename: id, loaded: true, exports: { pool: {
+      query: async () => ({ rows: [] }), end: async () => {}, on() {}
+    } } };
+    if (${JSON.stringify(mode)} === 'app') {
+      assert.throws(() => require(path.join(root, 'app')).createApp(), /secret configuration/);
+    } else {
+      const read = fs.readFileSync;
+      fs.readFileSync = (file, ...rest) => {
+        if (String(file).endsWith('localhost-key.pem')) throw new Error('TLS setting honoured');
+        return read(file, ...rest);
+      };
+      assert.throws(() => require(path.join(root, 'server')).createServer(), /TLS setting honoured/);
+    }
+    assert.equal(process.env.NODE_ENV, 'production');
+  `;
+  try {
+    const result = spawnSync(process.execPath, ['-e', program], {
+      cwd: directory, env: environment, encoding: 'utf8', timeout: 5000,
+    });
+    expect({ error: result.error?.message, status: result.status, stderr: result.stderr }).toEqual({ error: undefined, status: 0, stderr: expect.any(String) });
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('invalid TLS construction disposes the app without closing the shared pool', () => {
+  process.env.USE_HTTPS = 'true';
+  const read = fs.readFileSync;
+  jest.spyOn(fs, 'readFileSync').mockImplementation((file, ...args) =>
+    String(file).endsWith('.pem') ? 'synthetic invalid PEM' : read(file, ...args));
+  const factory = require('../app');
+  const actual = factory.createApp;
+  let cleanup;
+  jest.spyOn(factory, 'createApp').mockImplementation(options => {
+    const app = actual(options);
+    cleanup = jest.spyOn(app.locals, 'dispose');
+    return app;
+  });
+  pool.end.mockClear();
+  expect(() => production()).toThrow();
+  try {
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(pool.end).not.toHaveBeenCalled();
+  } finally { cleanup?.(); }
+});
+
+test('a failed second bind preserves the running server pool and permits retry', async () => {
+  process.env.HOST = '127.0.0.1'; process.env.PORT = '0';
+  const first = await startServer(); applications.push(first);
+  first.app.get('/db-probe', async (_req, res) => {
+    const result = await pool.query('SELECT synthetic'); res.json(result.rows);
+  });
+  const end = pool.end.mockImplementation(async () => {
+    pool.query.mockRejectedValue(new Error('closed pool'));
+  });
+  end.mockClear();
+  process.env.PORT = String(first.server.address().port);
+  await expect(startServer()).rejects.toMatchObject({ code: 'EADDRINUSE' });
+  expect(end).not.toHaveBeenCalled();
+  await request(first.server).get('/db-probe').expect(200);
+  process.env.PORT = '0';
+  const retry = await startServer(); applications.push(retry);
+  await request(retry.server).get('/api/users/profile').expect(401);
+  end.mockReset().mockResolvedValue();
+});
+
+test('loopback nginx forwarding preserves Secure cookies and separates client IPs', async () => {
+  const { app, server } = production();
+  app.get('/proxy-probe', (req, res) => {
+    req.session.synthetic = true; res.json({ secure: req.secure, ip: req.ip });
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const result = await request(server).get('/proxy-probe')
+    .set('X-Forwarded-Proto', 'https').set('X-Forwarded-For', '203.0.113.9, 198.51.100.10').expect(200);
+  expect(result.body).toEqual({ secure: true, ip: '198.51.100.10' });
+  expect(result.headers['set-cookie'][0]).toMatch(/HttpOnly; Secure; SameSite=Lax/);
+  for (let i=0; i<30; i++) await request(server).get('/api/not-found').set('X-Forwarded-For','198.51.100.10').expect(404);
+  await request(server).get('/api/not-found').set('X-Forwarded-For','198.51.100.10').expect(429);
+  await request(server).get('/api/not-found').set('X-Forwarded-For','198.51.100.11').expect(404);
+  expect(app.get('trust proxy fn')('198.51.100.11')).toBe(false);
+});

@@ -26,7 +26,10 @@ keine laufende PostgreSQL-Datenbank, SMTP-Verbindung oder PayPal-Zugangsdaten.
   Ein Import führt weder Warmup noch Zertifikatszugriff noch Listenerstart aus.
 
 Die Fabrikoptionen sind `frontendPath`, `accessLogStream` und
-`consoleLogging`. Umgebungsvariablen wie `NODE_ENV`, `ALLOWED_ORIGINS` und
+`consoleLogging`. Letzteres schaltet nur die über den lokalen `log`-Aufruf
+in `app.js` geführten Diagnosemeldungen ab. Routen-, Sicherheits-, Warn- und
+Fehlerprotokolle bleiben aktiv; es ist kein globaler Stummschalter.
+Umgebungsvariablen wie `NODE_ENV`, `ALLOWED_ORIGINS` und
 die Secrets werden wie im Betrieb ausgewertet. Es gibt keinen Schalter, der
 in Tests die Sicherheitsmiddleware abschaltet. Ratenzähler gehören zur App;
 `app.locals.dispose()` beendet deren Cleanup-Timer. Der Server ruft dies beim
@@ -78,3 +81,24 @@ Auslieferung.
 Offen bleiben unter anderem echte nginx-/Cache-Integration (#93/#96/#97),
 durchgängiger Widerruf (#83), Cookie-Migration (#42), DB-TLS (#94),
 Datenbankrechte (#43) und die vollständige Kauf-/Downloadkette (#16).
+
+## Review-Korrekturen vom 11. Oktober 2026
+
+Beide Fabriken laden `.env`, bevor sie Produktion oder TLS auswählen; bereits
+gesetzte Prozessvariablen behalten Vorrang. Ein bloßer Modulimport lädt die
+Umgebung weiterhin nicht. Dem lokalen nginx-Hop wird über `loopback` vertraut;
+fremde Adressen dürfen keine vertrauenswürdigen Proxy-Hops sein.
+
+Ungültiges TLS räumt die erzeugte App auf. Ein fehlgeschlagener Listenerstart
+schließt niemals den prozessweit geteilten DB-Pool. Das Schließen dieses Pools
+gehört dem Prozesseigentümer; der CLI-Fehlerpfad übernimmt es ausdrücklich.
+Die Regression prüft einen laufenden ersten Server, einen zweiten Start auf
+dem belegten Port und einen anschließenden erfolgreichen Neustartversuch.
+
+Für lokale Zertifikate: Server anhalten, dann `npm run generate-cert -- --renew`.
+Ohne `--renew` werden vorhandene Schlüssel nicht überschrieben. Schlüssel und
+Zertifikat werden vor dem Austausch vollständig erzeugt; eine fehlgeschlagene
+zweite Dateiumbenennung stellt das vorherige Paar wieder her. Zwei Dateien sind
+kein absturzatomarer Austausch: nach einem Prozess-/Rechnerabsturz den Generator
+bei angehaltenem Server erneut ausführen; eine zurückgebliebene `.generate.lock`
+erst entfernen, wenn kein Generator mehr läuft. Produktion nutzt den TLS-Proxy.
